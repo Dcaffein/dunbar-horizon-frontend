@@ -1,7 +1,7 @@
 import LogoutButton from "@/components/LogoutButton";
-import SocialGraph from "@/components/SocialGraph";
+import SocialGraph from "@/components/SocialGraph"; // 폴더 import (index.tsx)
 import { springClient } from "@/lib/springClient";
-import type { OneHopsNetworkDto } from "@/components/SocialGraph"; // DTO 타입 재사용
+import type { OneHopsNetworkDto } from "@/components/SocialGraph/types";
 
 export default async function MainPage() {
   const friends = await springClient.get<OneHopsNetworkDto[]>(
