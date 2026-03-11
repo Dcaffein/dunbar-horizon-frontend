@@ -1,3 +1,4 @@
+//app.proxy.ts
 import { NextResponse } from "next/server";
 import { BASE_URL } from "./lib/constants";
 import type { NextRequest } from "next/server";
@@ -8,14 +9,19 @@ function isTokenExpired(token: string): boolean {
     if (parts.length !== 3) return true;
 
     const base64Url = parts[1];
-    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    let base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+
+    while (base64.length % 4) {
+      base64 += "=";
+    }
+
     const jsonPayload = decodeURIComponent(
       atob(base64)
         .split("")
         .map(function (c) {
           return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2);
         })
-        .join("")
+        .join(""),
     );
 
     const payload = JSON.parse(jsonPayload);
@@ -24,19 +30,20 @@ function isTokenExpired(token: string): boolean {
       return true;
     }
 
-    return payload.exp < Math.floor(Date.now() / 1000);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    // 만료 시간 비교 (네트워크 지연을 고려해 10초 정도 텀을 둠)
+    return payload.exp < Math.floor(Date.now() / 1000) + 10;
   } catch (e) {
-    return true;
+    console.error("JWT Decode Error:", e);
+    return true; // 파싱 실패 시 만료로 간주
   }
 }
 
 async function refreshAccessToken(refreshToken: string) {
   try {
-    const response = await fetch(`${BASE_URL}/api/v1/auth/tokens`, {
-      method: "POST",
+    const response = await fetch(`${BASE_URL}/api/auth/tokens`, {
+      method: "PATCH",
       headers: {
-        Cookie: `refreshToken=${refreshToken}`,
+        Cookie: `refresh_token=${refreshToken}`,
       },
     });
 
@@ -69,7 +76,6 @@ function getCookieValue(cookieString: string, key: string): string | undefined {
 export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  //제외되는 경로
   if (
     pathname.startsWith("/login") ||
     pathname.startsWith("/signup") ||
@@ -81,8 +87,8 @@ export default async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const accessToken = request.cookies.get("accessToken")?.value;
-  const refreshToken = request.cookies.get("refreshToken")?.value;
+  const accessToken = request.cookies.get("access_token")?.value;
+  const refreshToken = request.cookies.get("refresh_token")?.value;
 
   if (accessToken && !isTokenExpired(accessToken)) {
     return NextResponse.next();
@@ -102,10 +108,10 @@ export default async function proxy(request: NextRequest) {
       });
 
       newCookieHeaders.forEach((cookieString) => {
-        if (cookieString.startsWith("accessToken=")) {
-          const newValue = getCookieValue(cookieString, "accessToken");
+        if (cookieString.startsWith("access_token=")) {
+          const newValue = getCookieValue(cookieString, "access_token");
           if (newValue) {
-            nextResponse.cookies.set("accessToken", newValue, {
+            nextResponse.cookies.set("access_token", newValue, {
               httpOnly: true,
               secure: true,
               sameSite: "strict",
@@ -115,16 +121,16 @@ export default async function proxy(request: NextRequest) {
             const currentCookies = requestHeaders.get("Cookie") || "";
             // 기존 accessToken 제거 (덮어쓰기)
             const updatedCookies =
-              currentCookies.replace(/accessToken=[^;]+;?/, "") +
-              `; accessToken=${newValue}`;
+              currentCookies.replace(/access_token=[^;]+;?/, "") +
+              `; access_token=${newValue}`;
             requestHeaders.set("Cookie", updatedCookies);
           }
         }
 
-        if (cookieString.startsWith("refreshToken=")) {
-          const newValue = getCookieValue(cookieString, "refreshToken");
+        if (cookieString.startsWith("refresh_token=")) {
+          const newValue = getCookieValue(cookieString, "refresh_token");
           if (newValue) {
-            nextResponse.cookies.set("refreshToken", newValue, {
+            nextResponse.cookies.set("refresh_token", newValue, {
               httpOnly: true,
               secure: true,
               sameSite: "strict",
@@ -132,8 +138,8 @@ export default async function proxy(request: NextRequest) {
             });
             const currentCookies = requestHeaders.get("Cookie") || "";
             const updatedCookies =
-              currentCookies.replace(/refreshToken=[^;]+;?/, "") +
-              `; refreshToken=${newValue}`;
+              currentCookies.replace(/refresh_token=[^;]+;?/, "") +
+              `; refresh_token=${newValue}`;
             requestHeaders.set("Cookie", updatedCookies);
           }
         }
@@ -148,7 +154,28 @@ export default async function proxy(request: NextRequest) {
 
   const loginUrl = new URL("/login", request.url);
   loginUrl.searchParams.set("callbackUrl", pathname);
-  return NextResponse.redirect(loginUrl);
+
+  //  현재 요청이 브라우저 화면 이동인가? 아니면 백그라운드 데이터(API/액션) 통신인가?
+  const isServerAction = request.headers.has("Next-Action");
+  const isAjax = request.headers.get("accept")?.includes("application/json");
+
+  if (isServerAction || isAjax) {
+    // 백그라운드 통신 중 토큰이 죽었다면, 강제로 401 에러 throw
+    const errorResponse = NextResponse.json(
+      { error: "Unauthorized" },
+      { status: 401 },
+    );
+    // 쓸모없어진 만료된 쿠키는 삭제
+    errorResponse.cookies.delete("access_token");
+    errorResponse.cookies.delete("refresh_token");
+    return errorResponse;
+  }
+
+  // 일반적인 브라우저 화면 이동(URL 직접 입력, Link 태그 등)일 때는 정상적으로 리다이렉트
+  const redirectResponse = NextResponse.redirect(loginUrl);
+  redirectResponse.cookies.delete("access_token");
+  redirectResponse.cookies.delete("refresh_token");
+  return redirectResponse;
 }
 
 export const config = {

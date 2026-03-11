@@ -1,352 +1,428 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+// components/socialGraph/index.tsx
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
-import CytoscapeComponent from "react-cytoscapejs";
-import cytoscape from "cytoscape";
-import fcose from "cytoscape-fcose";
-import {
-  getTwoHopSuggestionsAction,
-  type FriendSuggestionDto,
-} from "@/app/actions/social";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 
-import type {
-  OneHopsNetworkDto,
-  FcoseLayoutOptions,
-  LayoutType,
-} from "./types";
-// 함수형으로 변경된 styles import
+const CytoscapeWrapper = dynamic(() => import("./CytoscapeWrapper"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-full items-center justify-center text-gray-400">
+      <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mr-3"></div>
+      <p className="font-medium">그리는 중...</p>
+    </div>
+  ),
+});
+
+import { useGraphData } from "./useGraphData";
 import { getGraphStylesheet } from "./styles";
 import { getLayoutOptions } from "./layout";
-import { useGraphData } from "./useGraphData";
-
-import type {
-  Core,
-  NodeSingular,
-  EdgeSingular,
-  EventObject,
-  LayoutOptions,
-} from "cytoscape";
-
-cytoscape.use(fcose);
+import {
+  getTopIntimateNetworkAction,
+  getCustomNetworkAction,
+  getMutualEdgesByOneHopAction,
+  getTopInterestNetworkAction,
+} from "@/app/actions/social";
+import type { FriendshipDetail, NetworkFriendEdge, LayoutType } from "./types";
 
 interface SocialGraphProps {
-  friends: OneHopsNetworkDto[];
+  friends: FriendshipDetail[];
 }
 
 export default function SocialGraph({ friends }: SocialGraphProps) {
-  const [cyInstance, setCyInstance] = useState<Core | null>(null);
+  const router = useRouter();
+  const [edges, setEdges] = useState<NetworkFriendEdge[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isGraphActive, setIsGraphActive] = useState(false);
+  const [layoutType, setLayoutType] = useState<LayoutType>("connectivity");
 
-  const [suggestions, setSuggestions] = useState<FriendSuggestionDto[]>([]);
-  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [layoutType, setLayoutType] = useState<LayoutType>("spiral");
+  const [networkMode, setNetworkMode] = useState<"top" | "custom">("top");
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [isSnapshot, setIsSnapshot] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
 
-  // ✅ [추가] 현재 선택된(인터랙션 중인) 노드 ID 상태 관리
-  // 노드를 클릭해서 관계를 보고 있을 때는 레이아웃 변경을 막기 위함
-  const [interactingNodeId, setInteractingNodeId] = useState<string | null>(
-    null
+  const cyRef = useRef<cytoscape.Core | null>(null);
+  const elements = useGraphData({ friends, edges, layoutType });
+
+  const CY_STYLE = useMemo(() => ({ width: "100%", height: "100%" }), []);
+  const isFetchingEdges = useRef(false);
+
+  const memoizedLayout = useMemo(
+    () => getLayoutOptions(layoutType, isSnapshot),
+    [layoutType, isSnapshot],
   );
 
-  const elements = useGraphData({
-    friends,
-    suggestions,
-    showSuggestions,
-    layoutType,
-  });
-  const layoutOptions = useMemo(
-    () => getLayoutOptions(layoutType),
-    [layoutType]
-  );
-  // 레이아웃 타입에 따라 스타일시트 동적 생성
-  const stylesheet = useMemo(
+  const memoizedStylesheet = useMemo(
     () => getGraphStylesheet(layoutType),
-    [layoutType]
+    [layoutType],
   );
 
-  // ----------------------------------------------------------------------
-  // Handlers
-  // ----------------------------------------------------------------------
+  // 클릭 시 API를 호출할지 말지 결정하는 Ref 함수
+  const handleNodeClickRef = useRef((nodeId: number) => {});
 
-  const handleToggleSuggestions = async () => {
-    if (suggestions.length > 0) {
-      setShowSuggestions((prev) => !prev);
+  // 매 렌더링마다 최신 edges를 참조하도록 업데이트
+  handleNodeClickRef.current = async (nodeId: number) => {
+    setSelectedNodeId(String(nodeId));
+
+    const isAlreadyLoaded = edges.some((e) => e.friendAId === nodeId);
+
+    if (!isAlreadyLoaded) {
+      // 새로운 엣지를 가져올 때는 기존의 강력한 레이아웃(3000번)이
+      // CytoscapeWrapper의 useEffect를 통해 자동으로 돌아감.
+      isFetchingEdges.current = true;
+      try {
+        const result = await getMutualEdgesByOneHopAction(nodeId);
+        if (result.success && result.data) {
+          setEdges((prev) => [...prev, ...result.data]);
+        }
+      } catch (error) {
+        console.error("엣지 데이터를 불러오는데 실패했습니다.", error);
+      }
+    } else {
+      //  이미 다 불러온 노드라면 가벼운 레이아웃만 재실행함.
+      isFetchingEdges.current = false;
+
+      if (cyRef.current) {
+        // 기존 옵션을 가져오되, 연산량만 낮춰서 덮어씌움
+        const lightOptions = {
+          ...getLayoutOptions(layoutType, isSnapshot),
+          quality: "proof",
+          numIter: 800, // 횟수 작게
+          randomize: false,
+          fit: false,
+        };
+        cyRef.current.layout(lightOptions).run();
+      }
+    }
+  };
+
+  const handleCyInit = useCallback((cy: any) => {
+    cyRef.current = cy;
+    cy.off("tap");
+
+    // 배경 클릭 시 리셋
+    cy.on("tap", (evt: any) => {
+      if (evt.target === cy) {
+        setSelectedNodeId(null);
+      }
+    });
+
+    // 노드 클릭 시
+    cy.on("tap", "node", (evt: any) => {
+      // cytoscape의 id는 string이므로 number로 변환해서 넘겨줌
+      handleNodeClickRef.current(Number(evt.target.id()));
+    });
+  }, []);
+
+  // 선택된 노드와 엣지를 하이라이트하고 줌인하는 효과
+  useEffect(() => {
+    const cy = cyRef.current;
+    if (!cy) return;
+
+    if (!selectedNodeId) {
+      cy.elements().removeClass("highlighted faded visible");
       return;
     }
 
-    if (isLoadingSuggestions) return;
-    setIsLoadingSuggestions(true);
+    // 새로운 엣지를 가져와서 노드가 이동 중일 때는 600ms를 넉넉히 기다리고,
+    // 원래 있던 노드라면 100ms 만에 즉각 반응함.
+    const delay = isFetchingEdges.current ? 400 : 100;
 
-    const result = await getTwoHopSuggestionsAction();
+    const timer = setTimeout(() => {
+      const node = cy.getElementById(selectedNodeId);
+      if (node.length === 0) return;
 
-    if (result.success && result.data) {
-      if (result.data.length === 0) {
-        alert("새로운 추천 친구가 없습니다.");
-      } else {
-        setSuggestions(result.data);
-        setShowSuggestions(true);
+      cy.elements().removeClass("highlighted faded visible");
+      cy.elements().difference(node.neighborhood()).addClass("faded");
+      node.addClass("highlighted");
+      node.neighborhood("node").addClass("highlighted");
+      node.connectedEdges().addClass("visible");
+
+      cy.animate(
+        {
+          center: { eles: node },
+          zoom: 1.0,
+        },
+        { duration: 350, easing: "ease-out-quad" },
+      );
+
+      // 카메라 이동이 끝나면 flag false
+      isFetchingEdges.current = false;
+    }, delay);
+
+    return () => clearTimeout(timer);
+  }, [selectedNodeId, edges, layoutType]);
+
+  //  기본 TOP 150 intimacy 네트워크 렌더링
+  const handleActivateTopNetwork = async () => {
+    setIsLoading(true);
+    setIsSnapshot(false);
+    try {
+      // 현재 선택된 테마가 '관심도'라면 관심도 API를, 아니면 기본(친밀도) API를 호출함.
+      const result =
+        layoutType === "interest"
+          ? await getTopInterestNetworkAction()
+          : await getTopIntimateNetworkAction();
+
+      if (result.success && result.data) {
+        setEdges(result.data);
+        setIsGraphActive(true);
       }
-    } else {
-      alert(result.message || "추천을 불러오지 못했습니다.");
+    } catch (error) {
+      router.push("/login");
+    } finally {
+      setIsLoading(false);
     }
-
-    setIsLoadingSuggestions(false);
   };
 
-  const runInteractionLayout = (cy: Core, activeNode?: NodeSingular) => {
-    // ✅ [수정] 나선형(Spiral) 제한 제거: 모든 레이아웃에서 당겨오기 효과 적용
-    // if (layoutType === "spiral") return;
+  const handleThemeChange = async (newLayout: LayoutType) => {
+    // 버튼 색상 및 레이아웃 규칙은 즉시 변경해서 애니메이션이 시작되게 함
+    setLayoutType(newLayout);
 
-    const currentLayout = getLayoutOptions(layoutType);
+    if (isGraphActive && networkMode === "top") {
+      //  데이터 교체가 진짜 필요한 상황인지 검사함.
+      // 기존 테마가 관심도였는지, 새 테마가 관심도인지 확인
+      const isOldInterest = layoutType === "interest";
+      const isNewInterest = newLayout === "interest";
 
-    const layoutConfig: FcoseLayoutOptions = {
-      ...currentLayout,
-      randomize: false,
-      fit: false,
-      animate: true,
-      animationDuration: 800,
-      animationEasing: "ease-out",
-      initialEnergyOnIncremental: 0.3,
+      // 둘의 상태가 다를 때만 (친밀도 계열 <-> 관심도) 데이터를 새로 받아옴.
+      if (isOldInterest !== isNewInterest) {
+        setIsLoading(true);
+        try {
+          const result = isNewInterest
+            ? await getTopInterestNetworkAction()
+            : await getTopIntimateNetworkAction();
 
-      idealEdgeLength: (edge: EdgeSingular) => {
-        if (activeNode && edge.connectedNodes().has(activeNode)) {
-          return 50;
+          if (result.success && result.data) {
+            setEdges(result.data);
+          }
+        } catch (error) {
+          console.error("테마 데이터 변경 실패:", error);
+        } finally {
+          setIsLoading(false);
         }
-        return (currentLayout.idealEdgeLength as (e: EdgeSingular) => number)(
-          edge
-        );
-      },
-
-      nodeRepulsion: (node: NodeSingular) => {
-        return (currentLayout.nodeRepulsion as (n: NodeSingular) => number)(
-          node
-        );
-      },
-    };
-
-    cy.makeLayout(layoutConfig as unknown as LayoutOptions).run();
-  };
-
-  const handleCy = useCallback(
-    (cy: Core) => {
-      setCyInstance(cy);
-
-      cy.on("tap", "node", (evt: EventObject) => {
-        const node = evt.target as NodeSingular;
-
-        // 상태 업데이트 (인터랙션 시작)
-        setInteractingNodeId(node.id());
-
-        cy.elements().removeClass("highlighted neighbor visible faded");
-        node.addClass("highlighted");
-
-        const connectedEdges = node.connectedEdges();
-        const connectedNodes = connectedEdges.connectedNodes();
-
-        connectedEdges.addClass("visible");
-        connectedNodes.addClass("neighbor");
-
-        const others = cy
-          .elements()
-          .not(node)
-          .not(connectedNodes)
-          .not(connectedEdges);
-        others.addClass("faded");
-
-        runInteractionLayout(cy, node);
-      });
-
-      cy.on("tap", (evt: EventObject) => {
-        if (evt.target === cy) {
-          // 상태 초기화 (인터랙션 종료)
-          setInteractingNodeId(null);
-
-          cy.elements().removeClass("highlighted neighbor visible faded");
-          runInteractionLayout(cy, undefined);
-        }
-      });
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    },
-    [layoutType]
-  );
-
-  const handleZoomIn = () => {
-    if (cyInstance) {
-      cyInstance.zoom({
-        level: cyInstance.zoom() * 1.2,
-        renderedPosition: {
-          x: cyInstance.width() / 2,
-          y: cyInstance.height() / 2,
-        },
-      });
+      }
     }
   };
 
-  const handleZoomOut = () => {
-    if (cyInstance) {
-      cyInstance.zoom({
-        level: cyInstance.zoom() / 1.2,
-        renderedPosition: {
-          x: cyInstance.width() / 2,
-          y: cyInstance.height() / 2,
-        },
-      });
+  //  사용자 지정 네트워크 렌더링
+  const handleActivateCustomNetwork = async () => {
+    if (selectedIds.size < 2) return alert("2명 이상의 친구를 선택해주세요.");
+
+    setIsLoading(true);
+    if (selectedIds.size > 50) {
+      setIsSnapshot(true);
+    }
+    try {
+      const result = await getCustomNetworkAction(Array.from(selectedIds));
+
+      if (!result.success || !result.data) {
+        throw new Error(result.message || "데이터를 불러오지 못했습니다.");
+      }
+
+      setEdges(result.data);
+      setIsGraphActive(true);
+    } catch (error) {
+      router.push("/login");
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  // ----------------------------------------------------------------------
-  // Render
-  // ----------------------------------------------------------------------
+  const toggleSelection = (id: number) => {
+    const newSet = new Set(selectedIds);
+    if (newSet.has(id)) newSet.delete(id);
+    else newSet.add(id);
+    setSelectedIds(newSet);
+  };
 
   return (
-    <div className="relative w-full h-full border border-gray-200 rounded-2xl overflow-hidden bg-white shadow-inner">
-      {/* 레이아웃 선택기 */}
-      <div className="absolute top-6 left-6 z-10 flex flex-col gap-2">
-        <div className="bg-white/90 p-1.5 rounded-xl border border-gray-200 shadow-sm flex gap-1 backdrop-blur-sm">
-          {/* ✅ [수정] interactingNodeId가 있으면 버튼 비활성화 */}
-          <button
-            onClick={() => setLayoutType("spiral")}
-            disabled={!!interactingNodeId}
-            className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
-              layoutType === "spiral"
-                ? "bg-indigo-100 text-indigo-700 shadow-sm"
-                : "text-gray-500 hover:bg-gray-50"
-            } ${!!interactingNodeId ? "opacity-50 cursor-not-allowed" : ""}`}
-          >
-            🌻 연결된 친구가 많은 친구를 그룹안쪽에
-          </button>
-          <button
-            onClick={() => setLayoutType("community")}
-            disabled={!!interactingNodeId}
-            className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
-              layoutType === "community"
-                ? "bg-indigo-100 text-indigo-700 shadow-sm"
-                : "text-gray-500 hover:bg-gray-50"
-            } ${!!interactingNodeId ? "opacity-50 cursor-not-allowed" : ""}`}
-          >
-            💎 상호 연결된 친구가 많은 친구끼리 가깝게
-          </button>
-          <button
-            onClick={() => setLayoutType("interaction")}
-            disabled={!!interactingNodeId}
-            className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
-              layoutType === "interaction"
-                ? "bg-indigo-100 text-indigo-700 shadow-sm"
-                : "text-gray-500 hover:bg-gray-50"
-            } ${!!interactingNodeId ? "opacity-50 cursor-not-allowed" : ""}`}
-          >
-            💖 친밀도
-          </button>
-        </div>
-      </div>
-
-      <CytoscapeComponent
-        elements={CytoscapeComponent.normalizeElements(elements)}
-        style={{ width: "100%", height: "100%" }}
-        layout={layoutOptions as unknown as LayoutOptions}
-        stylesheet={stylesheet}
-        cy={handleCy}
-        pan={{ x: 0, y: 0 }}
-        zoom={1}
-        minZoom={0.2}
-        maxZoom={3}
-        wheelSensitivity={0.3}
-        boxSelectionEnabled={false}
-      />
-
-      {/* 범례 */}
-      <div className="absolute top-6 right-6 pointer-events-none z-10 flex flex-col items-end gap-2">
-        <div className="bg-white/90 p-4 rounded-xl border border-gray-100 shadow-md backdrop-blur-sm text-sm text-gray-600">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="w-3 h-3 rounded-full bg-blue-400 block"></span>
-            <span>친구</span>
-          </div>
-          {suggestions.length > 0 && showSuggestions && (
-            <div className="flex items-center gap-2 mb-2">
-              <span className="w-3 h-3 rounded-full bg-amber-500 block border border-dashed border-white"></span>
-              <span>추천 친구 (2촌)</span>
+    <div className="flex h-full w-full bg-white relative overflow-hidden">
+      {/* 사이드바 컨테이너 */}
+      <div
+        className={`relative h-full transition-all duration-300 ease-in-out shrink-0 z-20 ${
+          isSidebarOpen ? "w-80" : "w-0"
+        }`}
+      >
+        <aside
+          className={`absolute top-0 left-0 w-80 h-full border-r bg-gray-50 flex flex-col transition-transform duration-300 ease-in-out ${
+            isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+          }`}
+        >
+          <div className="p-5 border-b">
+            <div className="flex gap-2 mb-4 bg-gray-200 p-1 rounded-lg">
+              <button
+                onClick={() => setNetworkMode("top")}
+                className={`flex-1 py-1.5 text-sm font-bold rounded-md transition ${networkMode === "top" ? "bg-white shadow" : "text-gray-500"}`}
+              >
+                TOP 네트워크
+              </button>
+              <button
+                onClick={() => setNetworkMode("custom")}
+                className={`flex-1 py-1.5 text-sm font-bold rounded-md transition ${networkMode === "custom" ? "bg-white shadow" : "text-gray-500"}`}
+              >
+                직접 선택
+              </button>
             </div>
-          )}
-          <p className="text-xs text-gray-500 mt-2">
-            * 노드를 클릭하면
-            <br />
-            친구가 당겨집니다.
-          </p>
-        </div>
-      </div>
 
-      {/* 줌 컨트롤 */}
-      <div className="absolute bottom-8 right-6 z-10 flex flex-col gap-2">
-        <button
-          onClick={handleZoomIn}
-          className="w-10 h-10 bg-white rounded-full shadow-md border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-50 hover:text-indigo-600 transition-colors focus:outline-none"
-          title="Zoom In"
-        >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-            />
-          </svg>
-        </button>
-        <button
-          onClick={handleZoomOut}
-          className="w-10 h-10 bg-white rounded-full shadow-md border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-50 hover:text-indigo-600 transition-colors focus:outline-none"
-          title="Zoom Out"
-        >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M20 12H4"
-            />
-          </svg>
-        </button>
-      </div>
-
-      {/* 친구 추천 버튼 */}
-      <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-10">
-        <button
-          onClick={handleToggleSuggestions}
-          disabled={isLoadingSuggestions}
-          className={`
-              font-bold py-3 px-6 rounded-full shadow-lg transition-all transform hover:scale-105 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2
-              ${
-                showSuggestions
-                  ? "bg-white text-indigo-600 border-2 border-indigo-600 hover:bg-indigo-50"
-                  : "bg-indigo-600 text-white hover:bg-indigo-700"
+            <button
+              onClick={
+                networkMode === "top"
+                  ? handleActivateTopNetwork
+                  : handleActivateCustomNetwork
               }
-            `}
+              disabled={isLoading}
+              className="w-full bg-indigo-600 text-white font-semibold py-3 rounded-xl hover:bg-indigo-700 disabled:opacity-50"
+            >
+              {isLoading ? "지평선 탐색 중..." : "네트워크 렌더링 시작"}
+            </button>
+            <div className="mt-5">
+              <label className="block text-xs font-bold text-gray-500 mb-2 px-1">
+                지평선 관점 (레이아웃)
+              </label>
+              <div className="flex gap-1 bg-gray-200 p-1 rounded-lg">
+                <button
+                  onClick={() => handleThemeChange("connectivity")}
+                  className={`flex-1 py-1.5 text-xs font-bold rounded-md transition ${
+                    layoutType === "connectivity"
+                      ? "bg-white shadow text-indigo-700"
+                      : "text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  연결망
+                </button>
+                <button
+                  onClick={() => handleThemeChange("intimacy")}
+                  className={`flex-1 py-1.5 text-xs font-bold rounded-md transition ${
+                    layoutType === "intimacy"
+                      ? "bg-white shadow text-indigo-700"
+                      : "text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  친밀도
+                </button>
+                <button
+                  onClick={() => handleThemeChange("interest")}
+                  className={`flex-1 py-1.5 text-xs font-bold rounded-md transition ${
+                    layoutType === "interest"
+                      ? "bg-white shadow text-indigo-700"
+                      : "text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  관심도
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-4 space-y-2">
+            {friends.map((friend) => (
+              <div
+                key={friend.friendId}
+                className="flex items-center gap-3 p-2 bg-white rounded-lg shadow-sm border border-gray-100"
+              >
+                {networkMode === "custom" && (
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(friend.friendId)}
+                    onChange={() => toggleSelection(friend.friendId)}
+                    className="w-4 h-4 text-indigo-600 rounded"
+                  />
+                )}
+                <div className="w-8 h-8 rounded-full bg-gray-200 shrink-0 overflow-hidden">
+                  {friend.friendProfileImageUrl && (
+                    <img src={friend.friendProfileImageUrl} alt="profile" />
+                  )}
+                </div>
+                <p className="text-sm font-medium truncate">
+                  {friend.friendAlias || friend.friendNickname}
+                </p>
+              </div>
+            ))}
+          </div>
+        </aside>
+
+        <button
+          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+          className="absolute top-1/2 -right-8 w-8 h-16 bg-white border border-l-0 border-gray-200 rounded-r-xl shadow-md flex items-center justify-center text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 transition-colors transform -translate-y-1/2 focus:outline-none"
+          title={isSidebarOpen ? "목록 숨기기" : "목록 보기"}
         >
-          {isLoadingSuggestions ? (
-            <>
-              <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
-              분석 중...
-            </>
+          {isSidebarOpen ? (
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="m15 18-6-6 6-6" />
+            </svg>
           ) : (
-            <>
-              <span>{showSuggestions ? "👁️‍🗨️" : "✨"}</span>
-              {suggestions.length === 0
-                ? "2촌 친구 추천 받기"
-                : showSuggestions
-                ? "추천 친구 숨기기"
-                : "추천 친구 보기"}
-            </>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="m9 18 6-6-6-6" />
+            </svg>
           )}
         </button>
       </div>
+
+      <main className="flex-1 h-full relative">
+        {/* 기존 로딩 스피너 */}
+        {isLoading && (
+          <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm">
+            <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
+            <p className="font-bold text-gray-700">관계망을 계산 중입니다...</p>
+          </div>
+        )}
+
+        {/* 렌더링 전 빈 화면일 때 보여줄 안내 메시지 */}
+        {!isGraphActive && !isLoading && (
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-gray-50/80">
+            <svg
+              className="w-16 h-16 text-gray-300 mb-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.5}
+                d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2-1M4 7l2 1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5"
+              />
+            </svg>
+            <p className="text-gray-500 font-medium">
+              친구들로 이뤄진 네트워크를 시각화해보세요
+            </p>
+          </div>
+        )}
+
+        <CytoscapeWrapper
+          // isGraphActive가 true일 때만 elements를 넘기고, 아니면 빈 배열([])을 넘김.
+          elements={isGraphActive ? elements : []}
+          stylesheet={memoizedStylesheet}
+          layout={memoizedLayout}
+          style={CY_STYLE}
+          wheelSensitivity={3.0}
+          cy={handleCyInit}
+        />
+      </main>
     </div>
   );
 }

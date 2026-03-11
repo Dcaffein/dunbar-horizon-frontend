@@ -91,7 +91,7 @@ export async function sendVerificationEmail(email: string) {
 
   try {
     const redirectPage = "/verify-email";
-    await springClient.post("/api/v1/auth/email-verifications", {
+    await springClient.post("/api/auth/verifications", {
       email,
       redirectPage,
     });
@@ -104,7 +104,7 @@ export async function sendVerificationEmail(email: string) {
 
 export async function loginAction(
   _prevState: AuthFormState,
-  formData: FormData
+  formData: FormData,
 ): Promise<AuthFormState> {
   const rawData = {
     email: formData.get("email"),
@@ -123,7 +123,7 @@ export async function loginAction(
   const { email, password } = validated.data;
 
   try {
-    const res = await fetch(`${BASE_URL}/api/v1/auth/login`, {
+    const res = await fetch(`${BASE_URL}/api/auth/tokens`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
@@ -132,6 +132,7 @@ export async function loginAction(
 
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({}));
+      console.log("[LoginAction] 로그인 실패 응답:", errorData);
 
       if (
         errorData.code === "UNVERIFIED" ||
@@ -148,15 +149,31 @@ export async function loginAction(
     }
 
     const setCookieHeaders = res.headers.getSetCookie();
-    if (setCookieHeaders) {
+    console.log(
+      "[LoginAction] 백엔드에서 받은 Set-Cookie 헤더 원본:",
+      setCookieHeaders,
+    );
+
+    if (setCookieHeaders && setCookieHeaders.length > 0) {
       const cookieStore = await cookies();
+
       setCookieHeaders.forEach((h) => {
         const parsed = parseSetCookie(h);
-        if (parsed) cookieStore.set(parsed.name, parsed.value, parsed.options);
+        console.log("[LoginAction] 파싱된 쿠키 객체:", parsed);
+
+        if (parsed) {
+          cookieStore.set(parsed.name, parsed.value, parsed.options);
+          console.log(
+            `[LoginAction] 브라우저에 쿠키 세팅 완료: ${parsed.name}`,
+          );
+        }
       });
+    } else {
+      console.warn(
+        "[LoginAction] 경고: 백엔드에서 Set-Cookie 헤더를 주지 않았습니다!",
+      );
     }
   } catch (_e) {
-    console.error(_e);
     return { message: "서버 연결 중 오류가 발생했습니다." };
   }
 
@@ -165,7 +182,7 @@ export async function loginAction(
 
 export async function signupAction(
   _prevState: AuthFormState,
-  formData: FormData
+  formData: FormData,
 ): Promise<AuthFormState> {
   const rawData = {
     email: formData.get("email"),
@@ -187,7 +204,7 @@ export async function signupAction(
   const { email, nickname, password } = validated.data;
 
   try {
-    await springClient.post<void, SignUpRequest>("api/v1/users", {
+    await springClient.post<void, SignUpRequest>("/api/auth/users", {
       email,
       nickname,
       password,
@@ -206,15 +223,15 @@ export async function signupAction(
 
 export async function logoutAction() {
   const cookieStore = await cookies();
-  const accessToken = cookieStore.get("accessToken")?.value;
-  const refreshToken = cookieStore.get("refreshToken")?.value;
+  const accessToken = cookieStore.get("access_token")?.value;
+  const refreshToken = cookieStore.get("refresh_token")?.value;
 
   try {
     if (accessToken && refreshToken) {
-      await fetch(`${BASE_URL}/api/v1/auth/tokens`, {
+      await fetch(`${BASE_URL}/api/auth/tokens`, {
         method: "DELETE",
         headers: {
-          Cookie: `accessToken=${accessToken}; refreshToken=${refreshToken}`,
+          Cookie: `access_token=${accessToken}; refresh_token=${refreshToken}`,
         },
       });
     }
@@ -222,8 +239,8 @@ export async function logoutAction() {
     console.error("Backend logout failed", e);
   }
 
-  cookieStore.delete("accessToken");
-  cookieStore.delete("refreshToken");
+  cookieStore.delete("access_token");
+  cookieStore.delete("refresh_token");
 
   redirect("/login");
 }
@@ -234,7 +251,9 @@ export async function verifyEmailAction(token: string) {
   }
 
   try {
-    await springClient.get(`/api/v1/auth/email-verifications?token=${token}`);
+    await springClient.patch("/api/auth/verifications", undefined, {
+      params: { token },
+    });
 
     return {
       success: true,

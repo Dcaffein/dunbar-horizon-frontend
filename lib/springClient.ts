@@ -13,11 +13,11 @@ async function fetchInternal<TResult, TBody = unknown>(
   endpoint: string,
   method: HttpMethod,
   body?: TBody,
-  options: RequestOptions = {}
+  options: RequestOptions = {},
 ): Promise<TResult> {
   // set up request
   const cookieStore = await cookies();
-  const accessToken = cookieStore.get("accessToken")?.value;
+  const accessToken = cookieStore.get("access_token")?.value;
 
   let url = `${BASE_URL}${
     endpoint.startsWith("/") ? endpoint : `/${endpoint}`
@@ -37,7 +37,7 @@ async function fetchInternal<TResult, TBody = unknown>(
   };
 
   if (accessToken) {
-    headers["Cookie"] = `accessToken=${accessToken}`;
+    headers["Cookie"] = `access_token=${accessToken}`;
   }
 
   //start to fetch
@@ -53,7 +53,7 @@ async function fetchInternal<TResult, TBody = unknown>(
     //jwt Authorization 획득 실패
     if (response.status === 401) {
       console.warn(
-        `[SpringClient] 401 Unauthorized at ${url}. Redirecting to login.`
+        `[SpringClient] 401 Unauthorized at ${url}. Redirecting to login.`,
       );
       redirect("/login");
     }
@@ -98,15 +98,7 @@ async function fetchInternal<TResult, TBody = unknown>(
   }
 }
 
-/*
-    nextjs의 redirect신호
-    {
-        digest: "NEXT_REDIRECT;replace;/login",
-        mutableCookies: "...",
-        // ... 기타 내부 속성들
-    }
-*/
-function isRedirectError(error: unknown): boolean {
+export function isRedirectError(error: unknown): boolean {
   return (
     (typeof error === "object" &&
       error !== null &&
@@ -121,24 +113,27 @@ export const springClient = {
   get: <TResult>(endpoint: string, options?: RequestOptions) =>
     fetchInternal<TResult, undefined>(endpoint, "GET", undefined, options),
 
-  post: <TResult, TBody>(
+  post: <TResult, TBody = undefined>(
     endpoint: string,
-    body: TBody,
-    options?: RequestOptions
-  ) => fetchInternal<TResult, TBody>(endpoint, "POST", body, options),
+    body?: TBody,
+    options?: RequestOptions,
+  ) =>
+    fetchInternal<TResult, TBody | undefined>(endpoint, "POST", body, options),
 
-  put: <TResult, TBody>(
+  put: <TResult, TBody = undefined>(
     endpoint: string,
-    body: TBody,
-    options?: RequestOptions
-  ) => fetchInternal<TResult, TBody>(endpoint, "PUT", body, options),
+    body?: TBody,
+    options?: RequestOptions,
+  ) =>
+    fetchInternal<TResult, TBody | undefined>(endpoint, "PUT", body, options),
 
   delete: <TResult>(endpoint: string, options?: RequestOptions) =>
     fetchInternal<TResult, undefined>(endpoint, "DELETE", undefined, options),
 
-  patch: <TResult, TBody>(
+  patch: <TResult, TBody = undefined>(
     endpoint: string,
-    body: TBody,
-    options?: RequestOptions
-  ) => fetchInternal<TResult, TBody>(endpoint, "PATCH", body, options),
+    body?: TBody,
+    options?: RequestOptions,
+  ) =>
+    fetchInternal<TResult, TBody | undefined>(endpoint, "PATCH", body, options),
 };

@@ -1,155 +1,72 @@
+// components/socialGraph/useGraphData.ts
+
 import { useMemo } from "react";
 import type { ElementDefinition } from "cytoscape";
-import type { OneHopsNetworkDto, LayoutType } from "./types";
-import type { FriendSuggestionDto } from "@/app/actions/social";
+import type { FriendshipDetail, NetworkFriendEdge, LayoutType } from "./types";
 
 interface UseGraphDataProps {
-  friends: OneHopsNetworkDto[];
-  suggestions: FriendSuggestionDto[];
-  showSuggestions: boolean;
+  friends: FriendshipDetail[];
+  edges: NetworkFriendEdge[];
   layoutType: LayoutType;
-}
-
-// [나선형] 위치 계산
-function getSpiralPosition(rank: number, scale: number = 60) {
-  const angle = rank * 2.39996;
-  const radius = scale * Math.sqrt(rank);
-  return {
-    x: radius * Math.cos(angle),
-    y: radius * Math.sin(angle),
-  };
-}
-
-// [커뮤니티/친밀도형] 랜덤 위치
-function getRandomPosition(id: string, scale: number = 1000) {
-  let h = 0x811c9dc5;
-  for (let i = 0; i < id.length; i++) {
-    h ^= id.charCodeAt(i);
-    h = Math.imul(h, 0x01000193);
-  }
-  const rand = (h >>> 0) / 4294967296;
-  return {
-    x: (rand - 0.5) * scale * 2,
-    y: (((rand * 100) % 1) - 0.5) * scale * 2,
-  };
 }
 
 export function useGraphData({
   friends,
-  suggestions,
-  showSuggestions,
+  edges,
   layoutType,
 }: UseGraphDataProps) {
-  // 정렬 (중요도 순)
-  const sortedFriends = useMemo(() => {
-    return [...friends].sort((a, b) => {
-      if (b.mutualFriendIds.length !== a.mutualFriendIds.length) {
-        return b.mutualFriendIds.length - a.mutualFriendIds.length;
-      }
-      return a.friendId.localeCompare(b.friendId);
+  const connectionMap = useMemo(() => {
+    const counts = new Map<number, number>();
+    edges.forEach((edge) => {
+      counts.set(edge.friendAId, (counts.get(edge.friendAId) || 0) + 1);
+      counts.set(edge.friendBId, (counts.get(edge.friendBId) || 0) + 1);
     });
-  }, [friends]);
+    return counts;
+  }, [edges]);
 
-  const rankMap = useMemo(() => {
-    const map = new Map<string, number>();
-    sortedFriends.forEach((f, idx) => map.set(f.friendId, idx));
-    const sortedSug = [...suggestions].sort((a, b) =>
-      a.suggestedFriendId.localeCompare(b.suggestedFriendId)
-    );
-    sortedSug.forEach((s, idx) => {
-      if (!map.has(s.suggestedFriendId)) {
-        map.set(s.suggestedFriendId, sortedFriends.length + idx);
-      }
-    });
-    return map;
-  }, [sortedFriends, suggestions]);
+  return useMemo(() => {
+    // (선이 0개여도 친구 노드들은 화면에 띄워야 함)
+    if (friends.length === 0) return [];
 
-  const elements = useMemo(() => {
-    const nodes: ElementDefinition[] = [];
-    const edges: ElementDefinition[] = [];
-    const addedIds = new Set<string>();
+    // friends 배열에 있는 전원을 유효한 노드로 인정함.
+    const validNodeIds = new Set(friends.map((f) => String(f.friendId)));
 
-    const getPosition = (id: string) => {
-      const rank = rankMap.get(id) ?? 0;
-      switch (layoutType) {
-        case "interaction":
-        case "community":
-          return getRandomPosition(id, 1200);
-        case "spiral":
-        default:
-          return getSpiralPosition(rank, 80);
-      }
-    };
+    const nodes: ElementDefinition[] = friends.map((f) => ({
+      data: {
+        id: String(f.friendId),
+        label: f.friendAlias || f.friendNickname,
+        image: f.friendProfileImageUrl || undefined,
+        intimacy: f.intimacy,
+        interest: f.myInterestScore,
+        mutualCount: connectionMap.get(f.friendId) || 0,
+        isMuted: f.isMuted,
+        type: "friend",
+      },
+    }));
 
-    // 1촌 친구
-    friends.forEach((f) => {
-      if (!addedIds.has(f.friendId)) {
-        nodes.push({
+    // 양 끝단이 모두 내 친구 안에 있는 유효한 엣지만 남김.
+    const graphEdges: ElementDefinition[] = edges
+      .filter(
+        (e) =>
+          validNodeIds.has(String(e.friendAId)) &&
+          validNodeIds.has(String(e.friendBId)),
+      )
+      .map((e) => {
+        // 중복 엣지 완벽 방어
+        const minId = Math.min(e.friendAId, e.friendBId);
+        const maxId = Math.max(e.friendAId, e.friendBId);
+
+        return {
           data: {
-            id: f.friendId,
-            label: f.alias || f.friendName,
-            // ✅ [변경] weight: 0.0~1.0 (친밀도), mutualCount: 정수 (함께 아는 친구 수)
-            weight: f.weight ?? 0.1,
-            mutualCount: f.mutualFriendIds.length,
-            type: "friend",
+            id: `edge-${minId}-${maxId}`,
+            source: String(e.friendAId),
+            target: String(e.friendBId),
+            intimacy: e.intimacy,
+            type: "friend-edge",
           },
-          position: getPosition(f.friendId),
-        });
-        addedIds.add(f.friendId);
-      }
-
-      f.mutualFriendIds.forEach((mutualId) => {
-        if (friends.some((fr) => fr.friendId === mutualId)) {
-          const edgeKey = [f.friendId, mutualId].sort().join("-");
-          if (!addedIds.has(edgeKey)) {
-            edges.push({
-              data: {
-                source: f.friendId,
-                target: mutualId,
-                id: edgeKey,
-                type: "friend-edge",
-              },
-            });
-            addedIds.add(edgeKey);
-          }
-        }
+        };
       });
-    });
 
-    // 2촌 친구
-    if (showSuggestions) {
-      suggestions.forEach((s) => {
-        if (!addedIds.has(s.suggestedFriendId)) {
-          nodes.push({
-            data: {
-              id: s.suggestedFriendId,
-              label: s.suggestedFriendName,
-              weight: 0.1, // 2촌은 기본값
-              mutualCount: 1,
-              type: "suggestion",
-            },
-            position: getPosition(s.suggestedFriendId),
-          });
-          addedIds.add(s.suggestedFriendId);
-        }
-
-        const edgeKey = `sug-${s.commonFriendId}-${s.suggestedFriendId}`;
-        if (!addedIds.has(edgeKey)) {
-          edges.push({
-            data: {
-              source: s.commonFriendId,
-              target: s.suggestedFriendId,
-              id: edgeKey,
-              type: "suggestion-edge",
-            },
-          });
-          addedIds.add(edgeKey);
-        }
-      });
-    }
-
-    return [...nodes, ...edges];
-  }, [friends, suggestions, showSuggestions, layoutType, rankMap]);
-
-  return elements;
+    return [...nodes, ...graphEdges];
+  }, [friends, edges, connectionMap]);
 }

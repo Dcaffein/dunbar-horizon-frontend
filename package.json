@@ -1,5 +1,5 @@
 {
-  "name": "gooroom-fe",
+  "name": "dunbar-horizon-fe",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -12,6 +12,7 @@
     "cytoscape": "^3.33.1",
     "cytoscape-fcose": "^2.2.0",
     "d3-force": "^3.0.0",
+    "firebase": "^12.6.0",
     "next": "16.0.3",
     "react": "19.2.0",
     "react-cytoscapejs": "^2.0.0",

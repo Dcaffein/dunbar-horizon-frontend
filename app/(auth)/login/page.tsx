@@ -48,7 +48,7 @@ export default function LoginPage() {
       <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8 space-y-8">
         <div className="text-center">
           <h1 className="text-3xl font-extrabold text-gray-900 mb-2">
-            GooRoom
+            Dunbar Horizon
           </h1>
         </div>
 
