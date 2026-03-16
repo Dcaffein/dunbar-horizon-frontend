@@ -25,7 +25,7 @@ export default function CytoscapeWrapper({
 
     cyRef.current = cytoscape({
       container: containerRef.current,
-      wheelSensitivity: 0.2,
+      wheelSensitivity: 0.5,
     });
 
     if (setCy) {

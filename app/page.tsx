@@ -27,7 +27,7 @@ export default async function MainPage() {
           <p className="text-gray-500 text-sm mt-1">
             총{" "}
             <span className="font-bold text-indigo-600">{friends.length}</span>
-            명의 친구가 지평선에 있습니다
+            명의 친구가 있습니다
           </p>
         </div>
         <LogoutButton />
@@ -55,7 +55,7 @@ export default async function MainPage() {
               아직 연결된 친구가 없습니다.
             </p>
             <p className="mt-2 text-sm">
-              새로운 친구를 추가하여 당신만의 네트워크 지평선을 형성해보세요.
+              새로운 친구를 추가하여 보고싶은 네트워크를 형성해보세요.
             </p>
           </div>
         ) : (

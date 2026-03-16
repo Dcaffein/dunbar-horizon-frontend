@@ -53,11 +53,11 @@ export const getGraphStylesheet = (
     {
       selector: "node.isolated",
       style: {
-        opacity: 0.4,
-        "border-width": 1,
-        "border-color": "#d1d5db",
+        opacity: 0.65,
+        "border-width": 1.5,
+        "border-color": "#9ca3af",
         "border-style": "dashed",
-        "text-opacity": 0.5,
+        "text-opacity": 0.9,
       },
     },
     {

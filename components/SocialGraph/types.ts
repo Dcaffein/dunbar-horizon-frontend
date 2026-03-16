@@ -66,4 +66,7 @@ export interface FcoseLayoutOptions {
 
   /** 노드 간에 절대 침범할 수 없는 최소 물리적 이격 거리 (px) */
   nodeSeparation?: number;
+
+  packComponents?: boolean;
+  tile?: boolean;
 }

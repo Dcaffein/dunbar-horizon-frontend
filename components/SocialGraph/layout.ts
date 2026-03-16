@@ -14,6 +14,7 @@ export const getLayoutOptions = (
     nodeDimensionsIncludeLabels: true,
     randomize: false,
     numIter: 5000,
+    tile: false,
   };
 
   // gravity: 0.25, // 전체 그래프를 가운데로 묶는 중력의 기본값

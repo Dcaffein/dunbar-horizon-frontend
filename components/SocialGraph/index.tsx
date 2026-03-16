@@ -277,11 +277,11 @@ export default function SocialGraph({ friends }: SocialGraphProps) {
               disabled={isLoading}
               className="w-full bg-indigo-600 text-white font-semibold py-3 rounded-xl hover:bg-indigo-700 disabled:opacity-50"
             >
-              {isLoading ? "지평선 탐색 중..." : "네트워크 렌더링 시작"}
+              {isLoading ? "탐색 중..." : "네트워크 탐색하기"}
             </button>
             <div className="mt-5">
               <label className="block text-xs font-bold text-gray-500 mb-2 px-1">
-                지평선 관점 (레이아웃)
+                테마
               </label>
               <div className="flex gap-1 bg-gray-200 p-1 rounded-lg">
                 <button
