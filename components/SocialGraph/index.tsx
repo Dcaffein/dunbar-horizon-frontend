@@ -25,7 +25,10 @@ import {
   getMutualEdgesByOneHopAction,
   getTopInterestNetworkAction,
 } from "@/app/actions/social";
+import LabelManager from "@/components/Label/LabelManager";
 import type { FriendshipDetail, NetworkFriendEdge, LayoutType } from "./types";
+
+type SidebarTab = "network" | "label";
 
 interface SocialGraphProps {
   friends: FriendshipDetail[];
@@ -43,6 +46,7 @@ export default function SocialGraph({ friends }: SocialGraphProps) {
   const [isSnapshot, setIsSnapshot] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [sidebarTab, setSidebarTab] = useState<SidebarTab>("network");
 
   const cyRef = useRef<cytoscape.Core | null>(null);
   const elements = useGraphData({ friends, edges, layoutType });
@@ -252,97 +256,129 @@ export default function SocialGraph({ friends }: SocialGraphProps) {
             isSidebarOpen ? "translate-x-0" : "-translate-x-full"
           }`}
         >
-          <div className="p-5 border-b">
-            <div className="flex gap-2 mb-4 bg-gray-200 p-1 rounded-lg">
-              <button
-                onClick={() => setNetworkMode("top")}
-                className={`flex-1 py-1.5 text-sm font-bold rounded-md transition ${networkMode === "top" ? "bg-white shadow" : "text-gray-500"}`}
-              >
-                TOP 네트워크
-              </button>
-              <button
-                onClick={() => setNetworkMode("custom")}
-                className={`flex-1 py-1.5 text-sm font-bold rounded-md transition ${networkMode === "custom" ? "bg-white shadow" : "text-gray-500"}`}
-              >
-                직접 선택
-              </button>
-            </div>
-
+          {/* 사이드바 탭 */}
+          <div className="flex border-b bg-white shrink-0">
             <button
-              onClick={
-                networkMode === "top"
-                  ? handleActivateTopNetwork
-                  : handleActivateCustomNetwork
-              }
-              disabled={isLoading}
-              className="w-full bg-indigo-600 text-white font-semibold py-3 rounded-xl hover:bg-indigo-700 disabled:opacity-50"
+              onClick={() => setSidebarTab("network")}
+              className={`flex-1 py-3 text-sm font-bold transition border-b-2 ${
+                sidebarTab === "network"
+                  ? "border-indigo-600 text-indigo-600"
+                  : "border-transparent text-gray-400 hover:text-gray-600"
+              }`}
             >
-              {isLoading ? "탐색 중..." : "네트워크 탐색하기"}
+              네트워크
             </button>
-            <div className="mt-5">
-              <label className="block text-xs font-bold text-gray-500 mb-2 px-1">
-                테마
-              </label>
-              <div className="flex gap-1 bg-gray-200 p-1 rounded-lg">
-                <button
-                  onClick={() => handleThemeChange("connectivity")}
-                  className={`flex-1 py-1.5 text-xs font-bold rounded-md transition ${
-                    layoutType === "connectivity"
-                      ? "bg-white shadow text-indigo-700"
-                      : "text-gray-500 hover:text-gray-700"
-                  }`}
-                >
-                  연결망
-                </button>
-                <button
-                  onClick={() => handleThemeChange("intimacy")}
-                  className={`flex-1 py-1.5 text-xs font-bold rounded-md transition ${
-                    layoutType === "intimacy"
-                      ? "bg-white shadow text-indigo-700"
-                      : "text-gray-500 hover:text-gray-700"
-                  }`}
-                >
-                  친밀도
-                </button>
-                <button
-                  onClick={() => handleThemeChange("interest")}
-                  className={`flex-1 py-1.5 text-xs font-bold rounded-md transition ${
-                    layoutType === "interest"
-                      ? "bg-white shadow text-indigo-700"
-                      : "text-gray-500 hover:text-gray-700"
-                  }`}
-                >
-                  관심도
-                </button>
-              </div>
-            </div>
+            <button
+              onClick={() => setSidebarTab("label")}
+              className={`flex-1 py-3 text-sm font-bold transition border-b-2 ${
+                sidebarTab === "label"
+                  ? "border-indigo-600 text-indigo-600"
+                  : "border-transparent text-gray-400 hover:text-gray-600"
+              }`}
+            >
+              라벨 관리
+            </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4 space-y-2">
-            {friends.map((friend) => (
-              <div
-                key={friend.friendId}
-                className="flex items-center gap-3 p-2 bg-white rounded-lg shadow-sm border border-gray-100"
-              >
-                {networkMode === "custom" && (
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.has(friend.friendId)}
-                    onChange={() => toggleSelection(friend.friendId)}
-                    className="w-4 h-4 text-indigo-600 rounded"
-                  />
-                )}
-                <div className="w-8 h-8 rounded-full bg-gray-200 shrink-0 overflow-hidden">
-                  {friend.friendProfileImageUrl && (
-                    <img src={friend.friendProfileImageUrl} alt="profile" />
-                  )}
+          {sidebarTab === "network" ? (
+            <>
+              <div className="p-5 border-b">
+                <div className="flex gap-2 mb-4 bg-gray-200 p-1 rounded-lg">
+                  <button
+                    onClick={() => setNetworkMode("top")}
+                    className={`flex-1 py-1.5 text-sm font-bold rounded-md transition ${networkMode === "top" ? "bg-white shadow" : "text-gray-500"}`}
+                  >
+                    TOP 네트워크
+                  </button>
+                  <button
+                    onClick={() => setNetworkMode("custom")}
+                    className={`flex-1 py-1.5 text-sm font-bold rounded-md transition ${networkMode === "custom" ? "bg-white shadow" : "text-gray-500"}`}
+                  >
+                    직접 선택
+                  </button>
                 </div>
-                <p className="text-sm font-medium truncate">
-                  {friend.friendAlias || friend.friendNickname}
-                </p>
+
+                <button
+                  onClick={
+                    networkMode === "top"
+                      ? handleActivateTopNetwork
+                      : handleActivateCustomNetwork
+                  }
+                  disabled={isLoading}
+                  className="w-full bg-indigo-600 text-white font-semibold py-3 rounded-xl hover:bg-indigo-700 disabled:opacity-50"
+                >
+                  {isLoading ? "탐색 중..." : "네트워크 탐색하기"}
+                </button>
+                <div className="mt-5">
+                  <label className="block text-xs font-bold text-gray-500 mb-2 px-1">
+                    테마
+                  </label>
+                  <div className="flex gap-1 bg-gray-200 p-1 rounded-lg">
+                    <button
+                      onClick={() => handleThemeChange("connectivity")}
+                      className={`flex-1 py-1.5 text-xs font-bold rounded-md transition ${
+                        layoutType === "connectivity"
+                          ? "bg-white shadow text-indigo-700"
+                          : "text-gray-500 hover:text-gray-700"
+                      }`}
+                    >
+                      연결망
+                    </button>
+                    <button
+                      onClick={() => handleThemeChange("intimacy")}
+                      className={`flex-1 py-1.5 text-xs font-bold rounded-md transition ${
+                        layoutType === "intimacy"
+                          ? "bg-white shadow text-indigo-700"
+                          : "text-gray-500 hover:text-gray-700"
+                      }`}
+                    >
+                      친밀도
+                    </button>
+                    <button
+                      onClick={() => handleThemeChange("interest")}
+                      className={`flex-1 py-1.5 text-xs font-bold rounded-md transition ${
+                        layoutType === "interest"
+                          ? "bg-white shadow text-indigo-700"
+                          : "text-gray-500 hover:text-gray-700"
+                      }`}
+                    >
+                      관심도
+                    </button>
+                  </div>
+                </div>
               </div>
-            ))}
-          </div>
+
+              <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                {friends.map((friend) => (
+                  <div
+                    key={friend.friendId}
+                    className="flex items-center gap-3 p-2 bg-white rounded-lg shadow-sm border border-gray-100"
+                  >
+                    {networkMode === "custom" && (
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(friend.friendId)}
+                        onChange={() => toggleSelection(friend.friendId)}
+                        className="w-4 h-4 text-indigo-600 rounded"
+                      />
+                    )}
+                    <div className="w-8 h-8 rounded-full bg-gray-200 shrink-0 overflow-hidden">
+                      {friend.friendProfileImageUrl && (
+                        <img src={friend.friendProfileImageUrl} alt="profile" />
+                      )}
+                    </div>
+                    <p className="text-sm font-medium truncate">
+                      {friend.friendAlias || friend.friendNickname}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="flex-1 overflow-y-auto">
+              <LabelManager selectedNodeId={selectedNodeId} friends={friends} />
+            </div>
+          )}
         </aside>
 
         <button
