@@ -1,10 +1,15 @@
 // components/Label/types.ts
 
-export interface Label {
+export interface LabelMember {
   id: number;
+  nickname: string;
+}
+
+export interface Label {
+  id: string;
   labelName: string;
   exposure: boolean;
-  memberIds: number[];
+  members: LabelMember[];
 }
 
 export interface LabelCreateRequest {

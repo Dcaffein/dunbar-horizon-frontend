@@ -25,7 +25,7 @@ import {
   getMutualEdgesByOneHopAction,
   getTopInterestNetworkAction,
 } from "@/app/actions/social";
-import LabelManager from "@/components/Label/LabelManager";
+import LabelManager from "../Label/LabelManager";
 import type { FriendshipDetail, NetworkFriendEdge, LayoutType } from "./types";
 
 type SidebarTab = "network" | "label";
