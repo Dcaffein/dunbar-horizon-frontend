@@ -1,120 +1,62 @@
-# PLAN: Task 04 — LabelManager UX 재설계 (Option C: 인라인 액션 구조)
+# PLAN: root 디렉토리 정리 (src/ 단일 구조로 통합)
 
-> 참조 태스크: `harness/tasks/04-label-manager-ux.md`
-> 작업 브랜치: `agent/task-04-label-manager-ux`
+## 배경
+
+`git reset --hard 8026633` 으로 인해 old root-level 파일들(`app/`, `components/`, `lib/`, `types/`)이 복원되어 `src/`와 이중 구조가 됐다.
+Next.js는 root `app/`을 우선 서빙하기 때문에 `src/`의 신규 코드가 실제로 반영되지 않는 문제가 있다.
+
+## 목표
+
+- root-level 구 파일 삭제
+- 미추적(untracked) `src/` 파일 전부 git에 추가
+- `tsconfig.json`의 `@/*` 경로를 `./src/*`로 수정
+- 이후 `src/`가 유일한 소스 루트로 동작
 
 ---
 
-## 1. 배경 및 UX 결정
+## 1. 삭제할 root-level 파일/디렉토리
 
-라벨 탭에서 라벨 클릭 시 해당 라벨 멤버 간 네트워크를 그래프에 표시해야 한다.
-두 관심사(그래프 교체 트리거 + 멤버 관리)를 하나의 패널에서 다룬다.
-
-**Option C 채택**: 카드 클릭 = 그래프 교체, 관리 액션(멤버 추가)은 카드 내 인라인
-
----
-
-## 2. 수정할 파일
-
-| 파일 | 변경 내용 |
+| 경로 | 비고 |
 |---|---|
-| `src/components/Label/LabelManager.tsx` | Props 추가, 카드 구조 재설계, 생성 폼 토글화, 하단 섹션 제거 |
+| `app/` | `src/app/`으로 이전 완료 |
+| `components/` | `src/components/`으로 이전 완료 |
+| `lib/` | `src/lib/`으로 이전 완료 |
+| `types/` | `src/types/`으로 이전 완료 |
+| `proxy.ts` | 사용 안 함 |
 
-> `useLabelManager.ts`는 수정하지 않는다. `selectLabel`은 유지하되 LabelManager에서 더 이상 호출하지 않는다.
+## 2. git add 할 untracked src/ 파일
 
----
+| 경로 |
+|---|
+| `src/api/` |
+| `src/app/` |
+| `src/components/LogoutButton.tsx` |
+| `src/components/socialGraph/CytoscapeWrapper.tsx` |
+| `src/components/socialGraph/styles.ts` |
+| `src/lib/` |
+| `src/types/` |
 
-## 3. 변경 상세
+## 3. tsconfig.json 수정
 
-### Props 인터페이스
+```json
+// Before
+"paths": { "@/*": ["./*"] }
 
-```ts
-// 기존
-interface LabelManagerProps {
-  selectedNodeId: string | null;
-  friends: FriendshipDetail[];
-}
-
-// 변경 후
-interface LabelManagerProps {
-  selectedNodeId: string | null;
-  friends: FriendshipDetail[];
-  onLabelSelect: (labelId: string | null) => void;  // 추가
-  activeLabelId: string | null;                     // 추가
-}
-```
-
-### 내부 상태 변경
-
-```ts
-// 제거: selectedLabelId (내부), selectLabel 호출
-// 추가: isCreateFormOpen (생성 폼 토글용)
-const [isCreateFormOpen, setIsCreateFormOpen] = useState(false);
-```
-
-> `useLabelManager`에서 `labels`, `createLabel`, `addMember`만 사용한다.
-
-### 레이아웃 구조
-
-```
-[+ 새 라벨 만들기] 버튼            ← 클릭 시 생성 폼 토글
-  ↓ (isCreateFormOpen === true)
-  생성 폼 (labelName + exposure + 라벨 만들기 버튼)
-  생성 완료 시 폼 자동 닫힘
-
-내 라벨 (N)
-  ┌─────────────────────────────────┐
-  │  [카드 전체 클릭 → onLabelSelect]│
-  │  고등학교 동창   2명  공개        │
-  │                      [+ 멤버]   │ ← selectedNodeId 없으면 비활성
-  └─────────────────────────────────┘
-  ※ activeLabelId 일치 시 카드 강조 스타일
-
-기존 하단 "선택한 친구를 라벨에 추가" 섹션 → 제거
-```
-
-### 핵심 핸들러
-
-```ts
-// 카드 클릭: 이미 활성이면 null로 해제, 아니면 해당 id로 선택
-function handleCardClick(labelId: string) {
-  onLabelSelect(activeLabelId === labelId ? null : labelId);
-}
-
-// 멤버 추가: 카드별로 독립 호출 (selectedLabelId 없이 labelId 직접 전달)
-function handleAddMember(labelId: string) {
-  if (!selectedNodeId || !selectedFriend) return;
-  const memberId = Number(selectedNodeId);
-  const nickname = selectedFriend.friendAlias || selectedFriend.friendNickname;
-  addMember(labelId, memberId, nickname);
-}
-
-// 라벨 생성 완료 후 폼 닫기
-function handleCreateLabel() {
-  const error = createLabel(request);
-  if (error?.labelName) { setFormError(error.labelName); return; }
-  setIsCreateFormOpen(false);   // ← 자동 닫힘
-  ...
-}
+// After
+"paths": { "@/*": ["./src/*"] }
 ```
 
 ---
 
-## 4. 테스트 시나리오
+## 검증
 
-### Phase 1 — 정적 분석
-- `npx tsc --noEmit` — LabelManager 파일 타입 에러 없음
-- `npm run lint` — 신규 에러 없음
-- 성공 시 커밋: `feat(task04): LabelManager UX 재설계 (Option C)`
+1. `npx tsc --noEmit` — 에러 없음
+2. `npm run lint` — 신규 에러 없음
+3. dev 서버 재시작 후 `http://localhost:3000/` 접속 → 빌드 에러 없이 페이지 로드
+4. 라벨 관리 탭 정상 동작 확인
 
-### Phase 2 — UI/상태 검증 (Mock 기반)
-- `[+ 새 라벨 만들기]` 버튼 클릭 시 폼 토글 동작
-- 라벨 생성 완료 후 폼 자동 닫힘, 목록에 추가됨
-- 라벨 카드 클릭 시 `onLabelSelect` 호출, `activeLabelId` 강조 스타일 적용
-- `selectedNodeId` 없을 때 `[+ 멤버]` 버튼 비활성
-- `selectedNodeId` 있을 때 `[+ 멤버]` 클릭 시 해당 라벨 members에 추가
-- 동일 친구 중복 추가 방어
-- 성공 시 커밋: `test(task04): Phase 2 UI/상태 검증 통과`
+---
 
-### Phase 3
-- 실제 API 연동은 Task 03에서 일괄 수행
+## 브랜치
+
+`agent/cleanup-root-structure` → `feature/api-harness-setup` 머지
