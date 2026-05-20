@@ -4,21 +4,24 @@ import type { Label } from "./types";
 
 export const MOCK_LABELS: Label[] = [
   {
-    id: 1,
+    id: "1",
     labelName: "고등학교 동창",
     exposure: true,
-    memberIds: [101, 102],
+    members: [
+      { id: 101, nickname: "박지성" },
+      { id: 102, nickname: "이영표" },
+    ],
   },
   {
-    id: 2,
+    id: "2",
     labelName: "회사 동료",
     exposure: false,
-    memberIds: [103],
+    members: [{ id: 103, nickname: "손흥민" }],
   },
   {
-    id: 3,
+    id: "3",
     labelName: "운동 모임",
     exposure: true,
-    memberIds: [],
+    members: [],
   },
 ];

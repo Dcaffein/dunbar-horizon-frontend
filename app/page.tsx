@@ -1,8 +1,8 @@
 // app/page.tsx
 import LogoutButton from "@/components/LogoutButton";
-import SocialGraph from "@/components/socialGraph";
+import SocialGraph from "@/components/SocialGraph";
 import { springClient } from "@/lib/springClient";
-import type { FriendshipDetail } from "@/components/socialGraph/types";
+import type { FriendshipDetail } from "@/components/SocialGraph/types";
 import { isRedirectError } from "@/lib/springClient";
 
 export default async function MainPage() {

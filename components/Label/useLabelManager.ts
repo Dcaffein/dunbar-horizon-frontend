@@ -8,16 +8,15 @@ const LABEL_NAME_MAX_LENGTH = 20;
 
 interface UseLabelManagerResult {
   labels: Label[];
-  selectedLabelId: number | null;
+  selectedLabelId: string | null;
   createLabel: (request: LabelCreateRequest) => LabelFormError | null;
-  addMember: (labelId: number, memberId: number) => void;
-  selectLabel: (id: number | null) => void;
+  addMember: (labelId: string, memberId: number, nickname: string) => void;
+  selectLabel: (id: string | null) => void;
 }
 
 export function useLabelManager(): UseLabelManagerResult {
   const [labels, setLabels] = useState<Label[]>(MOCK_LABELS);
-  const [selectedLabelId, setSelectedLabelId] = useState<number | null>(null);
-  const [nextId, setNextId] = useState(MOCK_LABELS.length + 1);
+  const [selectedLabelId, setSelectedLabelId] = useState<string | null>(null);
 
   function createLabel(request: LabelCreateRequest): LabelFormError | null {
     const trimmedName = request.labelName.trim();
@@ -31,28 +30,27 @@ export function useLabelManager(): UseLabelManagerResult {
     }
 
     const newLabel: Label = {
-      id: nextId,
+      id: Date.now().toString(),
       labelName: trimmedName,
       exposure: request.exposure,
-      memberIds: [],
+      members: [],
     };
 
     setLabels((prev) => [...prev, newLabel]);
-    setNextId((prev) => prev + 1);
     return null;
   }
 
-  function addMember(labelId: number, memberId: number): void {
+  function addMember(labelId: string, memberId: number, nickname: string): void {
     setLabels((prev) =>
       prev.map((label) => {
         if (label.id !== labelId) return label;
-        if (label.memberIds.includes(memberId)) return label;
-        return { ...label, memberIds: [...label.memberIds, memberId] };
+        if (label.members.some((m) => m.id === memberId)) return label;
+        return { ...label, members: [...label.members, { id: memberId, nickname }] };
       }),
     );
   }
 
-  function selectLabel(id: number | null): void {
+  function selectLabel(id: string | null): void {
     setSelectedLabelId(id);
   }
 
