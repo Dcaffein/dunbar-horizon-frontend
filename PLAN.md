@@ -1,62 +1,84 @@
-# PLAN: root 디렉토리 정리 (src/ 단일 구조로 통합)
+# PLAN: Task 05 — 회원가입 비밀번호 유효성 검증 강화
 
-## 배경
-
-`git reset --hard 8026633` 으로 인해 old root-level 파일들(`app/`, `components/`, `lib/`, `types/`)이 복원되어 `src/`와 이중 구조가 됐다.
-Next.js는 root `app/`을 우선 서빙하기 때문에 `src/`의 신규 코드가 실제로 반영되지 않는 문제가 있다.
-
-## 목표
-
-- root-level 구 파일 삭제
-- 미추적(untracked) `src/` 파일 전부 git에 추가
-- `tsconfig.json`의 `@/*` 경로를 `./src/*`로 수정
-- 이후 `src/`가 유일한 소스 루트로 동작
+> 참조 태스크: `harness/tasks/05-auth-password-validation.md`
+> 작업 브랜치: `agent/task-05-auth-password-validation`
 
 ---
 
-## 1. 삭제할 root-level 파일/디렉토리
+## 1. 배경
 
-| 경로 | 비고 |
+백엔드 `SignupRequestDto`의 password 패턴: **영문·숫자·특수문자(`!@#$%^&*`) 모두 포함, 8~20자**
+현재 Zod 스키마는 `min(4)`만 검증 → 조건 미충족 입력이 백엔드까지 전달돼 400 에러 발생
+
+---
+
+## 2. 수정 파일
+
+| 파일 | 변경 내용 |
 |---|---|
-| `app/` | `src/app/`으로 이전 완료 |
-| `components/` | `src/components/`으로 이전 완료 |
-| `lib/` | `src/lib/`으로 이전 완료 |
-| `types/` | `src/types/`으로 이전 완료 |
-| `proxy.ts` | 사용 안 함 |
+| `src/app/actions/auth.ts` | `signupSchema` password 검증 강화, catch 블록 안전화 |
+| `src/app/(auth)/signup/page.tsx` | 비밀번호 필드 placeholder + 힌트 문구 업데이트 |
 
-## 2. git add 할 untracked src/ 파일
+---
 
-| 경로 |
-|---|
-| `src/api/` |
-| `src/app/` |
-| `src/components/LogoutButton.tsx` |
-| `src/components/socialGraph/CytoscapeWrapper.tsx` |
-| `src/components/socialGraph/styles.ts` |
-| `src/lib/` |
-| `src/types/` |
+## 3. 변경 상세
 
-## 3. tsconfig.json 수정
+### `signupSchema` password 필드
 
-```json
+```ts
 // Before
-"paths": { "@/*": ["./*"] }
+password: z.string().min(4, "비밀번호는 4자 이상이어야 합니다.")
 
 // After
-"paths": { "@/*": ["./src/*"] }
+password: z
+  .string()
+  .min(8, "비밀번호는 8자 이상이어야 합니다.")
+  .max(20, "비밀번호는 20자 이하여야 합니다.")
+  .regex(
+    /^(?=.*[a-zA-Z])(?=.*[0-9])(?=.*[!@#$%^&*])[a-zA-Z0-9!@#$%^&*]+$/,
+    "영문, 숫자, 특수문자(!@#$%^&*)를 모두 포함해야 합니다."
+  )
+```
+
+### `signupAction` catch 블록
+
+```ts
+// Before
+const errorMessage =
+  error instanceof Error
+    ? error.message        // ← 백엔드 내부 메시지 노출 위험
+    : "회원가입 중 오류가 발생했습니다.";
+
+// After
+return { message: "회원가입 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요." };
+```
+
+### `signup/page.tsx` 비밀번호 필드
+
+```tsx
+// Before
+placeholder="4자 이상"
+
+// After
+placeholder="영문·숫자·특수문자 포함 8~20자"
+// 필드 아래 힌트 추가
+<p className="text-xs text-gray-400 mt-1 pl-1">
+  영문, 숫자, 특수문자(!@#$%^&*)를 모두 포함해야 합니다.
+</p>
 ```
 
 ---
 
-## 검증
+## 4. 테스트 시나리오
 
-1. `npx tsc --noEmit` — 에러 없음
-2. `npm run lint` — 신규 에러 없음
-3. dev 서버 재시작 후 `http://localhost:3000/` 접속 → 빌드 에러 없이 페이지 로드
-4. 라벨 관리 탭 정상 동작 확인
+### Phase 1 — 정적 분석
+- `npx tsc --noEmit` — 에러 없음
+- `npm run lint` — 신규 에러 없음
 
----
-
-## 브랜치
-
-`agent/cleanup-root-structure` → `feature/api-harness-setup` 머지
+### Phase 2 — UI/상태 검증 (Playwright)
+1. `Abcd12!` (7자) → 폼 차단, "8자 이상" 에러 표시
+2. `abcd1234` (특수문자 없음) → 폼 차단, regex 에러 표시
+3. `Abcd!@#$` (숫자 없음) → 폼 차단, regex 에러 표시
+4. `12345!@#` (영문 없음) → 폼 차단, regex 에러 표시
+5. `String123!` (조건 충족) → 폼 통과 (백엔드 호출까지)
+6. placeholder가 "영문·숫자·특수문자 포함 8~20자"로 표시
