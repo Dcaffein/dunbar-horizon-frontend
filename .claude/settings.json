@@ -1,0 +1,46 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx vitest *)",
+      "Bash(git commit -m ' *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000/login)",
+      "Bash(git commit --allow-empty -m ' *)",
+      "Bash(npx playwright *)",
+      "Bash(node -e ' *)",
+      "Bash(node verify-task04.mjs)",
+      "Bash(node --input-type=module)",
+      "Bash(npm rebuild *)",
+      "Bash(Get-Process -Name node -ErrorAction SilentlyContinue)",
+      "Bash(Stop-Process -Force)",
+      "Bash(Write-Host \"done\")",
+      "Bash(pkill -f \"next dev\")",
+      "Bash(taskkill /F /IM node.exe)",
+      "PowerShell(Get-Process -Name node -ErrorAction SilentlyContinue)",
+      "PowerShell(Stop-Process -Force)",
+      "Bash(netstat -ano)",
+      "Bash(findstr \":3000\")",
+      "Bash(git rm *)",
+      "Bash(node verify-task05.mjs)",
+      "Bash(taskkill /PID 28332 /F)",
+      "Bash(Start-Sleep -Seconds 1)",
+      "Bash(npm run *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000/signup)",
+      "Bash(rm -f verify-task05.mjs verify-05-*.png)",
+      "Bash(grep -v \"^$\")",
+      "Bash(echo \"exit: $?\")",
+      "Bash(node verify-task03.mjs)",
+      "Bash(Get-ChildItem \"c:\\\\Users\\\\TFX5470H\\\\Soohwan\\\\DunbarHorizon\\\\dunbar-horizon-fe\" -Filter \"verify-03-*.png\")",
+      "Bash(Select-Object Name)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8080/api/v1/networks/me?circleSize=DUNBAR)",
+      "Bash(cat .env)",
+      "Bash(cat .env.local)",
+      "Bash(node debug-auth.mjs)",
+      "Bash(cd \"c:\\\\Users\\\\TFX5470H\\\\Soohwan\\\\DunbarHorizon\\\\dunbar-horizon-fe\" && rm -f debug-auth.mjs verify-task03.mjs verify-task03-debug.mjs verify-03-*.png PLAN.md)",
+      "Bash(git push *)",
+      "Bash(git fetch *)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\TFX5470H\\Soohwan\\DunbarHorizon\\dunbar-horizon-fe"
+    ]
+  }
+}
