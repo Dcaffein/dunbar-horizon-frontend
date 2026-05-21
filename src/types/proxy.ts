@@ -96,7 +96,6 @@ export default async function proxy(request: NextRequest) {
 
   // refreshToken으로 재발급시도
   if (refreshToken) {
-    console.log("Access Token 만료됨. 재발급 시도");
     const newCookieHeaders = await refreshAccessToken(refreshToken);
 
     if (newCookieHeaders) {
@@ -145,10 +144,7 @@ export default async function proxy(request: NextRequest) {
         }
       });
 
-      console.log("토큰 재발급 성공");
       return nextResponse;
-    } else {
-      console.log("토큰 재발급 실패");
     }
   }
 

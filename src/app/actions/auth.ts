@@ -139,7 +139,6 @@ export async function loginAction(
 
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({}));
-      console.log("[LoginAction] 로그인 실패 응답:", errorData);
 
       if (
         errorData.code === "UNVERIFIED" ||
@@ -156,29 +155,16 @@ export async function loginAction(
     }
 
     const setCookieHeaders = res.headers.getSetCookie();
-    console.log(
-      "[LoginAction] 백엔드에서 받은 Set-Cookie 헤더 원본:",
-      setCookieHeaders,
-    );
 
     if (setCookieHeaders && setCookieHeaders.length > 0) {
       const cookieStore = await cookies();
 
       setCookieHeaders.forEach((h) => {
         const parsed = parseSetCookie(h);
-        console.log("[LoginAction] 파싱된 쿠키 객체:", parsed);
-
         if (parsed) {
           cookieStore.set(parsed.name, parsed.value, parsed.options);
-          console.log(
-            `[LoginAction] 브라우저에 쿠키 세팅 완료: ${parsed.name}`,
-          );
         }
       });
-    } else {
-      console.warn(
-        "[LoginAction] 경고: 백엔드에서 Set-Cookie 헤더를 주지 않았습니다!",
-      );
     }
   } catch (_e) {
     return { message: "서버 연결 중 오류가 발생했습니다." };
