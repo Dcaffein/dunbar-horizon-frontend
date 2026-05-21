@@ -22,8 +22,8 @@ import { getLayoutOptions } from "./layout";
 import {
   getFriendsNetworkAction,
   getLabelNetworkAction,
-  GetFriendsNetworkCircleSize,
 } from "@/app/actions/social";
+import { GetFriendsNetworkCircleSize } from "@/api/model/getFriendsNetworkCircleSize";
 import LabelManager from "../Label/LabelManager";
 import type { FriendshipDetail, NetworkFriendEdge, LayoutType } from "./types";
 
