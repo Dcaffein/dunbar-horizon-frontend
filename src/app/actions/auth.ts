@@ -24,7 +24,14 @@ const signupSchema = z
       .string()
       .min(2, "닉네임은 2자 이상이어야 합니다.")
       .max(10, "닉네임은 10자 이하여야 합니다."),
-    password: z.string().min(4, "비밀번호는 4자 이상이어야 합니다."),
+    password: z
+      .string()
+      .min(8, "비밀번호는 8자 이상이어야 합니다.")
+      .max(20, "비밀번호는 20자 이하여야 합니다.")
+      .regex(
+        /^(?=.*[a-zA-Z])(?=.*[0-9])(?=.*[!@#$%^&*])[a-zA-Z0-9!@#$%^&*]+$/,
+        "영문, 숫자, 특수문자(!@#$%^&*)를 모두 포함해야 합니다.",
+      ),
     confirmPassword: z.string(),
   })
   .refine((data) => data.password === data.confirmPassword, {
@@ -212,12 +219,8 @@ export async function signupAction(
 
     return { success: true, message: "회원가입이 완료되었습니다." };
   } catch (error) {
-    const errorMessage =
-      error instanceof Error
-        ? error.message
-        : "회원가입 중 오류가 발생했습니다.";
-
-    return { message: errorMessage };
+    console.error("signupAction error:", error);
+    return { message: "회원가입 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요." };
   }
 }
 

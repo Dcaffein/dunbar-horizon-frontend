@@ -193,8 +193,11 @@ export default function SignupPage() {
               type="password"
               required
               className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-indigo-500 outline-none transition-all bg-gray-50 focus:bg-white"
-              placeholder="4자 이상"
+              placeholder="영문·숫자·특수문자 포함 8~20자"
             />
+            <p className="text-xs text-gray-400 mt-1 pl-1">
+              영문, 숫자, 특수문자(!@#$%^&*)를 모두 포함해야 합니다.
+            </p>
             {state.errors?.password && (
               <p className="text-xs text-red-500 mt-1 pl-1">
                 {state.errors.password[0]}
