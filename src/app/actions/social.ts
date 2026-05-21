@@ -5,8 +5,6 @@ import type { NetworkFriendEdge } from "@/components/socialGraph/types";
 import type { NetworkFriendEdgeResult } from "@/api/model/networkFriendEdgeResult";
 import { GetFriendsNetworkCircleSize } from "@/api/model/getFriendsNetworkCircleSize";
 
-export { GetFriendsNetworkCircleSize };
-
 function toNetworkEdge(r: NetworkFriendEdgeResult): NetworkFriendEdge {
   return {
     friendAId: r.friendAId ?? 0,
