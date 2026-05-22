@@ -1,7 +1,172 @@
-# PLAN: Task 03 — 소셜 그래프 네트워크 API 재연동
+# PLAN: Task 06 — 노드 클릭 친구 액션 패널
 
-> 참조 태스크: `harness/tasks/03-social-graph-network-refactor.md`
-> 작업 브랜치: `agent/task-03-social-graph-network-refactor`
+> 참조 태스크: `harness/tasks/06-node-friend-action-panel.md`
+> 작업 브랜치: `agent/task-06-node-friend-action-panel`
+
+---
+
+## 1. 배경
+
+Task 03에서 one-hop 엣지 로딩을 제거한 이후 노드 클릭이 아무 반응이 없는 상태다.
+친구 노드를 클릭하면 사이드 패널 하단에 친구 관리 섹션을 노출한다.
+
+---
+
+## 2. 수정 파일 목록
+
+| 파일 | 변경 |
+|---|---|
+| `src/app/actions/friendship.ts` | 신규 — `updateFriendAction`, `deleteFriendAction` |
+| `src/components/FriendActionPanel/FriendActionPanel.tsx` | 신규 — 패널 UI |
+| `src/components/FriendActionPanel/useFriendActionPanel.ts` | 신규 — 액션 훅 |
+| `src/components/socialGraph/types.ts` | `FriendshipDetail`에 `isRoutable?: boolean` 추가 |
+| `src/components/socialGraph/index.tsx` | `friends` prop → 로컬 state, 패널 연결 |
+
+---
+
+## 3. 변경 상세
+
+### `src/app/actions/friendship.ts` (신규)
+
+```ts
+"use server";
+import { apiClient, isRedirectError } from "@/api/apiClient";
+import type { FriendUpdateRequest } from "@/api/model/friendUpdateRequest";
+
+export async function updateFriendAction(friendId: number, body: FriendUpdateRequest) {
+  try {
+    await apiClient.patch(`/api/v1/friends/${friendId}`, body);
+    return { success: true };
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    return { success: false, message: "친구 정보 업데이트에 실패했습니다." };
+  }
+}
+
+export async function deleteFriendAction(friendId: number) {
+  try {
+    await apiClient.delete(`/api/v1/friends/${friendId}`);
+    return { success: true };
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    return { success: false, message: "친구 삭제에 실패했습니다." };
+  }
+}
+```
+
+### `src/components/socialGraph/types.ts`
+
+`FriendshipDetail`에 `isRoutable?: boolean` 추가.
+
+### `src/components/FriendActionPanel/useFriendActionPanel.ts` (신규)
+
+관리 상태: `aliasInput`, `isLoading`, `error`
+
+props:
+- `friend: FriendshipDetail`
+- `onAliasUpdate(friendId, newAlias)` — 성공 후 부모 state + cyRef 라벨 갱신
+- `onMuteToggle(friendId, newValue)`
+- `onRoutableToggle(friendId, newValue)`
+- `onDelete(friendId)`
+
+각 액션은 서버 액션 호출 → 200 OK 시 콜백 실행, 실패 시 `error` state 설정 (로컬 state 변경 없음).
+
+### `src/components/FriendActionPanel/FriendActionPanel.tsx` (신규)
+
+```
+[친구 이름]  intimacy: {value}
+────────────────────────
+별칭: [input] [저장]
+음소거        [토글]
+추천 경유 허용 [토글]
+              [친구 삭제]
+[에러 메시지 — 실패 시 인라인]
+```
+
+- 탭(네트워크/라벨) 무관하게 `selectedNodeId !== null`이면 사이드 패널 하단에 항상 노출
+- 삭제 버튼: confirm 없이 즉시 실행
+
+### `src/components/socialGraph/index.tsx`
+
+**추가할 상태:**
+```ts
+const [friendsList, setFriendsList] = useState<FriendshipDetail[]>(friends);
+```
+`useGraphData`와 `FriendActionPanel`에 `friendsList` 전달 (기존 `friends` prop 대체).
+
+**alias 업데이트 핸들러:**
+```ts
+function handleAliasUpdate(friendId: number, newAlias: string) {
+  setFriendsList(prev =>
+    prev.map(f => f.friendId === friendId ? { ...f, friendAlias: newAlias } : f)
+  );
+  // elements re-derive 시 layout 재실행 방지 — cyRef 직접 갱신
+  cyRef.current?.getElementById(String(friendId)).data('label', newAlias || '');
+}
+```
+
+**삭제 핸들러:**
+```ts
+function handleFriendDelete(friendId: number) {
+  setFriendsList(prev => prev.filter(f => f.friendId !== friendId));
+  setEdges(prev => prev.filter(e => e.friendAId !== friendId && e.friendBId !== friendId));
+  setSelectedNodeId(null);
+}
+```
+
+**isMuted / isRoutable 핸들러:**
+```ts
+function handleFriendUpdate(friendId: number, patch: Partial<FriendshipDetail>) {
+  setFriendsList(prev =>
+    prev.map(f => f.friendId === friendId ? { ...f, ...patch } : f)
+  );
+}
+```
+
+**사이드 패널 하단 렌더링:**
+```tsx
+{selectedFriend && (
+  <FriendActionPanel
+    friend={selectedFriend}
+    onAliasUpdate={handleAliasUpdate}
+    onMuteToggle={(id, val) => handleFriendUpdate(id, { isMuted: val })}
+    onRoutableToggle={(id, val) => handleFriendUpdate(id, { isRoutable: val })}
+    onDelete={handleFriendDelete}
+  />
+)}
+```
+`selectedFriend = friendsList.find(f => String(f.friendId) === selectedNodeId) ?? null`
+
+---
+
+## 4. alias 업데이트 시 Cytoscape 처리 이유
+
+`friendsList` state가 바뀌면 `useGraphData`가 elements를 재산출하고
+`CytoscapeWrapper`의 `[elements]` useEffect가 발동 → 전체 레이아웃이 재실행된다.
+노드 라벨 텍스트만 바뀌는 alias 변경에서 포지션이 초기화되는 건 나쁜 UX이므로,
+`cyRef.current.getElementById(id).data('label', newAlias)`로 Cytoscape 내부 데이터만 직접 패치한다.
+
+DELETE는 노드/엣지가 실제로 제거되므로 re-layout이 자연스럽다 → state 업데이트만 사용.
+
+---
+
+## 5. 테스트 시나리오
+
+### Phase 1 — 정적 분석
+- `npx tsc --noEmit` 에러 없음
+- `npm run lint` 신규 에러 없음
+
+### Phase 2 — UI/상태
+- 노드 클릭 → 사이드 패널 하단에 친구 정보 노출
+- 빈 영역 클릭 → 패널 닫힘
+- alias 입력 후 저장 → 그래프 노드 라벨 즉시 변경, 레이아웃 유지
+- 음소거 토글 → 버튼 상태 반전
+- isRoutable 토글 → 버튼 상태 반전
+- 친구 삭제 → 그래프에서 노드·엣지 제거, 패널 닫힘
+
+### Phase 3 — 실제 API
+- PATCH 200 OK 후 alias 변경 실제 반영 확인
+- DELETE 200 OK 후 그래프 노드 제거 확인
 
 ---
 

@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// components/socialGraph/index.tsx
 "use client";
 
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
@@ -25,6 +24,7 @@ import {
 } from "@/app/actions/social";
 import { GetFriendsNetworkCircleSize } from "@/api/model/getFriendsNetworkCircleSize";
 import LabelManager from "../Label/LabelManager";
+import FriendActionPanel from "../FriendActionPanel/FriendActionPanel";
 import type { FriendshipDetail, NetworkFriendEdge, LayoutType } from "./types";
 
 type SidebarTab = "network" | "label";
@@ -49,6 +49,7 @@ interface SocialGraphProps {
 
 export default function SocialGraph({ friends }: SocialGraphProps) {
   const router = useRouter();
+  const [friendsList, setFriendsList] = useState<FriendshipDetail[]>(friends);
   const [edges, setEdges] = useState<NetworkFriendEdge[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isGraphActive, setIsGraphActive] = useState(false);
@@ -61,7 +62,11 @@ export default function SocialGraph({ friends }: SocialGraphProps) {
   const [activeLabelId, setActiveLabelId] = useState<string | null>(null);
 
   const cyRef = useRef<cytoscape.Core | null>(null);
-  const elements = useGraphData({ friends, edges, layoutType });
+  const elements = useGraphData({ friends: friendsList, edges, layoutType });
+
+  const selectedFriend = friendsList.find(
+    (f) => String(f.friendId) === selectedNodeId,
+  ) ?? null;
 
   const CY_STYLE = useMemo(() => ({ width: "100%", height: "100%" }), []);
 
@@ -118,6 +123,34 @@ export default function SocialGraph({ friends }: SocialGraphProps) {
 
     return () => clearTimeout(timer);
   }, [selectedNodeId, edges, layoutType]);
+
+  // alias 변경: state 업데이트 + cyRef 직접 패치 (re-layout 방지)
+  function handleAliasUpdate(friendId: number, newAlias: string) {
+    setFriendsList((prev) =>
+      prev.map((f) =>
+        f.friendId === friendId ? { ...f, friendAlias: newAlias } : f,
+      ),
+    );
+    cyRef.current
+      ?.getElementById(String(friendId))
+      .data("label", newAlias || friendsList.find((f) => f.friendId === friendId)?.friendNickname || "");
+  }
+
+  function handleFriendUpdate(friendId: number, patch: Partial<FriendshipDetail>) {
+    setFriendsList((prev) =>
+      prev.map((f) => (f.friendId === friendId ? { ...f, ...patch } : f)),
+    );
+  }
+
+  function handleFriendDelete(friendId: number) {
+    setFriendsList((prev) => prev.filter((f) => f.friendId !== friendId));
+    setEdges((prev) =>
+      prev.filter(
+        (e) => e.friendAId !== friendId && e.friendBId !== friendId,
+      ),
+    );
+    setSelectedNodeId(null);
+  }
 
   async function handleCircleSizeSelect(size: GetFriendsNetworkCircleSize) {
     setCircleSize(size);
@@ -192,85 +225,97 @@ export default function SocialGraph({ friends }: SocialGraphProps) {
             </button>
           </div>
 
-          {sidebarTab === "network" ? (
-            <>
-              <div className="p-5 border-b">
-                {/* circleSize 선택 */}
-                <div className="mb-4">
-                  <label className="block text-xs font-bold text-gray-500 mb-2 px-1">
-                    네트워크 범위
-                  </label>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    {CIRCLE_SIZE_ORDER.map((size) => (
-                      <button
-                        key={size}
-                        onClick={() => handleCircleSizeSelect(size)}
-                        disabled={isLoading}
-                        className={`py-2 text-xs font-bold rounded-lg transition ${
-                          circleSize === size
-                            ? "bg-indigo-600 text-white shadow"
-                            : "bg-white border border-gray-200 text-gray-600 hover:border-indigo-300 hover:text-indigo-600"
-                        } disabled:opacity-50`}
-                      >
-                        {CIRCLE_SIZE_LABELS[size]}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* 테마 선택 */}
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 mb-2 px-1">
-                    테마
-                  </label>
-                  <div className="flex gap-1 bg-gray-200 p-1 rounded-lg">
-                    {(["connectivity", "intimacy", "interest"] as LayoutType[]).map(
-                      (theme) => (
+          {/* 탭 콘텐츠 */}
+          <div className="flex-1 overflow-y-auto min-h-0">
+            {sidebarTab === "network" ? (
+              <>
+                <div className="p-5 border-b">
+                  {/* circleSize 선택 */}
+                  <div className="mb-4">
+                    <label className="block text-xs font-bold text-gray-500 mb-2 px-1">
+                      네트워크 범위
+                    </label>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {CIRCLE_SIZE_ORDER.map((size) => (
                         <button
-                          key={theme}
-                          onClick={() => setLayoutType(theme)}
-                          className={`flex-1 py-1.5 text-xs font-bold rounded-md transition ${
-                            layoutType === theme
-                              ? "bg-white shadow text-indigo-700"
-                              : "text-gray-500 hover:text-gray-700"
-                          }`}
+                          key={size}
+                          onClick={() => handleCircleSizeSelect(size)}
+                          disabled={isLoading}
+                          className={`py-2 text-xs font-bold rounded-lg transition ${
+                            circleSize === size
+                              ? "bg-indigo-600 text-white shadow"
+                              : "bg-white border border-gray-200 text-gray-600 hover:border-indigo-300 hover:text-indigo-600"
+                          } disabled:opacity-50`}
                         >
-                          {theme === "connectivity" ? "연결망" : theme === "intimacy" ? "친밀도" : "관심도"}
+                          {CIRCLE_SIZE_LABELS[size]}
                         </button>
-                      ),
-                    )}
+                      ))}
+                    </div>
                   </div>
-                </div>
-              </div>
 
-              {/* 친구 목록 */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-2">
-                {friends.map((friend) => (
-                  <div
-                    key={friend.friendId}
-                    className="flex items-center gap-3 p-2 bg-white rounded-lg shadow-sm border border-gray-100"
-                  >
-                    <div className="w-8 h-8 rounded-full bg-gray-200 shrink-0 overflow-hidden">
-                      {friend.friendProfileImageUrl && (
-                        <img src={friend.friendProfileImageUrl} alt="profile" />
+                  {/* 테마 선택 */}
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 mb-2 px-1">
+                      테마
+                    </label>
+                    <div className="flex gap-1 bg-gray-200 p-1 rounded-lg">
+                      {(["connectivity", "intimacy", "interest"] as LayoutType[]).map(
+                        (theme) => (
+                          <button
+                            key={theme}
+                            onClick={() => setLayoutType(theme)}
+                            className={`flex-1 py-1.5 text-xs font-bold rounded-md transition ${
+                              layoutType === theme
+                                ? "bg-white shadow text-indigo-700"
+                                : "text-gray-500 hover:text-gray-700"
+                            }`}
+                          >
+                            {theme === "connectivity" ? "연결망" : theme === "intimacy" ? "친밀도" : "관심도"}
+                          </button>
+                        ),
                       )}
                     </div>
-                    <p className="text-sm font-medium truncate">
-                      {friend.friendAlias || friend.friendNickname}
-                    </p>
                   </div>
-                ))}
-              </div>
-            </>
-          ) : (
-            <div className="flex-1 overflow-y-auto">
+                </div>
+
+                {/* 친구 목록 */}
+                <div className="p-4 space-y-2">
+                  {friendsList.map((friend) => (
+                    <div
+                      key={friend.friendId}
+                      className="flex items-center gap-3 p-2 bg-white rounded-lg shadow-sm border border-gray-100"
+                    >
+                      <div className="w-8 h-8 rounded-full bg-gray-200 shrink-0 overflow-hidden">
+                        {friend.friendProfileImageUrl && (
+                          <img src={friend.friendProfileImageUrl} alt="profile" />
+                        )}
+                      </div>
+                      <p className="text-sm font-medium truncate">
+                        {friend.friendAlias || friend.friendNickname}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
               <LabelManager
                 selectedNodeId={selectedNodeId}
-                friends={friends}
+                friends={friendsList}
                 onLabelSelect={(id) => handleLabelSelect(id)}
                 activeLabelId={activeLabelId}
               />
-            </div>
+            )}
+          </div>
+
+          {/* 친구 액션 패널 — 탭 무관, selectedFriend가 있을 때 항상 노출 */}
+          {selectedFriend && (
+            <FriendActionPanel
+              friend={selectedFriend}
+              onAliasUpdate={handleAliasUpdate}
+              onMuteToggle={(id, val) => handleFriendUpdate(id, { isMuted: val })}
+              onRoutableToggle={(id, val) => handleFriendUpdate(id, { isRoutable: val })}
+              onDelete={handleFriendDelete}
+            />
           )}
         </aside>
 
