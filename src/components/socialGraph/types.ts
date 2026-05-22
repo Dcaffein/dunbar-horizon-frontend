@@ -12,6 +12,7 @@ export interface FriendshipDetail {
   intimacy: number;
   myInterestScore: number;
   isMuted: boolean;
+  isRoutable?: boolean;
 }
 
 export interface NetworkFriendEdge {
