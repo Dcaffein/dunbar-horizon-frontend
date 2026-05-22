@@ -78,3 +78,15 @@ Task 03에서 노드 클릭 시 one-hop 엣지 로딩을 제거한 이후 노드
 | [검증3] 패널 요소 전체 노출 (별칭·저장·음소거·추천경유허용·친구삭제) | ✅ |
 | [검증4] 빈 영역 클릭 후 패널 닫힘 | ✅ |
 | [검증5] 라벨 탭에서도 패널 표시 | ✅ |
+
+### Phase 3 검증 결과 (실제 API)
+
+| 검증 항목 | 결과 |
+|---|---|
+| [A] alias PATCH → Server Action 200 → UI 반영 | ✅ |
+| [B] 음소거 토글 PATCH → Server Action 200 → UI 반전 | ✅ |
+| [C] isRoutable 토글 PATCH → Server Action 200 → UI 반전 | ✅ |
+| [D] 버튼 평상시 disabled 아님 | ✅ |
+| [E] 친구 삭제 버튼 노출·활성화 | ✅ |
+
+> Server Action은 Next.js 서버 내부에서 백엔드 API를 호출하므로 브라우저 네트워크 탭에 `/api/v1/friends/` 요청은 나타나지 않는다. `Next-Action` 헤더가 포함된 POST 200 응답과 UI 상태 변화가 API 성공의 증거.
