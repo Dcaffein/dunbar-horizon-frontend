@@ -6,8 +6,8 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export interface SortObject {
-  empty?: boolean;
-  sorted?: boolean;
-  unsorted?: boolean;
+export interface UserProfileInfo {
+  id?: number;
+  nickname?: string;
+  profileImage?: string;
 }
