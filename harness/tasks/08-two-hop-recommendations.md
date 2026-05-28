@@ -130,3 +130,14 @@ NetworkOneHopsByTwoHopResult {
 | 빈 영역 클릭 → SuggestionPanel 닫힘 | ✅ |
 
 > suggestion 노드는 fcose 물리 엔진에 의해 초기 뷰포트 밖에 배치됨 — 줌아웃 + 팬 후 amber 픽셀 검색으로 검증.
+
+### Phase 3 검증 결과 (실제 API)
+
+| 검증 항목 | 결과 |
+|---|---|
+| anchor 탭 → `getTwoHopSuggestionsByAnchorAction` Server Action 200 | ✅ |
+| suggestion 노드/엣지 렌더링 (amber 픽셀 15개) | ✅ |
+| suggestion 탭 → `getTwoHopMutualFriendsAction` Server Action 200 | ✅ |
+| SuggestionPanel 노출 (추천 배지 + 공통 친구 2명) | ✅ |
+| 공통 친구 엣지 (green 픽셀 8개) | ✅ |
+| "친구 요청 보내기" → Server Action 200 → "요청 완료 ✓" | ✅ |
