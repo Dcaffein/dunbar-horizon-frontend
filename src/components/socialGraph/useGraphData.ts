@@ -3,17 +3,26 @@
 import { useMemo } from "react";
 import type { ElementDefinition } from "cytoscape";
 import type { FriendshipDetail, NetworkFriendEdge, LayoutType } from "./types";
+import type { AnchorExpansionResult } from "@/api/model/anchorExpansionResult";
 
 interface UseGraphDataProps {
   friends: FriendshipDetail[];
   edges: NetworkFriendEdge[];
   layoutType: LayoutType;
+  suggestionNodes: AnchorExpansionResult[];
+  suggestionAnchorId: number | null;
+  mutualFriendIds: number[];
+  selectedSuggestionId: number | null;
 }
 
 export function useGraphData({
   friends,
   edges,
   layoutType,
+  suggestionNodes,
+  suggestionAnchorId,
+  mutualFriendIds,
+  selectedSuggestionId,
 }: UseGraphDataProps) {
   const connectionMap = useMemo(() => {
     const counts = new Map<number, number>();
@@ -25,10 +34,8 @@ export function useGraphData({
   }, [edges]);
 
   return useMemo(() => {
-    // (선이 0개여도 친구 노드들은 화면에 띄워야 함)
     if (friends.length === 0) return [];
 
-    // friends 배열에 있는 전원을 유효한 노드로 인정함.
     const validNodeIds = new Set(friends.map((f) => String(f.friendId)));
 
     const nodes: ElementDefinition[] = friends.map((f) => ({
@@ -44,7 +51,6 @@ export function useGraphData({
       },
     }));
 
-    // 양 끝단이 모두 내 친구 안에 있는 유효한 엣지만 남김.
     const graphEdges: ElementDefinition[] = edges
       .filter(
         (e) =>
@@ -52,10 +58,8 @@ export function useGraphData({
           validNodeIds.has(String(e.friendBId)),
       )
       .map((e) => {
-        // 중복 엣지 완벽 방어
         const minId = Math.min(e.friendAId, e.friendBId);
         const maxId = Math.max(e.friendAId, e.friendBId);
-
         return {
           data: {
             id: `edge-${minId}-${maxId}`,
@@ -69,6 +73,63 @@ export function useGraphData({
         };
       });
 
-    return [...nodes, ...graphEdges];
-  }, [friends, edges, connectionMap]);
+    // 추천 노드
+    const suggestionNodeEls: ElementDefinition[] = suggestionNodes.map((s) => ({
+      data: {
+        id: `suggestion-${s.id}`,
+        label: s.nickname ?? "",
+        intimacy: s.intimacy ?? 0,
+        mutualCount: s.mutualCount ?? 0,
+        type: "suggestion",
+      },
+      classes: "suggestion",
+    }));
+
+    // anchor → 추천 노드 엣지
+    const suggestionEdgeEls: ElementDefinition[] =
+      suggestionAnchorId !== null
+        ? suggestionNodes.map((s) => ({
+            data: {
+              id: `suggestion-edge-${suggestionAnchorId}-${s.id}`,
+              source: String(suggestionAnchorId),
+              target: `suggestion-${s.id}`,
+              intimacy: s.intimacy ?? 0,
+              type: "suggestion-edge",
+            },
+            classes: "suggestion-edge",
+          }))
+        : [];
+
+    // 공통 친구 → 추천 노드 엣지 (추천 노드 클릭 시)
+    const mutualEdgeEls: ElementDefinition[] =
+      selectedSuggestionId !== null
+        ? mutualFriendIds
+            .filter((fid) => validNodeIds.has(String(fid)))
+            .map((fid) => ({
+              data: {
+                id: `mutual-edge-${fid}-${selectedSuggestionId}`,
+                source: String(fid),
+                target: `suggestion-${selectedSuggestionId}`,
+                type: "mutual-edge",
+              },
+              classes: "mutual-edge",
+            }))
+        : [];
+
+    return [
+      ...nodes,
+      ...graphEdges,
+      ...suggestionNodeEls,
+      ...suggestionEdgeEls,
+      ...mutualEdgeEls,
+    ];
+  }, [
+    friends,
+    edges,
+    connectionMap,
+    suggestionNodes,
+    suggestionAnchorId,
+    mutualFriendIds,
+    selectedSuggestionId,
+  ]);
 }
