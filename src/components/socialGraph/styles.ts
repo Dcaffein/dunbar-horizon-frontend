@@ -76,7 +76,34 @@ export const getGraphStylesheet = (
     },
     {
       selector: ".faded",
-      style: { opacity: 0.1 }, // fade 될 때는 전체 투명도를 확 낮춤
+      style: { opacity: 0.1 },
+    },
+    {
+      selector: "node.suggestion",
+      style: {
+        "background-color": "#fef3c7",
+        "border-color": "#f59e0b",
+        "border-style": "dashed",
+        "border-width": 2,
+        "background-opacity": 0.9,
+      },
+    },
+    {
+      selector: "edge.suggestion-edge",
+      style: {
+        "line-color": "#f59e0b",
+        "line-style": "dashed",
+        opacity: 0.55,
+        width: "mapData(intimacy, 0, 1, 1, 4)" as any,
+      },
+    },
+    {
+      selector: "edge.mutual-edge",
+      style: {
+        "line-color": "#10b981",
+        opacity: 0.65,
+        width: 2,
+      },
     },
   ];
 

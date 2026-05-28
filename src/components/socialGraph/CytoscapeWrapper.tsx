@@ -61,9 +61,17 @@ export default function CytoscapeWrapper({
       );
       if (elementsToAdd.length > 0) cy.add(elementsToAdd);
 
-      // 캔버스에 이미 데이터가 있었고, 삭제된 요소가 하나도 없다면?
-      // = 다른 네트워크로 교체된 게 아니라 새로운 엣지만 추가된 상황임.
-      isLazyLoadUpdate = hadElementsBefore && elementsToRemove.length === 0;
+      // 캔버스에 이미 데이터가 있었고, 삭제된 요소가 하나도 없거나
+      // 삭제된 요소가 전부 suggestion 타입인 경우 (anchor 재선택) fit 비활성.
+      const SUGGESTION_TYPES = ["suggestion", "suggestion-edge", "mutual-edge"];
+      const removedAreSuggestionOnly =
+        elementsToRemove.length > 0 &&
+        elementsToRemove.every((el: any) =>
+          SUGGESTION_TYPES.includes(el.data("type")),
+        );
+      isLazyLoadUpdate =
+        hadElementsBefore &&
+        (elementsToRemove.length === 0 || removedAreSuggestionOnly);
       cy.nodes().forEach((node: any) => {
         if (node.degree() === 0) {
           node.addClass("isolated"); // 선이 0개면 흐릿하게

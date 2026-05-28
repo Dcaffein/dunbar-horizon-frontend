@@ -21,13 +21,19 @@ import { getLayoutOptions } from "./layout";
 import {
   getFriendsNetworkAction,
   getLabelNetworkAction,
+  getTwoHopSuggestionsByAnchorAction,
+  getTwoHopMutualFriendsAction,
 } from "@/app/actions/social";
+import { sendFriendRequestAction } from "@/app/actions/friendRequest";
 import { GetFriendsNetworkCircleSize } from "@/api/model/getFriendsNetworkCircleSize";
+import type { AnchorExpansionResult } from "@/api/model/anchorExpansionResult";
 import LabelManager from "../Label/LabelManager";
 import FriendActionPanel from "../FriendActionPanel/FriendActionPanel";
+import SuggestionPanel from "../SuggestionPanel/SuggestionPanel";
 import type { FriendshipDetail, NetworkFriendEdge, LayoutType } from "./types";
 
 type SidebarTab = "network" | "label";
+type SuggestionSendStatus = "idle" | "loading" | "sent" | "error";
 
 const CIRCLE_SIZE_LABELS: Record<GetFriendsNetworkCircleSize, string> = {
   SUPPORT: "SUPPORT ~5",
@@ -61,12 +67,33 @@ export default function SocialGraph({ friends }: SocialGraphProps) {
   const [circleSize, setCircleSize] = useState<GetFriendsNetworkCircleSize | null>(null);
   const [activeLabelId, setActiveLabelId] = useState<string | null>(null);
 
+  // 2-hop 추천 state
+  const [suggestionNodes, setSuggestionNodes] = useState<AnchorExpansionResult[]>([]);
+  const [suggestionAnchorId, setSuggestionAnchorId] = useState<number | null>(null);
+  const [mutualFriendIds, setMutualFriendIds] = useState<number[]>([]);
+  const [selectedSuggestionId, setSelectedSuggestionId] = useState<number | null>(null);
+  const [suggestionSendStatus, setSuggestionSendStatus] = useState<SuggestionSendStatus>("idle");
+  const [suggestionSendError, setSuggestionSendError] = useState<string | null>(null);
+
   const cyRef = useRef<cytoscape.Core | null>(null);
-  const elements = useGraphData({ friends: friendsList, edges, layoutType });
+
+  const elements = useGraphData({
+    friends: friendsList,
+    edges,
+    layoutType,
+    suggestionNodes,
+    suggestionAnchorId,
+    mutualFriendIds,
+    selectedSuggestionId,
+  });
 
   const selectedFriend = friendsList.find(
     (f) => String(f.friendId) === selectedNodeId,
   ) ?? null;
+
+  const selectedSuggestion = selectedSuggestionId !== null
+    ? suggestionNodes.find((s) => s.id === selectedSuggestionId) ?? null
+    : null;
 
   const CY_STYLE = useMemo(() => ({ width: "100%", height: "100%" }), []);
 
@@ -80,6 +107,37 @@ export default function SocialGraph({ friends }: SocialGraphProps) {
     [layoutType],
   );
 
+  function clearSuggestions() {
+    setSuggestionNodes([]);
+    setSuggestionAnchorId(null);
+    setMutualFriendIds([]);
+    setSelectedSuggestionId(null);
+    setSuggestionSendStatus("idle");
+    setSuggestionSendError(null);
+  }
+
+  async function handleAnchorTap(anchorId: number) {
+    // 기존 추천 초기화 후 새 anchor 추천 로드
+    setMutualFriendIds([]);
+    setSelectedSuggestionId(null);
+    setSuggestionSendStatus("idle");
+    setSuggestionSendError(null);
+
+    const result = await getTwoHopSuggestionsByAnchorAction(anchorId);
+    if (result.success && result.data) {
+      setSuggestionNodes(result.data);
+      setSuggestionAnchorId(anchorId);
+    }
+  }
+
+  async function handleSuggestionTap(suggestionId: number) {
+    setMutualFriendIds([]);
+    const result = await getTwoHopMutualFriendsAction(suggestionId);
+    if (result.success && result.data) {
+      setMutualFriendIds(result.data.map((r) => r.friendId ?? 0).filter(Boolean));
+    }
+  }
+
   const handleCyInit = useCallback((cy: any) => {
     cyRef.current = cy;
     cy.off("tap");
@@ -87,13 +145,30 @@ export default function SocialGraph({ friends }: SocialGraphProps) {
     cy.on("tap", (evt: any) => {
       if (evt.target === cy) {
         setSelectedNodeId(null);
+        clearSuggestions();
       }
     });
 
     cy.on("tap", "node", (evt: any) => {
-      setSelectedNodeId(String(evt.target.id()));
+      const nodeType = evt.target.data("type");
+      const rawId = String(evt.target.id());
+
+      if (nodeType === "suggestion") {
+        const sid = parseInt(rawId.replace("suggestion-", ""), 10);
+        setSelectedNodeId(null);
+        setSelectedSuggestionId(sid);
+        setSuggestionSendStatus("idle");
+        setSuggestionSendError(null);
+        handleSuggestionTap(sid);
+      } else {
+        setSelectedSuggestionId(null);
+        setSuggestionSendStatus("idle");
+        setSuggestionSendError(null);
+        setSelectedNodeId(rawId);
+        handleAnchorTap(parseInt(rawId, 10));
+      }
     });
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 노드 하이라이트 효과
   useEffect(() => {
@@ -124,7 +199,6 @@ export default function SocialGraph({ friends }: SocialGraphProps) {
     return () => clearTimeout(timer);
   }, [selectedNodeId, edges, layoutType]);
 
-  // alias 변경: state 업데이트 + cyRef 직접 패치 (re-layout 방지)
   function handleAliasUpdate(friendId: number, newAlias: string) {
     setFriendsList((prev) =>
       prev.map((f) =>
@@ -152,10 +226,23 @@ export default function SocialGraph({ friends }: SocialGraphProps) {
     setSelectedNodeId(null);
   }
 
+  async function handleSuggestionSendRequest(receiverId: number) {
+    setSuggestionSendStatus("loading");
+    setSuggestionSendError(null);
+    const result = await sendFriendRequestAction(receiverId);
+    if (result.success) {
+      setSuggestionSendStatus("sent");
+    } else {
+      setSuggestionSendStatus("error");
+      setSuggestionSendError(result.message ?? "요청 전송에 실패했습니다.");
+    }
+  }
+
   async function handleCircleSizeSelect(size: GetFriendsNetworkCircleSize) {
     setCircleSize(size);
     setActiveLabelId(null);
     setIsLoading(true);
+    clearSuggestions();
     try {
       const result = await getFriendsNetworkAction(size);
       if (result.success && result.data) {
@@ -175,6 +262,7 @@ export default function SocialGraph({ friends }: SocialGraphProps) {
 
     setCircleSize(null);
     setIsLoading(true);
+    clearSuggestions();
     try {
       const result = await getLabelNetworkAction(labelId);
       if (result.success && result.data) {
@@ -230,7 +318,6 @@ export default function SocialGraph({ friends }: SocialGraphProps) {
             {sidebarTab === "network" ? (
               <>
                 <div className="p-5 border-b">
-                  {/* circleSize 선택 */}
                   <div className="mb-4">
                     <label className="block text-xs font-bold text-gray-500 mb-2 px-1">
                       네트워크 범위
@@ -253,7 +340,6 @@ export default function SocialGraph({ friends }: SocialGraphProps) {
                     </div>
                   </div>
 
-                  {/* 테마 선택 */}
                   <div>
                     <label className="block text-xs font-bold text-gray-500 mb-2 px-1">
                       테마
@@ -278,7 +364,6 @@ export default function SocialGraph({ friends }: SocialGraphProps) {
                   </div>
                 </div>
 
-                {/* 친구 목록 */}
                 <div className="p-4 space-y-2">
                   {friendsList.map((friend) => (
                     <div
@@ -307,14 +392,22 @@ export default function SocialGraph({ friends }: SocialGraphProps) {
             )}
           </div>
 
-          {/* 친구 액션 패널 — 탭 무관, selectedFriend가 있을 때 항상 노출 */}
-          {selectedFriend && (
+          {/* 하단 패널 — FriendActionPanel(친구) 또는 SuggestionPanel(추천) */}
+          {selectedFriend && !selectedSuggestion && (
             <FriendActionPanel
               friend={selectedFriend}
               onAliasUpdate={handleAliasUpdate}
               onMuteToggle={(id, val) => handleFriendUpdate(id, { isMuted: val })}
               onRoutableToggle={(id, val) => handleFriendUpdate(id, { isRoutable: val })}
               onDelete={handleFriendDelete}
+            />
+          )}
+          {selectedSuggestion && (
+            <SuggestionPanel
+              suggestion={selectedSuggestion}
+              sendStatus={suggestionSendStatus}
+              sendError={suggestionSendError}
+              onSendRequest={handleSuggestionSendRequest}
             />
           )}
         </aside>
