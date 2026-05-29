@@ -2,19 +2,32 @@
 import Link from "next/link";
 import LogoutButton from "@/components/LogoutButton";
 import SocialGraph from "@/components/socialGraph";
+import NotificationBell from "@/components/Notifications/NotificationBell";
 import { apiClient } from "@/api/apiClient";
+import { getUnreadCountAction } from "@/app/actions/notification";
 import type { FriendshipDetail } from "@/components/socialGraph/types";
 import { isRedirectError } from "@/api/apiClient";
 
 export default async function MainPage() {
   let friends: FriendshipDetail[] = [];
+  let unreadCount = 0;
+
   try {
-    friends = await apiClient.get<FriendshipDetail[]>("/api/v1/friends");
+    [friends] = await Promise.all([
+      apiClient.get<FriendshipDetail[]>("/api/v1/friends"),
+    ]);
   } catch (error) {
     if (isRedirectError(error)) {
       throw error;
     }
     console.error("친구 목록을 불러오는 데 실패했습니다.", error);
+  }
+
+  try {
+    const unreadResult = await getUnreadCountAction();
+    if (unreadResult.success) unreadCount = unreadResult.data;
+  } catch {
+    // unread count 실패는 무시
   }
 
   return (
@@ -44,6 +57,7 @@ export default async function MainPage() {
             </svg>
             친구 요청
           </Link>
+          <NotificationBell initialUnreadCount={unreadCount} />
           <LogoutButton />
         </div>
       </header>
