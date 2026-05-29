@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useFriendActionPanel } from "./useFriendActionPanel";
 import type { FriendshipDetail } from "@/components/socialGraph/types";
 
@@ -9,6 +10,7 @@ interface FriendActionPanelProps {
   onMuteToggle: (friendId: number, newValue: boolean) => void;
   onRoutableToggle: (friendId: number, newValue: boolean) => void;
   onDelete: (friendId: number) => void;
+  hasBuzzUnread?: boolean;
 }
 
 export default function FriendActionPanel({
@@ -17,6 +19,7 @@ export default function FriendActionPanel({
   onMuteToggle,
   onRoutableToggle,
   onDelete,
+  hasBuzzUnread = false,
 }: FriendActionPanelProps) {
   const {
     aliasInput,
@@ -48,6 +51,17 @@ export default function FriendActionPanel({
       </div>
 
       <div className="space-y-2">
+        {/* Buzz 확인 버튼 */}
+        {hasBuzzUnread && (
+          <Link
+            href="/buzzes"
+            className="flex items-center justify-center gap-1.5 w-full text-xs py-1.5 bg-orange-500 text-white rounded-md hover:bg-orange-600 font-medium"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+            Buzz 확인
+          </Link>
+        )}
+
         {/* 별칭 변경 */}
         <div className="flex gap-1.5">
           <input

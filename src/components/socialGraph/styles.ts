@@ -79,6 +79,15 @@ export const getGraphStylesheet = (
       style: { opacity: 0.1 },
     },
     {
+      selector: "node.buzz-unread",
+      style: {
+        "border-color": "#f97316",
+        "border-width": 3,
+        "background-color": "#fff7ed",
+        "background-opacity": 0.95,
+      },
+    },
+    {
       selector: "node.suggestion",
       style: {
         "background-color": "#fef3c7",

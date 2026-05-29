@@ -5,29 +5,31 @@ import SocialGraph from "@/components/socialGraph";
 import NotificationBell from "@/components/Notifications/NotificationBell";
 import { apiClient } from "@/api/apiClient";
 import { getUnreadCountAction } from "@/app/actions/notification";
+import { getUnreadSendersAction } from "@/app/actions/buzz";
 import type { FriendshipDetail } from "@/components/socialGraph/types";
 import { isRedirectError } from "@/api/apiClient";
 
 export default async function MainPage() {
   let friends: FriendshipDetail[] = [];
   let unreadCount = 0;
+  let unreadBuzzSenderIds: number[] = [];
 
   try {
-    [friends] = await Promise.all([
-      apiClient.get<FriendshipDetail[]>("/api/v1/friends"),
-    ]);
+    friends = await apiClient.get<FriendshipDetail[]>("/api/v1/friends");
   } catch (error) {
-    if (isRedirectError(error)) {
-      throw error;
-    }
+    if (isRedirectError(error)) throw error;
     console.error("친구 목록을 불러오는 데 실패했습니다.", error);
   }
 
   try {
-    const unreadResult = await getUnreadCountAction();
+    const [unreadResult, buzzSendersResult] = await Promise.all([
+      getUnreadCountAction(),
+      getUnreadSendersAction(),
+    ]);
     if (unreadResult.success) unreadCount = unreadResult.data;
+    if (buzzSendersResult.success) unreadBuzzSenderIds = buzzSendersResult.data;
   } catch {
-    // unread count 실패는 무시
+    // 무시
   }
 
   return (
@@ -56,6 +58,15 @@ export default async function MainPage() {
               <line x1="22" x2="16" y1="11" y2="11" />
             </svg>
             친구 요청
+          </Link>
+          <Link
+            href="/buzzes"
+            className="flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-orange-600 transition-colors px-3 py-1.5 rounded-lg hover:bg-orange-50"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m3 11 19-9-9 19-2-8-8-2z" />
+            </svg>
+            Buzz
           </Link>
           <NotificationBell initialUnreadCount={unreadCount} />
           <LogoutButton />
@@ -89,7 +100,7 @@ export default async function MainPage() {
           </div>
         ) : (
           // 친구 데이터가 있으면 클라이언트 컴포넌트로 넘겨줌.
-          <SocialGraph friends={friends} />
+          <SocialGraph friends={friends} unreadBuzzSenderIds={unreadBuzzSenderIds} />
         )}
       </section>
     </main>

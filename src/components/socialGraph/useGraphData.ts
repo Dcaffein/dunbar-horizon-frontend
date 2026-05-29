@@ -13,6 +13,7 @@ interface UseGraphDataProps {
   suggestionAnchorId: number | null;
   mutualFriendIds: number[];
   selectedSuggestionId: number | null;
+  unreadBuzzSenderIds: number[];
 }
 
 export function useGraphData({
@@ -23,6 +24,7 @@ export function useGraphData({
   suggestionAnchorId,
   mutualFriendIds,
   selectedSuggestionId,
+  unreadBuzzSenderIds,
 }: UseGraphDataProps) {
   const connectionMap = useMemo(() => {
     const counts = new Map<number, number>();
@@ -37,6 +39,7 @@ export function useGraphData({
     if (friends.length === 0) return [];
 
     const validNodeIds = new Set(friends.map((f) => String(f.friendId)));
+    const buzzUnreadSet = new Set(unreadBuzzSenderIds);
 
     const nodes: ElementDefinition[] = friends.map((f) => ({
       data: {
@@ -49,6 +52,7 @@ export function useGraphData({
         isMuted: f.isMuted,
         type: "friend",
       },
+      classes: buzzUnreadSet.has(f.friendId) ? "buzz-unread" : undefined,
     }));
 
     const graphEdges: ElementDefinition[] = edges
@@ -131,5 +135,6 @@ export function useGraphData({
     suggestionAnchorId,
     mutualFriendIds,
     selectedSuggestionId,
+    unreadBuzzSenderIds,
   ]);
 }

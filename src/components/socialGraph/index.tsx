@@ -51,9 +51,10 @@ const CIRCLE_SIZE_ORDER: GetFriendsNetworkCircleSize[] = [
 
 interface SocialGraphProps {
   friends: FriendshipDetail[];
+  unreadBuzzSenderIds?: number[];
 }
 
-export default function SocialGraph({ friends }: SocialGraphProps) {
+export default function SocialGraph({ friends, unreadBuzzSenderIds = [] }: SocialGraphProps) {
   const router = useRouter();
   const [friendsList, setFriendsList] = useState<FriendshipDetail[]>(friends);
   const [edges, setEdges] = useState<NetworkFriendEdge[]>([]);
@@ -85,6 +86,7 @@ export default function SocialGraph({ friends }: SocialGraphProps) {
     suggestionAnchorId,
     mutualFriendIds,
     selectedSuggestionId,
+    unreadBuzzSenderIds,
   });
 
   const selectedFriend = friendsList.find(
@@ -400,6 +402,7 @@ export default function SocialGraph({ friends }: SocialGraphProps) {
               onMuteToggle={(id, val) => handleFriendUpdate(id, { isMuted: val })}
               onRoutableToggle={(id, val) => handleFriendUpdate(id, { isRoutable: val })}
               onDelete={handleFriendDelete}
+              hasBuzzUnread={unreadBuzzSenderIds.includes(selectedFriend.friendId)}
             />
           )}
           {selectedSuggestion && (
