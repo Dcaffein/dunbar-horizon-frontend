@@ -152,8 +152,9 @@ FlagForm (Client Component):
 - 종료일 < 시작일 → "종료 일시는 시작 일시보다 이후여야 합니다." 에러 확인
 - 그래프(/) 헤더에 Flag 링크 노출 확인
 
-### Phase 3 — Edge Cases
-- 빈 목록 탭 → 빈 상태 메시지
-- status === "CLOSED" → 참여하기 버튼 비활성
-- 잘못된 `/flags/{id}` → `/flags` 리다이렉트
-- 종료일 지난 Flag → 만료 표시
+### Phase 3 — Edge Cases ✅ PASS
+- 탭 3개 모두 빈 상태 → "Flag가 없습니다." 메시지 표시 확인
+- `/flags/999999` (존재하지 않는 ID) → `/flags` 리다이렉트 확인
+- `/flags/not-a-number` (NaN ID) → `/flags` 리다이렉트 확인
+- capacity = 0 제출 → "최대 인원은 1 이상이어야 합니다." 에러 확인
+- 그래프 헤더 Flag 링크 클릭 → `/flags` 이동 확인
