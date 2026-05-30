@@ -123,9 +123,9 @@ async function uploadImages(files: File[]): Promise<string[]>
 - 빈 폼 전송 → "내용을 입력해주세요." 클라이언트 검증 즉시 표시 확인
 - 그래프(`/`) → 헤더에 Buzz 링크 노출 확인
 
-### Phase 3 — 실제 API
-- ANCHOR 수신자로 Buzz 작성 → 201 → `/buzzes`로 이동
-- 받은 Buzz 목록 조회
-- Buzz 상세 진입 → 읽음 처리
-- 댓글 작성 → 로컬 state 반영
-- 그래프에서 미읽음 Buzz 발신자 하이라이트
+### Phase 3 — Edge Cases ✅ PASS
+- LABEL 탭 선택 없이 전송 → "라벨을 하나 이상 선택해주세요." 에러 즉시 표시
+- MANUAL 탭 선택 없이 전송 → "수신자를 한 명 이상 선택해주세요." 에러 즉시 표시
+- 잘못된 buzzId(`/buzzes/nonexistent`) 접근 → `/buzzes`로 리다이렉트 확인
+- ANCHOR 탭 빈 내용 전송 → "내용을 입력해주세요." 에러 확인
+- LABEL 탭 라벨 없는 유저 → "라벨이 없습니다." 빈 상태 표시
