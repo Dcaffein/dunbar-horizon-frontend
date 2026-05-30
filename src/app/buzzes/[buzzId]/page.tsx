@@ -1,9 +1,7 @@
 import { redirect } from "next/navigation";
 import { getBuzzDetailAction } from "@/app/actions/buzz";
 import BuzzDetail from "@/components/Buzz/BuzzDetail";
-import { isRedirectError } from "@/api/apiClient";
-import { cookies } from "next/headers";
-import { BASE_URL } from "@/lib/constants";
+import { isRedirectError, apiClient } from "@/api/apiClient";
 
 export default async function BuzzDetailPage({
   params,
@@ -11,22 +9,14 @@ export default async function BuzzDetailPage({
   params: Promise<{ buzzId: string }>;
 }) {
   const { buzzId } = await params;
-  // cookies()를 한 번만 읽어 myUserId 조회에 재사용
-  const cookieStore = await cookies();
-  const token = cookieStore.get("access_token")?.value;
 
   let myUserId: number | undefined;
   try {
-    const meResp = await fetch(`${BASE_URL}/api/auth/users/me`, {
-      headers: token ? { Cookie: `access_token=${token}` } : {},
-      cache: "no-store",
-    });
-    if (meResp.ok) {
-      const me = await meResp.json();
-      myUserId = me.id;
-    }
-  } catch {
-    // myUserId 없으면 수정/삭제 버튼 안 보임
+    const profile = await apiClient.get<{ id: number }>("/api/v1/accounts/me");
+    myUserId = profile.id;
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    // 비인증 외 에러는 무시 — myUserId 없으면 수정/삭제 버튼 안 보임
   }
 
   let buzzData;
