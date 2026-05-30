@@ -144,11 +144,13 @@ FlagForm (Client Component):
 - `npx tsc --noEmit` 에러 없음
 - `npm run lint` 경고 없음
 
-### Phase 2 — UI/State
-- `/flags` 탭 3개 렌더링 및 전환
-- `/flags/new` 폼 필수 필드 렌더링
-- `/flags/new?parentFlagId=1` 진입 시 "Encore 생성" 헤딩 표시
-- 필수 필드 비워두고 제출 → 에러 표시
+### Phase 2 — UI/State ✅ PASS
+- `/flags` 탭 3개(주최 중/참여 중/친구 Flag) 렌더링 + 탭 전환 확인
+- `/flags/new` 폼 필수 필드(제목/설명/시작일시/종료일시) + "Flag 만들기" 버튼 확인
+- `/flags/new?parentFlagId=1` → "Encore 생성" 헤딩 + 안내 배너 + "Encore 생성" 버튼 확인
+- 빈 제출 → "제목을 입력해주세요." / "설명을 입력해주세요." 에러 표시 확인
+- 종료일 < 시작일 → "종료 일시는 시작 일시보다 이후여야 합니다." 에러 확인
+- 그래프(/) 헤더에 Flag 링크 노출 확인
 
 ### Phase 3 — Edge Cases
 - 빈 목록 탭 → 빈 상태 메시지
