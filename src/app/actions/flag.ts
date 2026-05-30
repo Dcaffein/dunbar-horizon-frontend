@@ -96,3 +96,48 @@ export async function leaveAction(id: number) {
     return { success: false as const, message: "참여 취소에 실패했습니다." };
   }
 }
+
+export async function inviteFriendAction(flagId: number, inviteeId: number) {
+  try {
+    await apiClient.post(`/api/v1/flags/${flagId}/invitations`, { inviteeId });
+    return { success: true as const };
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    const message = error instanceof Error ? error.message : "초대에 실패했습니다.";
+    return { success: false as const, message };
+  }
+}
+
+export async function acceptInvitationAction(invitationId: number) {
+  try {
+    await apiClient.post(`/api/v1/flag-invitations/${invitationId}/accept`);
+    return { success: true as const };
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    return { success: false as const, message: "초대 수락에 실패했습니다." };
+  }
+}
+
+export async function rejectInvitationAction(invitationId: number) {
+  try {
+    await apiClient.post(`/api/v1/flag-invitations/${invitationId}/reject`);
+    return { success: true as const };
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    return { success: false as const, message: "초대 거절에 실패했습니다." };
+  }
+}
+
+export async function updateInvitePermissionAction(
+  flagId: number,
+  participantId: number,
+  canInvite: boolean,
+) {
+  try {
+    await apiClient.patch(`/api/v1/flags/${flagId}/participants/${participantId}/invite-permission`, { canInvite });
+    return { success: true as const };
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    return { success: false as const, message: "초대 권한 변경에 실패했습니다." };
+  }
+}

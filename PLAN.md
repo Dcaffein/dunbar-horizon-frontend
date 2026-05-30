@@ -1,140 +1,76 @@
-# PLAN — Task 11: Flag 핵심 기능
+# PLAN — Task 13: Flag 초대
 
-> 참조 태스크: `harness/tasks/11-flag-core.md`
-> 작업 브랜치: `agent/task-11-flag-core`
+> 참조 태스크: `harness/tasks/13-flag-invitation.md`
+> 작업 브랜치: `agent/task-13-flag-invitation`
 
 ## 요구사항 분석
 
-- `/flags` 탭 3개 목록 (주최 중 / 참여 중 / 친구 Flag)
-- `/flags/new` Flag 생성 + Encore (`parentFlagId`만 전달, title/description 새로 작성)
-- `/flags/{id}` Flag 상세 (parentFlag 링크 + 참여자 목록 + host/참여 구분 버튼)
-- 모집 마감·참여·참여취소·삭제: Server Action → `router.refresh()`
-- 그래프 헤더에 Flag 링크 추가
+- Flag 상세 페이지 확장: 참가자 `canInvite` 토글(host 전용) + 친구 초대 섹션
+- 알림 페이지 확장: `FLAG_INVITATION` 알림에 [수락][거절] 버튼
+- 수락 → `/flags/{flagId}` 이동, 거절 → 버튼 숨김
 
 ## API 확인
 
-| 액션 | 엔드포인트 | 응답 |
-|---|---|---|
-| 주최 Flag 목록 | `GET /api/v1/flags/me/hosting` | `FlagResult[]` |
-| 참여 Flag 목록 | `GET /api/v1/flags/me/participating` | `FlagResult[]` |
-| 친구 Flag 목록 | `GET /api/v1/flags/friends` | `FlagResult[]` |
-| Flag 상세 | `GET /api/v1/flags/{id}` | `FlagDetailResult` |
-| Flag 생성 | `POST /api/v1/flags` | `number` (flagId) |
-| Flag 삭제 | `DELETE /api/v1/flags/{id}` | — |
-| 모집 마감 | `PATCH /api/v1/flags/{id}/schedule/deadline` | — |
-| 참여 | `POST /api/v1/flags/{id}/participants` | — |
-| 참여 취소 | `DELETE /api/v1/flags/{id}/participants` | — |
+| 액션 | 엔드포인트 |
+|---|---|
+| 친구 초대 | `POST /api/v1/flags/{flagId}/invitations` `{ inviteeId }` |
+| 초대 수락 | `POST /api/v1/flag-invitations/{invitationId}/accept` |
+| 초대 거절 | `POST /api/v1/flag-invitations/{invitationId}/reject` |
+| 초대 권한 토글 | `PATCH /api/v1/flags/{flagId}/participants/{participantId}/invite-permission` `{ canInvite }` |
 
 ---
 
-## 생성 / 수정 파일
+## 수정 파일
 
-| 파일 | 신규/수정 | 내용 |
-|---|---|---|
-| `src/app/actions/flag.ts` | 신규 | Server Actions |
-| `src/app/flags/page.tsx` | 신규 | Server Component — 탭 3개 병렬 조회 |
-| `src/components/Flag/FlagList.tsx` | 신규 | Client Component — 탭 UI + FlagCard 목록 |
-| `src/app/flags/[id]/page.tsx` | 신규 | Server Component — 상세 조회 |
-| `src/components/Flag/FlagDetail.tsx` | 신규 | Client Component — 상세 + 액션 버튼 |
-| `src/app/flags/new/page.tsx` | 신규 | Server Component — Encore searchParams 처리 |
-| `src/components/Flag/FlagForm.tsx` | 신규 | Client Component — 생성 폼 |
-| `src/app/page.tsx` | 수정 | 헤더에 Flag 링크 추가 |
+| 파일 | 내용 |
+|---|---|
+| `src/app/actions/flag.ts` | `inviteFriendAction`, `acceptInvitationAction`, `rejectInvitationAction`, `updateInvitePermissionAction` 추가 |
+| `src/app/flags/[id]/page.tsx` | 친구 목록(`FriendshipDetail[]`) 추가 조회 → `FlagDetail`에 전달 |
+| `src/components/Flag/FlagDetail.tsx` | ① 참가자 `canInvite` 토글(host 전용) ② 초대 섹션 ③ 토스트 |
+| `src/components/Notifications/NotificationList.tsx` | `FLAG_INVITATION` 항목에 [수락][거절] 버튼 추가 |
 
 ---
 
 ## 상세 설계
 
-### `src/app/actions/flag.ts`
+### `flag.ts` 추가 Server Actions
 
 ```ts
-"use server"
-
-getHostingFlagsAction()       → GET /api/v1/flags/me/hosting        → FlagResult[]
-getParticipatingFlagsAction() → GET /api/v1/flags/me/participating   → FlagResult[]
-getFriendFlagsAction()        → GET /api/v1/flags/friends            → FlagResult[]
-getFlagDetailAction(id)       → GET /api/v1/flags/{id}              → FlagDetailResult
-createFlagAction(body)        → POST /api/v1/flags                   → number (flagId)
-deleteFlagAction(id)          → DELETE /api/v1/flags/{id}
-closeRecruitmentAction(id)    → PATCH /api/v1/flags/{id}/schedule/deadline
-participateAction(id)         → POST /api/v1/flags/{id}/participants
-leaveAction(id)               → DELETE /api/v1/flags/{id}/participants
+inviteFriendAction(flagId, inviteeId)           → POST /api/v1/flags/{flagId}/invitations
+acceptInvitationAction(invitationId)            → POST /api/v1/flag-invitations/{invitationId}/accept
+rejectInvitationAction(invitationId)            → POST /api/v1/flag-invitations/{invitationId}/reject
+updateInvitePermissionAction(flagId, participantId, canInvite) → PATCH .../invite-permission
 ```
 
-### `/flags` — FlagList
+### `FlagDetail.tsx` 확장
 
-서버 컴포넌트에서 3개 목록 병렬 조회:
-```ts
-const [hosting, participating, friends] = await Promise.all([
-  getHostingFlagsAction(),
-  getParticipatingFlagsAction(),
-  getFriendFlagsAction(),
-]);
+**참가자 목록 canInvite 토글** (host만 표시):
 ```
-
-FlagList (Client Component):
-- `activeTab: "hosting" | "participating" | "friends"` state
-- 탭별 FlagCard 목록 렌더링
-- 카드 클릭 → `/flags/{id}`
-
-FlagCard 공통 표시:
-- 제목
-- `parentFlagId` 있으면 "Encore" 배지
-- `{participantCount}/{capacity}명` (capacity 없으면 `{participantCount}명 참여 중`)
-- status === "CLOSED" → "마감됨" 배지
-- `schedule.endDateTime` 기준 남은 시간 (D-day / N시간 / 만료)
-- `schedule.deadline` 지났으면 "모집 마감" 표시
-
-탭별 액션 버튼:
-- **주최 중**: [모집 마감] (CLOSED 아닐 때) + [삭제] + [Encore]
-- **참여 중**: [참여 취소]
-- **친구 Flag**: [참여하기] (CLOSED이면 비활성)
-
-### `/flags/{id}` — FlagDetail
-
-서버 컴포넌트에서 `getFlagDetailAction(id)` 조회:
-```ts
-const result = await getFlagDetailAction(id);
-if (!result.success) redirect("/flags");
+참가자 3명
+├─ 박민준  [초대 가능 ✓]  ← 클릭하면 canInvite 토글
+├─ 김철수  [초대 불가  ]
 ```
+- 로컬 state로 `participants` 관리 (토글 후 즉시 반영)
 
-`myUserId`(`GET /api/v1/accounts/me`)와 `flag.host.id` 비교로 host 판별.
-`flag.participants`에 myUserId 있으면 isParticipating = true.
+**초대 섹션** (host OR canInvite 참가자만 표시):
+- 친구 드롭다운 (이미 참가 중인 친구 제외)
+- [초대 전송] 버튼 → `inviteFriendAction` → 토스트 3초 후 소멸
 
-FlagDetail (Client Component):
-- 제목, 전체 설명, host 정보
-- 일정 (시작/종료 일시, 모집 마감)
-- `parentFlag` 있으면 "원본 Flag: {title}" → `/flags/{parentFlag.id}` 링크
-- 참여자 아바타 목록 + `{participantCount}/{capacity}명`
-- host이면: [모집 마감] + [삭제]
-- 참여 중이고 host 아니면: [참여 취소]
-- 미참여 친구 Flag이면: [참여하기] (CLOSED 비활성)
-- 각 버튼 → Server Action → `router.refresh()`
+**토스트**: 컴포넌트 내 `toast: string | null` state, 3초 `setTimeout` 후 null
 
-### `/flags/new` — FlagForm (Encore 포함)
+### `NotificationList.tsx` 확장
 
-서버 컴포넌트에서 `parentFlagId` searchParams만 읽고 FlagForm에 전달:
-```ts
-const { parentFlagId } = await searchParams;
-return <FlagForm parentFlagId={parentFlagId ? Number(parentFlagId) : undefined} />;
-```
-
-Encore 버튼(상세 페이지): `/flags/new?parentFlagId={id}` 링크.
-title/description은 사용자가 새로 작성.
-
-FlagForm (Client Component):
-- 제목* , 설명*, 시작 일시*, 종료 일시*, 모집 마감일(선택), 최대 인원(선택)
-- `datetime-local` input 사용
-- `parentFlagId` 있으면 "Encore 생성" 헤딩 표시
-- 제출 → `createFlagAction` → 성공 시 `router.push("/flags")`
-
-### `src/app/page.tsx` 수정
-
-헤더에 Flag 링크 추가 (Buzz 링크 옆):
+`FLAG_INVITATION` 타입 감지:
 ```tsx
-<Link href="/flags" className="...">
-  <FlagIcon /> Flag
-</Link>
+const meta = n.metadata as unknown as Record<string, unknown>;
+const invitationId = meta?.invitationId as number | undefined;
+const flagId = meta?.flagId as number | undefined;
 ```
+
+버튼 동작:
+- [거절] → `rejectInvitationAction(invitationId)` → 해당 알림 state에서 `{ ...n, _rejected: true }` 표시
+- [수락] → `acceptInvitationAction(invitationId)` → 읽음 처리 + `router.push('/flags/{flagId}')`
+- 수락/거절 완료 후 버튼 숨김
 
 ---
 
@@ -142,19 +78,15 @@ FlagForm (Client Component):
 
 ### Phase 1 — 정적 분석
 - `npx tsc --noEmit` 에러 없음
-- `npm run lint` 경고 없음
+- `npm run lint` error 없음
 
-### Phase 2 — UI/State ✅ PASS
-- `/flags` 탭 3개(주최 중/참여 중/친구 Flag) 렌더링 + 탭 전환 확인
-- `/flags/new` 폼 필수 필드(제목/설명/시작일시/종료일시) + "Flag 만들기" 버튼 확인
-- `/flags/new?parentFlagId=1` → "Encore 생성" 헤딩 + 안내 배너 + "Encore 생성" 버튼 확인
-- 빈 제출 → "제목을 입력해주세요." / "설명을 입력해주세요." 에러 표시 확인
-- 종료일 < 시작일 → "종료 일시는 시작 일시보다 이후여야 합니다." 에러 확인
-- 그래프(/) 헤더에 Flag 링크 노출 확인
+### Phase 2 — UI/State
+- `/flags/{id}` 참가자 목록 canInvite 표시
+- host 로그인 시 토글 버튼 노출
+- 초대 섹션 드롭다운 렌더링
+- `/notifications` FLAG_INVITATION 항목 [수락][거절] 버튼 표시
 
-### Phase 3 — Edge Cases ✅ PASS
-- 탭 3개 모두 빈 상태 → "Flag가 없습니다." 메시지 표시 확인
-- `/flags/999999` (존재하지 않는 ID) → `/flags` 리다이렉트 확인
-- `/flags/not-a-number` (NaN ID) → `/flags` 리다이렉트 확인
-- capacity = 0 제출 → "최대 인원은 1 이상이어야 합니다." 에러 확인
-- 그래프 헤더 Flag 링크 클릭 → `/flags` 이동 확인
+### Phase 3 — Edge Cases
+- 빈 친구 목록 → "초대 가능한 친구가 없습니다." 표시
+- 비host 비canInvite 참가자 → 초대 섹션 미표시
+- metadata 없는 FLAG_INVITATION 알림 → 버튼 미표시

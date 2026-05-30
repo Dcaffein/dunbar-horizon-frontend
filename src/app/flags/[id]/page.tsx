@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { isRedirectError, apiClient } from "@/api/apiClient";
 import { getFlagDetailAction } from "@/app/actions/flag";
 import FlagDetail from "@/components/Flag/FlagDetail";
+import type { FriendshipDetail } from "@/components/socialGraph/types";
 
 export default async function FlagDetailPage({
   params,
@@ -12,11 +13,17 @@ export default async function FlagDetailPage({
   if (isNaN(id)) redirect("/flags");
 
   let myUserId: number | undefined;
+  let friends: FriendshipDetail[] = [];
+
   try {
-    const profile = await apiClient.get<{ id: number }>("/api/v1/accounts/me");
+    const [profile, friendsData] = await Promise.all([
+      apiClient.get<{ id: number }>("/api/v1/accounts/me"),
+      apiClient.get<FriendshipDetail[]>("/api/v1/friends"),
+    ]);
     myUserId = profile.id;
+    friends = friendsData;
   } catch {
-    // myUserId 없으면 host/참여 버튼 숨김
+    // myUserId 없으면 host/참여 버튼 숨김, friends 없으면 초대 섹션 빈 상태
   }
 
   let flagData;
@@ -30,5 +37,5 @@ export default async function FlagDetailPage({
   }
 
   if (!flagData) redirect("/flags");
-  return <FlagDetail flag={flagData} myUserId={myUserId} />;
+  return <FlagDetail flag={flagData} myUserId={myUserId} friends={friends} />;
 }
