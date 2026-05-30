@@ -116,10 +116,12 @@ async function uploadImages(files: File[]): Promise<string[]>
 ### Phase 1 — 정적 분석
 - `npx tsc --noEmit` 에러 없음
 
-### Phase 2 — UI/State
-- `/buzzes` 진입 → 목록 또는 빈 상태 렌더링
-- `/buzzes/new` 진입 → 폼 렌더링 (수신자 탭 3개)
-- ANCHOR 탭 선택 → 친구 드롭다운 + 슬라이더 노출
+### Phase 2 — UI/State ✅ PASS
+- `/buzzes` 진입 → 빈 상태("받은 Buzz가 없습니다.") + "+ 작성" 버튼 렌더링 확인
+- `/buzzes/new` 진입 → "Buzz 작성" 헤더 + 수신자 탭 3개(Anchor/라벨/직접 선택) 확인
+- ANCHOR 탭(기본값) → 친구 드롭다운 + 좁게/보통/넓게 버튼 노출 확인
+- 빈 폼 전송 → "내용을 입력해주세요." 클라이언트 검증 즉시 표시 확인
+- 그래프(`/`) → 헤더에 Buzz 링크 노출 확인
 
 ### Phase 3 — 실제 API
 - ANCHOR 수신자로 Buzz 작성 → 201 → `/buzzes`로 이동
