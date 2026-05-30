@@ -17,13 +17,16 @@ export default async function BuzzDetailPage({
     // 무시 — myUserId 없으면 수정/삭제 버튼 안 보임
   }
 
+  let buzzData;
   try {
     const result = await getBuzzDetailAction(params.buzzId);
     if (!result.success || !result.data) redirect("/buzzes");
-
-    return <BuzzDetail buzz={result.data} myUserId={myUserId} />;
+    buzzData = result.data;
   } catch (error) {
     if (isRedirectError(error)) throw error;
     redirect("/buzzes");
   }
+
+  if (!buzzData) redirect("/buzzes");
+  return <BuzzDetail buzz={buzzData} myUserId={myUserId} />;
 }

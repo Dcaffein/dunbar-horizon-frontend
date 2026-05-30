@@ -1,15 +1,29 @@
-# PLAN — Task 10: Buzz
+# PLAN — Task 11: Flag 핵심 기능
 
-> 참조 태스크: `harness/tasks/10-buzz.md`
-> 작업 브랜치: `agent/task-10-buzz`
+> 참조 태스크: `harness/tasks/11-flag-core.md`
+> 작업 브랜치: `agent/task-11-flag-core`
 
 ## 요구사항 분석
 
-- 그래프에서 미읽음 Buzz 발신자 노드 하이라이트
-- `/buzzes` 받은 Buzz 목록 (페이지네이션)
-- `/buzzes/{buzzId}` Buzz 상세 + 댓글 CRUD
-- `/buzzes/new` Buzz 작성 (ANCHOR / LABEL / MANUAL + 이미지 업로드)
-- 이미지: presign Server Action → 클라이언트 S3 PUT → imageKeys 포함
+- `/flags` 탭 3개 목록 (주최 중 / 참여 중 / 친구 Flag)
+- `/flags/new` Flag 생성 + Encore (`parentFlagId`만 전달, title/description 새로 작성)
+- `/flags/{id}` Flag 상세 (parentFlag 링크 + 참여자 목록 + host/참여 구분 버튼)
+- 모집 마감·참여·참여취소·삭제: Server Action → `router.refresh()`
+- 그래프 헤더에 Flag 링크 추가
+
+## API 확인
+
+| 액션 | 엔드포인트 | 응답 |
+|---|---|---|
+| 주최 Flag 목록 | `GET /api/v1/flags/me/hosting` | `FlagResult[]` |
+| 참여 Flag 목록 | `GET /api/v1/flags/me/participating` | `FlagResult[]` |
+| 친구 Flag 목록 | `GET /api/v1/flags/friends` | `FlagResult[]` |
+| Flag 상세 | `GET /api/v1/flags/{id}` | `FlagDetailResult` |
+| Flag 생성 | `POST /api/v1/flags` | `number` (flagId) |
+| Flag 삭제 | `DELETE /api/v1/flags/{id}` | — |
+| 모집 마감 | `PATCH /api/v1/flags/{id}/schedule/deadline` | — |
+| 참여 | `POST /api/v1/flags/{id}/participants` | — |
+| 참여 취소 | `DELETE /api/v1/flags/{id}/participants` | — |
 
 ---
 
@@ -17,96 +31,109 @@
 
 | 파일 | 신규/수정 | 내용 |
 |---|---|---|
-| `src/app/actions/buzz.ts` | 신규 | Server Actions (buzz + label 목록) |
-| `src/app/page.tsx` | 수정 | `getUnreadSenders()` 병렬 조회 + SocialGraph prop |
-| `src/components/socialGraph/index.tsx` | 수정 | `unreadBuzzSenderIds` prop + 노드 클릭 "Buzz 확인" 버튼 |
-| `src/components/socialGraph/styles.ts` | 수정 | `node.buzz-unread` 스타일 추가 |
-| `src/components/socialGraph/useGraphData.ts` | 수정 | `unreadBuzzSenderIds` → 노드 클래스 적용 |
-| `src/app/buzzes/page.tsx` | 신규 | Server Component — 목록 초기 조회 |
-| `src/components/Buzz/BuzzList.tsx` | 신규 | 받은 Buzz 카드 목록 + 더 보기 |
-| `src/app/buzzes/[buzzId]/page.tsx` | 신규 | Server Component — 상세 조회 |
-| `src/components/Buzz/BuzzDetail.tsx` | 신규 | 상세 + 댓글 CRUD |
-| `src/app/buzzes/new/page.tsx` | 신규 | 작성 페이지 (Server Component 껍데기) |
-| `src/components/Buzz/BuzzForm.tsx` | 신규 | 작성 폼 (recipient 선택 + 이미지 업로드) |
+| `src/app/actions/flag.ts` | 신규 | Server Actions |
+| `src/app/flags/page.tsx` | 신규 | Server Component — 탭 3개 병렬 조회 |
+| `src/components/Flag/FlagList.tsx` | 신규 | Client Component — 탭 UI + FlagCard 목록 |
+| `src/app/flags/[id]/page.tsx` | 신규 | Server Component — 상세 조회 |
+| `src/components/Flag/FlagDetail.tsx` | 신규 | Client Component — 상세 + 액션 버튼 |
+| `src/app/flags/new/page.tsx` | 신규 | Server Component — Encore searchParams 처리 |
+| `src/components/Flag/FlagForm.tsx` | 신규 | Client Component — 생성 폼 |
+| `src/app/page.tsx` | 수정 | 헤더에 Flag 링크 추가 |
 
 ---
 
 ## 상세 설계
 
-### `src/app/actions/buzz.ts`
+### `src/app/actions/flag.ts`
 
 ```ts
 "use server"
 
-getUnreadSendersAction()       → GET /api/v1/buzzes/senders/unread → number[]
-getReceivedBuzzesAction(page)  → GET /api/v1/buzzes/?page=&size=20 → SliceBuzzSummaryResult
-getBuzzDetailAction(buzzId)    → GET /api/v1/buzzes/{buzzId}       → BuzzDetailResult
-createBuzzAction(body)         → POST /api/v1/buzzes                → BuzzDetailResult
-deleteBuzzAction(buzzId)       → DELETE /api/v1/buzzes/{buzzId}
-addCommentAction(buzzId, body) → POST /api/v1/buzzes/{buzzId}/comments → BuzzCommentResult
-updateCommentAction(buzzId, commentId, body) → PATCH → BuzzCommentResult
-deleteCommentAction(buzzId, commentId)       → DELETE
-presignImagesAction(reqs)      → POST /api/v1/buzzes/images/presign → PresignedUploadResult[]
-getLabelsAction()              → GET /api/v1/labels                 → LabelResult[]
+getHostingFlagsAction()       → GET /api/v1/flags/me/hosting        → FlagResult[]
+getParticipatingFlagsAction() → GET /api/v1/flags/me/participating   → FlagResult[]
+getFriendFlagsAction()        → GET /api/v1/flags/friends            → FlagResult[]
+getFlagDetailAction(id)       → GET /api/v1/flags/{id}              → FlagDetailResult
+createFlagAction(body)        → POST /api/v1/flags                   → number (flagId)
+deleteFlagAction(id)          → DELETE /api/v1/flags/{id}
+closeRecruitmentAction(id)    → PATCH /api/v1/flags/{id}/schedule/deadline
+participateAction(id)         → POST /api/v1/flags/{id}/participants
+leaveAction(id)               → DELETE /api/v1/flags/{id}/participants
 ```
 
-### `src/app/page.tsx` 수정
+### `/flags` — FlagList
 
+서버 컴포넌트에서 3개 목록 병렬 조회:
 ```ts
-const [friends, unreadCount, unreadSenders] = await Promise.all([
-  apiClient.get('/api/v1/friends'),
-  getUnreadCountAction(),
-  getUnreadSendersAction(),
+const [hosting, participating, friends] = await Promise.all([
+  getHostingFlagsAction(),
+  getParticipatingFlagsAction(),
+  getFriendFlagsAction(),
 ]);
 ```
 
-`SocialGraph`에 `unreadBuzzSenderIds={unreadSenders.data ?? []}` prop 추가.
-헤더에 Buzz 목록 링크(`/buzzes`) 추가.
+FlagList (Client Component):
+- `activeTab: "hosting" | "participating" | "friends"` state
+- 탭별 FlagCard 목록 렌더링
+- 카드 클릭 → `/flags/{id}`
 
-### 그래프 하이라이트
+FlagCard 공통 표시:
+- 제목
+- `parentFlagId` 있으면 "Encore" 배지
+- `{participantCount}/{capacity}명` (capacity 없으면 `{participantCount}명 참여 중`)
+- status === "CLOSED" → "마감됨" 배지
+- `schedule.endDateTime` 기준 남은 시간 (D-day / N시간 / 만료)
+- `schedule.deadline` 지났으면 "모집 마감" 표시
 
-`useGraphData`: `unreadBuzzSenderIds` set에 포함된 친구 노드에 `classes: "buzz-unread"` 추가.
+탭별 액션 버튼:
+- **주최 중**: [모집 마감] (CLOSED 아닐 때) + [삭제] + [Encore]
+- **참여 중**: [참여 취소]
+- **친구 Flag**: [참여하기] (CLOSED이면 비활성)
 
-`styles.ts`: 
+### `/flags/{id}` — FlagDetail
+
+서버 컴포넌트에서 `getFlagDetailAction(id)` 조회:
 ```ts
-{ selector: 'node.buzz-unread',
-  style: { 'border-color': '#f97316', 'border-width': 3, 'background-color': '#fff7ed' } }
+const result = await getFlagDetailAction(id);
+if (!result.success) redirect("/flags");
 ```
 
-`index.tsx`: `FriendActionPanel`에 `isBuzzUnread` prop 추가. 패널 하단에 "Buzz 확인" 버튼 → `/buzzes?from={friendId}` 이동.
+`myUserId`(`GET /api/v1/accounts/me`)와 `flag.host.id` 비교로 host 판별.
+`flag.participants`에 myUserId 있으면 isParticipating = true.
 
-### `/buzzes` — BuzzList
+FlagDetail (Client Component):
+- 제목, 전체 설명, host 정보
+- 일정 (시작/종료 일시, 모집 마감)
+- `parentFlag` 있으면 "원본 Flag: {title}" → `/flags/{parentFlag.id}` 링크
+- 참여자 아바타 목록 + `{participantCount}/{capacity}명`
+- host이면: [모집 마감] + [삭제]
+- 참여 중이고 host 아니면: [참여 취소]
+- 미참여 친구 Flag이면: [참여하기] (CLOSED 비활성)
+- 각 버튼 → Server Action → `router.refresh()`
 
-카드 구조:
-- 미읽음(`isUnread`): 주황색 좌측 인디케이터 + 밝은 배경
-- `author.nickname`, `text`(truncate), `commentCount`, `remainingMinutes`
-- 10분 미만 시 `remainingMinutes` 빨간 강조
-- 카드 클릭 → `/buzzes/{buzzId}`
-- "더 보기" — slice 기반
+### `/flags/new` — FlagForm (Encore 포함)
 
-### `/buzzes/{buzzId}` — BuzzDetail
-
-- 서버 컴포넌트에서 `getBuzzDetailAction` → 자동 읽음 처리
-- 댓글 목록 표시, 내 댓글(`author.userId === myId`) → 수정/삭제 버튼
-- 댓글 입력창: text + `isPublic` 체크박스
-- 이미지 첨부(presign → S3 PUT → imageKeys)
-
-### `/buzzes/new` — BuzzForm
-
-수신자 타입 탭:
-- **ANCHOR**: 친구 드롭다운 + expansionValue 슬라이더 (0~1, Low/Mid/High 라벨)
-- **LABEL**: 내 라벨 목록 체크박스
-- **MANUAL**: 친구 목록 체크박스
-
-텍스트 입력 + 이미지 첨부(presign → S3 PUT) → 전송 → `/buzzes` 이동.
-
-### 이미지 업로드 유틸 (`src/lib/uploadImages.ts`)
-
+서버 컴포넌트에서 `parentFlagId` searchParams만 읽고 FlagForm에 전달:
 ```ts
-async function uploadImages(files: File[]): Promise<string[]>
-  1. presignImagesAction(files.map(f => ({contentType: f.type, size: f.size})))
-  2. files.forEach(f => fetch(uploadUrl, {method:'PUT', body: f}))
-  3. return objectKeys
+const { parentFlagId } = await searchParams;
+return <FlagForm parentFlagId={parentFlagId ? Number(parentFlagId) : undefined} />;
+```
+
+Encore 버튼(상세 페이지): `/flags/new?parentFlagId={id}` 링크.
+title/description은 사용자가 새로 작성.
+
+FlagForm (Client Component):
+- 제목* , 설명*, 시작 일시*, 종료 일시*, 모집 마감일(선택), 최대 인원(선택)
+- `datetime-local` input 사용
+- `parentFlagId` 있으면 "Encore 생성" 헤딩 표시
+- 제출 → `createFlagAction` → 성공 시 `router.push("/flags")`
+
+### `src/app/page.tsx` 수정
+
+헤더에 Flag 링크 추가 (Buzz 링크 옆):
+```tsx
+<Link href="/flags" className="...">
+  <FlagIcon /> Flag
+</Link>
 ```
 
 ---
@@ -115,17 +142,16 @@ async function uploadImages(files: File[]): Promise<string[]>
 
 ### Phase 1 — 정적 분석
 - `npx tsc --noEmit` 에러 없음
+- `npm run lint` 경고 없음
 
-### Phase 2 — UI/State ✅ PASS
-- `/buzzes` 진입 → 빈 상태("받은 Buzz가 없습니다.") + "+ 작성" 버튼 렌더링 확인
-- `/buzzes/new` 진입 → "Buzz 작성" 헤더 + 수신자 탭 3개(Anchor/라벨/직접 선택) 확인
-- ANCHOR 탭(기본값) → 친구 드롭다운 + 좁게/보통/넓게 버튼 노출 확인
-- 빈 폼 전송 → "내용을 입력해주세요." 클라이언트 검증 즉시 표시 확인
-- 그래프(`/`) → 헤더에 Buzz 링크 노출 확인
+### Phase 2 — UI/State
+- `/flags` 탭 3개 렌더링 및 전환
+- `/flags/new` 폼 필수 필드 렌더링
+- `/flags/new?parentFlagId=1` 진입 시 "Encore 생성" 헤딩 표시
+- 필수 필드 비워두고 제출 → 에러 표시
 
-### Phase 3 — Edge Cases ✅ PASS
-- LABEL 탭 선택 없이 전송 → "라벨을 하나 이상 선택해주세요." 에러 즉시 표시
-- MANUAL 탭 선택 없이 전송 → "수신자를 한 명 이상 선택해주세요." 에러 즉시 표시
-- 잘못된 buzzId(`/buzzes/nonexistent`) 접근 → `/buzzes`로 리다이렉트 확인
-- ANCHOR 탭 빈 내용 전송 → "내용을 입력해주세요." 에러 확인
-- LABEL 탭 라벨 없는 유저 → "라벨이 없습니다." 빈 상태 표시
+### Phase 3 — Edge Cases
+- 빈 목록 탭 → 빈 상태 메시지
+- status === "CLOSED" → 참여하기 버튼 비활성
+- 잘못된 `/flags/{id}` → `/flags` 리다이렉트
+- 종료일 지난 Flag → 만료 표시
