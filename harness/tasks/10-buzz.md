@@ -190,3 +190,10 @@ const [friends, unreadCount, unreadSenders] = await Promise.all([
 - 존재하지 않는 buzzId 접근 시 `/buzzes` 리다이렉트
 - 빈 content 전송 시 에러 표시
 - 라벨 없는 유저의 LABEL 탭 빈 상태 처리
+
+### Task 13에서 사후 발견·수정된 버그 (app/buzzes/[buzzId]/page.tsx)
+Task 10 구현 당시 두 가지 버그가 잠재해 있었고, Task 13 검증 중에 발견·수정됨.
+
+1. **Next.js 15 `params` Promise await 누락**: `params.buzzId` 동기 접근 시
+   `undefined` → `NaN` → buzzId 체크 실패로 상세 페이지 진입 불가. (`await params` 필요)
+2. **`apiClient` 401 redirect가 `cookies()` context 오염**: 상세 내용은 `13-flag-invitation.md` 참조.

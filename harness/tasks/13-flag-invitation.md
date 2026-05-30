@@ -127,6 +127,20 @@ Task 09에서 `FLAG_INVITATION` 알림은 읽음만 처리했다.
 - 수락 → API 성공 + router.push 실행 확인
 - metadata 파싱: `{invitationId: number, flagId: number}` 형태 직접 확인
 
-### 비고
-- FlagDetail 페이지 redirect는 `.next` Turbopack 캐시 문제 (구 Task 11 청크 + 신 Task 13 청크 공존)
-  개발 서버 재시작 또는 `.next` 삭제 후 재빌드로 해결 예상
+### Task 13 검증 중 발견·수정한 버그 (app/flags/[id]/page.tsx, app/buzzes/[buzzId]/page.tsx)
+
+#### 버그 1: Next.js 15 `params` Promise await 누락 (근본 원인)
+Next.js 15에서 동적 라우트의 `params`는 `Promise`다.
+`params.id`를 `await` 없이 동기 접근하면 `undefined` → `Number(undefined) = NaN`
+→ `isNaN(NaN) = true` → 페이지 최상단에서 `redirect("/flags")`가 즉시 실행된다.
+
+**수정:** `params: Promise<{ id: string }>` 타입으로 선언 후 `const { id } = await params`
+
+#### 버그 2: `apiClient` 401 redirect throw가 `cookies()` async context를 오염
+`apiClient.get`이 401 응답을 받으면 내부에서 `redirect("/login")`을 throw한다.
+이 throw를 빈 `catch {}`로 삼키면 Next.js의 async context가 오염되어,
+이후 `cookies().get("access_token")`이 `undefined`를 반환한다.
+결과적으로 토큰 없이 백엔드 호출 → 401 → `redirect("/flags")`로 이어진다.
+
+**수정:** 페이지 최상단에서 `cookies()`를 1회만 호출하고, `apiClient` 대신
+plain `fetch`를 사용해 401 처리 시 `redirect()`가 throw되지 않도록 구조 변경.

@@ -159,3 +159,12 @@ PLAN 단계에서 모달 vs 별도 페이지 결정.
 - 잘못된 ID(`/flags/999999`, `/flags/not-a-number`) → `/flags` 리다이렉트
 - capacity = 0 제출 → 에러 메시지 확인
 - 그래프 Flag 링크 클릭 → 페이지 이동 확인
+
+### Task 13에서 사후 발견·수정된 버그 (app/flags/[id]/page.tsx)
+Task 11 구현 당시 두 가지 버그가 잠재해 있었고, Task 13 검증 중에 발견·수정됨.
+
+1. **Next.js 15 `params` Promise await 누락**: `params.id` 동기 접근 시
+   `undefined` → `NaN` → `isNaN(NaN) = true` → 상세 페이지 진입 시 무조건
+   `redirect("/flags")` 실행. Phase 3에서 "잘못된 ID → /flags 리다이렉트"가
+   통과된 것은 이 버그 때문에 실제로는 모든 `/flags/{id}`가 리다이렉트된 것이었음.
+2. **`apiClient` 401 redirect가 `cookies()` context 오염**: 상세 내용은 `13-flag-invitation.md` 참조.
