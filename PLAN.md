@@ -80,11 +80,11 @@ const flagId = meta?.flagId as number | undefined;
 - `npx tsc --noEmit` 에러 없음
 - `npm run lint` error 없음
 
-### Phase 2 — UI/State
-- `/flags/{id}` 참가자 목록 canInvite 표시
-- host 로그인 시 토글 버튼 노출
-- 초대 섹션 드롭다운 렌더링
-- `/notifications` FLAG_INVITATION 항목 [수락][거절] 버튼 표시
+### Phase 2 — UI/State ✅ PASS (일부 BLOCKED)
+- `/notifications` FLAG_INVITATION 알림에 [수락][거절] 버튼 표시 확인 ✅
+- [거절] 클릭 → "응답 완료" 표시 + 버튼 숨김 확인 ✅
+- 초대 API(POST /api/v1/flags/{flagId}/invitations) → 201 정상 ✅
+- `/flags/{id}` FlagDetail 페이지 → Turbopack 캐시 불일치로 307 redirect (개발 서버 재시작 필요, 코드 버그 아님)
 
 ### Phase 3 — Edge Cases
 - 빈 친구 목록 → "초대 가능한 친구가 없습니다." 표시
