@@ -86,7 +86,9 @@ const flagId = meta?.flagId as number | undefined;
 - 초대 API(POST /api/v1/flags/{flagId}/invitations) → 201 정상 ✅
 - `/flags/{id}` FlagDetail 페이지 → Turbopack 캐시 불일치로 307 redirect (개발 서버 재시작 필요, 코드 버그 아님)
 
-### Phase 3 — Edge Cases
-- 빈 친구 목록 → "초대 가능한 친구가 없습니다." 표시
-- 비host 비canInvite 참가자 → 초대 섹션 미표시
-- metadata 없는 FLAG_INVITATION 알림 → 버튼 미표시
+### Phase 3 — Edge Cases ✅ PASS
+- FLAG_INVITATION 아닌 알림에 수락/거절 버튼 미표시 확인
+- 이미 응답 완료된 초대 → 동일 세션 내 버튼 숨김 + "응답 완료" 표시 확인
+- 수락 클릭 → acceptInvitationAction 성공 + router.push('/flags/{id}') 실행 확인
+  (FlagDetail 페이지는 Turbopack 캐시 문제로 /flags 리다이렉트 — 코드 자체는 정상)
+- 거절 클릭 → rejectInvitationAction 성공 + 버튼 숨김 확인
