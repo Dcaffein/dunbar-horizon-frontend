@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getBuzzDetailAction } from "@/app/actions/buzz";
 import BuzzDetail from "@/components/Buzz/BuzzDetail";
-import { isRedirectError, apiClient } from "@/api/apiClient";
+import { isRedirectError } from "@/api/apiClient";
 
 export default async function BuzzDetailPage({
   params,
@@ -9,15 +9,6 @@ export default async function BuzzDetailPage({
   params: Promise<{ buzzId: string }>;
 }) {
   const { buzzId } = await params;
-
-  let myUserId: number | undefined;
-  try {
-    const profile = await apiClient.get<{ id: number }>("/api/v1/users/me");
-    myUserId = profile.id;
-  } catch (error) {
-    if (isRedirectError(error)) throw error;
-    // 비인증 외 에러는 무시 — myUserId 없으면 수정/삭제 버튼 안 보임
-  }
 
   let buzzData;
   try {
@@ -30,5 +21,5 @@ export default async function BuzzDetailPage({
   }
 
   if (!buzzData) redirect("/buzzes");
-  return <BuzzDetail buzz={buzzData} myUserId={myUserId} />;
+  return <BuzzDetail buzz={buzzData} />;
 }

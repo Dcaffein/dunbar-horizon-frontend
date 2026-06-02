@@ -13,7 +13,6 @@ import {
 
 interface BuzzDetailProps {
   buzz: BuzzDetailResult;
-  myUserId?: number;
 }
 
 function remainingLabel(min?: number): string {
@@ -33,7 +32,7 @@ function timeAgo(createdAt?: string): string {
   return `${Math.floor(min / 1440)}일 전`;
 }
 
-export default function BuzzDetail({ buzz, myUserId }: BuzzDetailProps) {
+export default function BuzzDetail({ buzz }: BuzzDetailProps) {
   const router = useRouter();
   const [comments, setComments] = useState<BuzzCommentResult[]>(buzz.comments ?? []);
   const [commentText, setCommentText] = useState("");
@@ -86,7 +85,7 @@ export default function BuzzDetail({ buzz, myUserId }: BuzzDetailProps) {
     else setActionError(result.message ?? null);
   }
 
-  const isMyBuzz = buzz.author?.userId === myUserId;
+  const isMyBuzz = buzz.isCreator ?? false;
   const rem = remainingLabel(buzz.remainingMinutes);
   const urgent = (buzz.remainingMinutes ?? 999) < 10;
 
@@ -136,7 +135,7 @@ export default function BuzzDetail({ buzz, myUserId }: BuzzDetailProps) {
         <div className="px-4 py-3 space-y-3">
           <p className="text-xs font-bold text-gray-500">댓글 {comments.length}개</p>
           {comments.map((c) => {
-            const isMine = c.author?.userId === myUserId;
+            const isMine = c.isMine ?? false;
             return (
               <div key={c.commentId} className="bg-white rounded-xl p-3 border border-gray-100">
                 <div className="flex items-center justify-between mb-1">
