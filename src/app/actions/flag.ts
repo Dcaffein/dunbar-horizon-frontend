@@ -7,6 +7,7 @@ import type { FlagCreateRequest } from "@/api/model/flagCreateRequest";
 import type { FlagDetailsUpdateRequest } from "@/api/model/flagDetailsUpdateRequest";
 import type { FlagCapacityUpdateRequest } from "@/api/model/flagCapacityUpdateRequest";
 import type { FlagScheduleUpdateRequest } from "@/api/model/flagScheduleUpdateRequest";
+import type { MemorialResult } from "@/api/model/memorialResult";
 
 export async function getHostingFlagsAction() {
   try {
@@ -175,5 +176,47 @@ export async function updateInvitePermissionAction(
   } catch (error) {
     if (isRedirectError(error)) throw error;
     return { success: false as const, message: "초대 권한 변경에 실패했습니다." };
+  }
+}
+
+export async function getMemorialsAction(flagId: number) {
+  try {
+    const data = await apiClient.get<MemorialResult[]>(`/api/v1/flags/${flagId}/memorials`);
+    return { success: true as const, data };
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    return { success: false as const, data: [] as MemorialResult[] };
+  }
+}
+
+export async function createMemorialAction(flagId: number, content: string) {
+  try {
+    const data = await apiClient.post<number, { content: string }>(`/api/v1/flags/${flagId}/memorials`, { content });
+    return { success: true as const, data };
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    const message = error instanceof Error ? error.message : "Memorial 작성에 실패했습니다.";
+    return { success: false as const, message };
+  }
+}
+
+export async function updateMemorialAction(id: number, content: string) {
+  try {
+    await apiClient.patch(`/api/v1/flags/memorials/${id}`, { content });
+    return { success: true as const };
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    const message = error instanceof Error ? error.message : "Memorial 수정에 실패했습니다.";
+    return { success: false as const, message };
+  }
+}
+
+export async function deleteMemorialAction(id: number) {
+  try {
+    await apiClient.delete(`/api/v1/flags/memorials/${id}`);
+    return { success: true as const };
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    return { success: false as const, message: "Memorial 삭제에 실패했습니다." };
   }
 }
