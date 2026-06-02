@@ -8,6 +8,7 @@ import type { FlagDetailsUpdateRequest } from "@/api/model/flagDetailsUpdateRequ
 import type { FlagCapacityUpdateRequest } from "@/api/model/flagCapacityUpdateRequest";
 import type { FlagScheduleUpdateRequest } from "@/api/model/flagScheduleUpdateRequest";
 import type { MemorialResult } from "@/api/model/memorialResult";
+import type { CommentResult } from "@/api/model/commentResult";
 
 export async function getHostingFlagsAction() {
   try {
@@ -218,5 +219,64 @@ export async function deleteMemorialAction(id: number) {
   } catch (error) {
     if (isRedirectError(error)) throw error;
     return { success: false as const, message: "Memorial 삭제에 실패했습니다." };
+  }
+}
+
+export async function getCommentsAction(flagId: number) {
+  try {
+    const data = await apiClient.get<CommentResult[]>(`/api/v1/flags/${flagId}/comments`);
+    return { success: true as const, data };
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    return { success: false as const, data: [] as CommentResult[] };
+  }
+}
+
+export async function createCommentAction(flagId: number, content: string, isPrivate?: boolean) {
+  try {
+    const data = await apiClient.post<number, { content: string; isPrivate?: boolean }>(
+      `/api/v1/flags/${flagId}/comments`,
+      { content, ...(isPrivate ? { isPrivate } : {}) },
+    );
+    return { success: true as const, data };
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    const message = error instanceof Error ? error.message : "댓글 작성에 실패했습니다.";
+    return { success: false as const, message };
+  }
+}
+
+export async function createReplyAction(parentId: number, content: string, isPrivate?: boolean) {
+  try {
+    const data = await apiClient.post<number, { content: string; isPrivate?: boolean }>(
+      `/api/v1/comments/${parentId}/replies`,
+      { content, ...(isPrivate ? { isPrivate } : {}) },
+    );
+    return { success: true as const, data };
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    const message = error instanceof Error ? error.message : "대댓글 작성에 실패했습니다.";
+    return { success: false as const, message };
+  }
+}
+
+export async function updateCommentAction(commentId: number, content: string) {
+  try {
+    await apiClient.patch(`/api/v1/comments/${commentId}`, { content });
+    return { success: true as const };
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    const message = error instanceof Error ? error.message : "댓글 수정에 실패했습니다.";
+    return { success: false as const, message };
+  }
+}
+
+export async function deleteCommentAction(commentId: number) {
+  try {
+    await apiClient.delete(`/api/v1/comments/${commentId}`);
+    return { success: true as const };
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    return { success: false as const, message: "댓글 삭제에 실패했습니다." };
   }
 }

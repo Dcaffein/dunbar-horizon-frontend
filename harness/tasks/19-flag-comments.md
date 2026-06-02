@@ -67,4 +67,28 @@ CommentResult {
 
 ## Result
 
-<!-- 작업 완료 후 기록 -->
+### Phase 1 ✅
+- `npx tsc --noEmit` 에러 없음
+- `npm run lint` 에러 없음
+
+### Phase 2 ✅ PASS
+- Flag 상세 댓글 섹션 표시, 입력창 표시
+- 루트 댓글 작성 → 백엔드 저장 확인
+- 내 댓글 [수정][삭제] 버튼 표시 + 수정 백엔드 반영
+- 대댓글 작성 → replies에 저장, 들여쓰기 표시
+- 비공개 댓글 → 작성자에게 내용 표시, 타인 참가자에게 안 보임
+- 🔍 빈 내용 → [전송] 버튼 비활성화
+- 🔍 대댓글에 [답글] 미표시 (1단계만)
+
+### 설계 결정
+
+**`CommentResult.replies` 타입 누락 (순환참조)**
+`GET /api/v1/flags/{flagId}/comments`가 트리 구조(`replies` 포함)로 응답하지만,
+OpenAPI 스펙이 순환참조로 `replies` 필드를 누락함 → Orval 미생성.
+`FlagComments.tsx` 내부에서 `type CommentTree = CommentResult & { replies?: CommentTree[] }` 확장 타입을 정의하고
+`initialComments as CommentTree[]`로 1회 cast해서 처리.
+
+**비공개 댓글 렌더링**
+태스크 원안("다른 참가자에게 `(비공개 댓글)` 표시")과 달리, 백엔드가 비공개 댓글을
+비작성자/비host에게 응답에서 완전히 제외함. 프론트는 `canView` 로직 없이 `comment.content` 그대로 표시.
+결과적으로 🔒 아이콘만 남겨 작성자가 비공개 여부를 인지하도록 함.
