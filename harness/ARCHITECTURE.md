@@ -22,3 +22,35 @@
 ## Styling Rules
 
 - 스타일은 오직 Tailwind CSS 유틸리티 클래스만 사용하며, 인라인 스타일(`style={{}}`) 사용은 지양한다.
+
+## Next.js 필수 패턴 (어기면 런타임 버그)
+
+### 1. 동적 라우트 params는 반드시 await
+
+Next.js 15부터 동적 라우트의 `params`는 `Promise`다.
+동기 접근(`params.id`)하면 `undefined` → 잘못된 분기 실행.
+
+```ts
+// page.tsx
+export default async function Page({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  ...
+}
+```
+
+### 2. isRedirectError는 page와 Server Action 모두 re-throw
+
+`apiClient`가 401을 받으면 `redirect("/login")`을 throw한다.
+`catch {}` 블록이 이를 삼키면 redirect가 실행되지 않고 AsyncLocalStorage 컨텍스트가 오염된다.
+Server Action뿐 아니라 **page 컴포넌트의 catch 블록**에서도 반드시 re-throw해야 한다.
+
+```ts
+import { isRedirectError } from "@/api/apiClient";
+
+try {
+  const data = await apiClient.get(...);
+} catch (error) {
+  if (isRedirectError(error)) throw error;  // 필수
+  // 그 외 에러 처리
+}
+```

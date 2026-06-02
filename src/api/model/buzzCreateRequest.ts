@@ -5,11 +5,12 @@
  * DunbarHorizon 백엔드 API
  * OpenAPI spec version: 1.0.0
  */
+import type { AnchorRecipientRequest } from './anchorRecipientRequest';
 import type { LabelRecipientRequest } from './labelRecipientRequest';
 import type { ManualRecipientRequest } from './manualRecipientRequest';
-import type { PivotRecipientRequest } from './pivotRecipientRequest';
 
 export interface BuzzCreateRequest {
   text: string;
-  recipient: LabelRecipientRequest | ManualRecipientRequest | PivotRecipientRequest;
+  recipient: AnchorRecipientRequest | LabelRecipientRequest | ManualRecipientRequest;
+  imageKeys?: string[];
 }

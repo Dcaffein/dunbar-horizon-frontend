@@ -6,6 +6,6 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export interface VisitRequestDto {
-  targetId: number;
-}
+export type PresignProfileImageParams = {
+contentType: string;
+};

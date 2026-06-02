@@ -7,8 +7,10 @@
  */
 import type {
   LoginRequestDto,
+  PresignProfileImageParams,
+  PresignedUploadResult,
   SignupRequestDto,
-  UpdateProfileBody,
+  UserProfileUpdateRequest,
   VerificationEmailRequestDto,
   VerifyEmailParams
 } from '../../model';
@@ -114,6 +116,45 @@ export const signup = async (signupRequestDto: SignupRequestDto, options?: Reque
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(signupRequestDto)
+  }
+);}
+
+
+export type presignProfileImageResponse200 = {
+  data: PresignedUploadResult
+  status: 200
+}
+
+export type presignProfileImageResponseSuccess = (presignProfileImageResponse200) & {
+  headers: Headers;
+};
+;
+
+export type presignProfileImageResponse = (presignProfileImageResponseSuccess)
+
+export const getPresignProfileImageUrl = (params: PresignProfileImageParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/auth/users/me/profile-image/presign?${stringifiedParams}` : `/api/auth/users/me/profile-image/presign`
+}
+
+export const presignProfileImage = async (params: PresignProfileImageParams, options?: RequestInit): Promise<presignProfileImageResponse> => {
+
+  return customFetch<presignProfileImageResponse>(getPresignProfileImageUrl(params),
+  {
+    ...options,
+    method: 'POST'
+
+
   }
 );}
 
@@ -234,21 +275,14 @@ export const getUpdateProfileUrl = () => {
   return `/api/auth/users/me`
 }
 
-export const updateProfile = async (updateProfileBody?: UpdateProfileBody, options?: RequestInit): Promise<updateProfileResponse> => {
-    const formData = new FormData();
-if(updateProfileBody?.request !== undefined) {
- formData.append(`request`, JSON.stringify(updateProfileBody.request));
- }
-if(updateProfileBody?.profileImage !== undefined) {
- formData.append(`profileImage`, updateProfileBody.profileImage);
- }
+export const updateProfile = async (userProfileUpdateRequest: UserProfileUpdateRequest, options?: RequestInit): Promise<updateProfileResponse> => {
 
   return customFetch<updateProfileResponse>(getUpdateProfileUrl(),
   {
     ...options,
-    method: 'PATCH'
-    ,
-    body: formData
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(userProfileUpdateRequest)
   }
 );}
 

@@ -12,4 +12,5 @@ export interface UserProfileUpdateRequest {
      * @maxLength 20
      */
   nickname: string;
+  profileImageKey?: string;
 }

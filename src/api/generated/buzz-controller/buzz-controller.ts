@@ -6,12 +6,13 @@
  * OpenAPI spec version: 1.0.0
  */
 import type {
+  BuzzCommentRequest,
+  BuzzCreateRequest,
   BuzzDetailResult,
-  CommentBody,
-  CreateBuzzBody,
   GetReceivedBuzzesParams,
-  SliceBuzzSummaryResult,
-  UpdateComment1Body
+  PresignRequest,
+  PresignedUploadResult,
+  SliceBuzzSummaryResult
 } from '../../model';
 
 import { customFetch } from '../../apiClient';
@@ -36,21 +37,14 @@ export const getCreateBuzzUrl = () => {
   return `/api/v1/buzzes`
 }
 
-export const createBuzz = async (createBuzzBody?: CreateBuzzBody, options?: RequestInit): Promise<createBuzzResponse> => {
-    const formData = new FormData();
-if(createBuzzBody?.request !== undefined) {
- formData.append(`request`, JSON.stringify(createBuzzBody.request));
- }
-if(createBuzzBody?.images !== undefined) {
- createBuzzBody?.images.forEach(value => formData.append(`images`, value));
- }
+export const createBuzz = async (buzzCreateRequest: BuzzCreateRequest, options?: RequestInit): Promise<createBuzzResponse> => {
 
   return customFetch<createBuzzResponse>(getCreateBuzzUrl(),
   {
     ...options,
-    method: 'POST'
-    ,
-    body: formData
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(buzzCreateRequest)
   }
 );}
 
@@ -76,21 +70,46 @@ export const getCommentUrl = (buzzId: string,) => {
 }
 
 export const comment = async (buzzId: string,
-    commentBody?: CommentBody, options?: RequestInit): Promise<commentResponse> => {
-    const formData = new FormData();
-if(commentBody?.request !== undefined) {
- formData.append(`request`, JSON.stringify(commentBody.request));
- }
-if(commentBody?.images !== undefined) {
- commentBody?.images.forEach(value => formData.append(`images`, value));
- }
+    buzzCommentRequest: BuzzCommentRequest, options?: RequestInit): Promise<commentResponse> => {
 
   return customFetch<commentResponse>(getCommentUrl(buzzId),
   {
     ...options,
-    method: 'POST'
-    ,
-    body: formData
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(buzzCommentRequest)
+  }
+);}
+
+
+export type presignImagesResponse200 = {
+  data: PresignedUploadResult[]
+  status: 200
+}
+
+export type presignImagesResponseSuccess = (presignImagesResponse200) & {
+  headers: Headers;
+};
+;
+
+export type presignImagesResponse = (presignImagesResponseSuccess)
+
+export const getPresignImagesUrl = () => {
+
+
+
+
+  return `/api/v1/buzzes/images/presign`
+}
+
+export const presignImages = async (presignRequest: PresignRequest[], options?: RequestInit): Promise<presignImagesResponse> => {
+
+  return customFetch<presignImagesResponse>(getPresignImagesUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(presignRequest)
   }
 );}
 
@@ -152,21 +171,14 @@ export const getUpdateComment1Url = (buzzId: string,
 
 export const updateComment1 = async (buzzId: string,
     commentId: string,
-    updateComment1Body?: UpdateComment1Body, options?: RequestInit): Promise<updateComment1Response> => {
-    const formData = new FormData();
-if(updateComment1Body?.request !== undefined) {
- formData.append(`request`, JSON.stringify(updateComment1Body.request));
- }
-if(updateComment1Body?.images !== undefined) {
- updateComment1Body?.images.forEach(value => formData.append(`images`, value));
- }
+    buzzCommentRequest: BuzzCommentRequest, options?: RequestInit): Promise<updateComment1Response> => {
 
   return customFetch<updateComment1Response>(getUpdateComment1Url(buzzId,commentId),
   {
     ...options,
-    method: 'PATCH'
-    ,
-    body: formData
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(buzzCommentRequest)
   }
 );}
 

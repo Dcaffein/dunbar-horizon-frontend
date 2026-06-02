@@ -6,6 +6,7 @@
  * OpenAPI spec version: 1.0.0
  */
 import type {
+  MyProfileResult,
   SearchByEmailParams,
   UserProfileInfo
 } from '../../model';
@@ -42,6 +43,38 @@ export const getSearchByEmailUrl = (params: SearchByEmailParams,) => {
 export const searchByEmail = async (params: SearchByEmailParams, options?: RequestInit): Promise<searchByEmailResponse> => {
 
   return customFetch<searchByEmailResponse>(getSearchByEmailUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+export type getMyProfileResponse200 = {
+  data: MyProfileResult
+  status: 200
+}
+
+export type getMyProfileResponseSuccess = (getMyProfileResponse200) & {
+  headers: Headers;
+};
+;
+
+export type getMyProfileResponse = (getMyProfileResponseSuccess)
+
+export const getGetMyProfileUrl = () => {
+
+
+
+
+  return `/api/v1/users/me`
+}
+
+export const getMyProfile = async ( options?: RequestInit): Promise<getMyProfileResponse> => {
+
+  return customFetch<getMyProfileResponse>(getGetMyProfileUrl(),
   {
     ...options,
     method: 'GET'

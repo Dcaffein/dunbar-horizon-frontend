@@ -6,6 +6,8 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export interface VisitRequestDto {
-  targetId: number;
+export interface DummyUserResponse {
+  id?: number;
+  email?: string;
+  nickname?: string;
 }

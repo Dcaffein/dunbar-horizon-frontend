@@ -9,4 +9,5 @@
 export interface BuzzCommentRequest {
   text: string;
   isPublic?: boolean;
+  imageKeys?: string[];
 }

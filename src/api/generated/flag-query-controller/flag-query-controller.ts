@@ -6,11 +6,44 @@
  * OpenAPI spec version: 1.0.0
  */
 import type {
+  FlagDetailResult,
   FlagResult,
   GetMyFlagsByRoleParams
 } from '../../model';
 
 import { customFetch } from '../../apiClient';
+
+export type getFlagDetailResponse200 = {
+  data: FlagDetailResult
+  status: 200
+}
+
+export type getFlagDetailResponseSuccess = (getFlagDetailResponse200) & {
+  headers: Headers;
+};
+;
+
+export type getFlagDetailResponse = (getFlagDetailResponseSuccess)
+
+export const getGetFlagDetailUrl = (id: number,) => {
+
+
+
+
+  return `/api/v1/flags/${id}`
+}
+
+export const getFlagDetail = async (id: number, options?: RequestInit): Promise<getFlagDetailResponse> => {
+
+  return customFetch<getFlagDetailResponse>(getGetFlagDetailUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
 
 export type getMyFlagsByRoleResponse200 = {
   data: FlagResult[]
