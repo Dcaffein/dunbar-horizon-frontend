@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { FlagDetailResult } from "@/api/model/flagDetailResult";
 import type { ParticipantResult } from "@/api/model/participantResult";
+import type { MemorialResult } from "@/api/model/memorialResult";
 import type { FriendshipDetail } from "@/components/socialGraph/types";
+import FlagMemorial from "./FlagMemorial";
 import {
   closeRecruitmentAction,
   deleteFlagAction,
@@ -41,9 +43,10 @@ interface FlagDetailProps {
   flag: FlagDetailResult;
   myUserId?: number;
   friends: FriendshipDetail[];
+  memorials: MemorialResult[];
 }
 
-export default function FlagDetail({ flag, myUserId, friends }: FlagDetailProps) {
+export default function FlagDetail({ flag, myUserId, friends, memorials }: FlagDetailProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -303,6 +306,15 @@ export default function FlagDetail({ flag, myUserId, friends }: FlagDetailProps)
               </div>
             )}
           </div>
+        )}
+        {/* Memorial 섹션 */}
+        {flag.id && (
+          <FlagMemorial
+            flagId={flag.id}
+            initialMemorials={memorials}
+            myUserId={myUserId}
+            isParticipant={isHost || isParticipating}
+          />
         )}
       </div>
 

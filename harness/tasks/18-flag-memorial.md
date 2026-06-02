@@ -68,4 +68,20 @@ MemorialResult {
 
 ## Result
 
-<!-- 작업 완료 후 기록 -->
+### Phase 1 ✅
+- `npx tsc --noEmit` 에러 없음
+- `npm run lint` 에러 없음
+
+### Phase 2 ✅ PASS
+- Flag 상세 하단 Memorial 섹션("기억 남기기") 표시 확인
+- Host(참가자) → 입력 textarea + [기억 남기기] 버튼 표시
+- Memorial 작성 → 백엔드 저장 확인
+- 내 Memorial [수정][삭제] 버튼 표시 + 수정·삭제 백엔드 반영 확인
+- 🔍 빈 내용 → [기억 남기기] 버튼 비활성화
+- 🔍 비참가자 → 입력창 미표시, 목록 섹션은 표시
+- 🔍 Memorial 없는 초기 상태 → "아직 남겨진 기억이 없습니다." 표시
+
+### 참고
+- Memorial은 `ENDED` 상태 Flag에만 작성 가능 (백엔드 정책)
+- `myUserId`는 `FlagDetail` 기존 props 재사용 — 추가 API 호출 없음
+- 소유권 판단: `memorial.writerId === myUserId` 클라이언트 비교

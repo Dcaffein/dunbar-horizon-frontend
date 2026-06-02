@@ -1,93 +1,63 @@
-# PLAN: Task 14 — Flag 세부 수정
+# PLAN: Task 18 — Flag Memorial
 
-> 참조 태스크: `harness/tasks/14-flag-edit.md`
+> 참조 태스크: `harness/tasks/18-flag-memorial.md`
 
 ## 요구사항 분석
 
-Flag Host가 생성된 Flag의 제목·설명·인원·일정을 수정할 수 있는 편집 페이지를 구현한다.
+Flag 상세 페이지 하단에 Memorial 섹션 추가.
+참가자(host 포함)가 기억을 남기고, 본인 Memorial만 수정·삭제 가능.
 
-- `/flags/{id}/edit` 신규 페이지 (서버 컴포넌트가 현재 값 조회 → 클라이언트 폼에 초기값 전달)
-- 저장 시 **변경된 항목에 따라** API 선택적 호출 (변경 없으면 호출 안 함)
-- 비Host 접근 시 `/flags/{id}` 리다이렉트
+## 소유권 판단
 
-## 사용 API
+`MemorialResult`에 `isMyMemorial` 없음 → `memorial.writerId === myUserId` 클라이언트 비교.
+`myUserId`는 `FlagDetail`이 이미 props로 받고 있으므로 추가 API 호출 불필요.
 
-| 변경 항목 | API |
-|---|---|
-| 제목 or 설명 변경 | `PATCH /api/v1/flags/{id}/details` |
-| 인원 변경 | `PATCH /api/v1/flags/{id}/capacity` |
-| 일정(셋 중 하나라도) 변경 | `PUT /api/v1/flags/{id}/schedule` (전체 필드 전송) |
-
-## 작업 범위 (수정/생성 파일)
+## 작업 범위
 
 ### 수정 파일
 
 1. **`src/app/actions/flag.ts`**
-   - `updateFlagDetailsAction(id, body)` 추가 — `PATCH /details`
-   - `updateFlagCapacityAction(id, body)` 추가 — `PATCH /capacity`
-   - `updateFlagScheduleAction(id, body)` 추가 — `PUT /schedule`
+   - `getMemorialsAction(flagId)` → `GET /api/v1/flags/{flagId}/memorials`
+   - `createMemorialAction(flagId, content)` → `POST /api/v1/flags/{flagId}/memorials`
+   - `updateMemorialAction(id, content)` → `PATCH /api/v1/flags/memorials/{id}`
+   - `deleteMemorialAction(id)` → `DELETE /api/v1/flags/memorials/{id}`
 
-2. **`src/components/Flag/FlagForm.tsx`**
-   - `flagId?: number` + `initialValues?` props 추가
-   - `flagId` 존재 시 edit 모드: 초기값으로 state 초기화, submit 시 diff 감지 후 선택적 API 호출
-   - 헤더 타이틀 "Flag 만들기" → "Flag 수정" (edit 모드)
-   - 버튼 레이블 "Flag 만들기" → "저장" (edit 모드), "생성 중..." → "저장 중..." (edit 모드)
+2. **`src/app/flags/[id]/page.tsx`**
+   - `getMemorialsAction(id)` 추가 호출
+   - `memorials: MemorialResult[]` FlagDetail에 전달
 
 3. **`src/components/Flag/FlagDetail.tsx`**
-   - 헤더 우측 `isHost && <Link href={/flags/${flag.id}/edit}>수정</Link>` 추가
+   - `memorials` prop 추가
+   - 하단에 Memorial 섹션 렌더링 (FlagMemorial 컴포넌트 사용)
 
 ### 신규 파일
 
-4. **`src/app/flags/[id]/edit/page.tsx`** (서버 컴포넌트)
-   - `getFlagDetailAction(id)` 로 현재 값 조회
-   - `apiClient.get("/api/v1/accounts/me")` 로 내 userId 조회
-   - `flag.host?.id !== myUserId` 이면 `redirect(\`/flags/${id}\`)`
-   - `FlagForm`에 `flagId` + `initialValues` 전달
+4. **`src/components/Flag/FlagMemorial.tsx`** (Client Component)
+   - props: `flagId`, `initialMemorials`, `myUserId`, `isParticipant`
+   - 상태: `memorials`, `text`(입력), `editingId`+`editText`
+   - 작성 버튼: `isParticipant`(host 포함)일 때만 표시
+   - 수정·삭제 버튼: `memorial.writerId === myUserId`일 때만 표시
+   - 작성·수정·삭제 성공 → `router.refresh()`
 
-## initialValues 인터페이스
+## isParticipant 판단
 
-```ts
-interface FlagFormInitialValues {
-  title: string;
-  description: string;
-  startDateTime: string;   // datetime-local 포맷 "YYYY-MM-DDTHH:mm"
-  endDateTime: string;
-  deadline: string;        // 없으면 ""
-  capacity: string;        // 없으면 ""
-}
-```
+`FlagDetail`이 이미 `isHost`, `isParticipating`을 계산하고 있음.
+`isParticipant = isHost || isParticipating`으로 전달.
 
-## 변경 감지 로직 (edit 모드 submit)
-
-```
-detailsChanged  = title !== initial.title || description !== initial.description
-capacityChanged = capacity !== initial.capacity
-scheduleChanged = startDateTime !== initial.startDateTime
-               || endDateTime !== initial.endDateTime
-               || deadline !== initial.deadline
-
-→ detailsChanged  → updateFlagDetailsAction
-→ capacityChanged → updateFlagCapacityAction
-→ scheduleChanged → updateFlagScheduleAction (startDateTime + endDateTime + deadline? 전송)
-→ 모두 false      → API 호출 없이 router.push(`/flags/${flagId}`)
-```
-
-## 테스트 시나리오 (harness/TESTING_RULES.md 3단계)
+## 테스트 시나리오
 
 ### Phase 1 — 정적 분석
 - `npx tsc --noEmit` 에러 없음
 - `npm run lint` 에러 없음
 
 ### Phase 2 — UI/State 검증
-- Flag 상세(Host 로그인) → 헤더에 [수정] 버튼 표시
-- `/flags/{id}/edit` 진입 → 현재 값이 폼 필드에 채워짐
-- 제목 수정 후 저장 → `PATCH /details` 200 → `/flags/{id}` 이동, 변경 반영
-- 인원 수정 후 저장 → `PATCH /capacity` 200 → 반영
-- 일정(시작·종료·마감 중 하나) 수정 후 저장 → `PUT /schedule` 200 → 반영
+- Flag 상세 하단 Memorial 섹션 표시
+- 참가자로 로그인 → 입력창 + [남기기] 버튼 표시
+- Memorial 작성 → 목록 반영
+- 내 Memorial [수정][삭제] 버튼 표시 → 동작 확인
+- 타인 Memorial 수정·삭제 버튼 미표시
 
 ### Phase 3 — Edge Case
-- 아무것도 바꾸지 않고 저장 → API 호출 없이 `/flags/{id}` 이동
-- 비Host 로그인 상태로 `/flags/{id}/edit` 직접 접근 → `/flags/{id}` 리다이렉트
-- 잘못된 id(NaN) → `/flags` 리다이렉트
-- 시작 일시 ≥ 종료 일시 → 클라이언트 validation 에러 표시
-- 여러 항목 동시 수정 → 해당 API 모두 호출, 전부 성공 후 이동
+- 비참가자(참여 안 한 유저) → 입력창 미표시
+- 빈 내용 제출 → 버튼 비활성화
+- Memorial 없을 때 빈 상태 메시지 표시
