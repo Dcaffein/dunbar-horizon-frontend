@@ -1,9 +1,10 @@
 import { redirect } from "next/navigation";
 import { isRedirectError, apiClient } from "@/api/apiClient";
-import { getFlagDetailAction, getMemorialsAction } from "@/app/actions/flag";
+import { getFlagDetailAction, getMemorialsAction, getCommentsAction } from "@/app/actions/flag";
 import FlagDetail from "@/components/Flag/FlagDetail";
 import type { FriendshipDetail } from "@/components/socialGraph/types";
 import type { MemorialResult } from "@/api/model/memorialResult";
+import type { CommentResult } from "@/api/model/commentResult";
 
 export default async function FlagDetailPage({
   params,
@@ -17,6 +18,7 @@ export default async function FlagDetailPage({
   let myUserId: number | undefined;
   let friends: FriendshipDetail[] = [];
   let memorials: MemorialResult[] = [];
+  let comments: CommentResult[] = [];
 
   try {
     const [profile, friendsData] = await Promise.all([
@@ -42,8 +44,12 @@ export default async function FlagDetailPage({
 
   if (!flagData) redirect("/flags");
 
-  const memorialsResult = await getMemorialsAction(id);
+  const [memorialsResult, commentsResult] = await Promise.all([
+    getMemorialsAction(id),
+    getCommentsAction(id),
+  ]);
   if (memorialsResult.success) memorials = memorialsResult.data;
+  if (commentsResult.success) comments = commentsResult.data;
 
-  return <FlagDetail flag={flagData} myUserId={myUserId} friends={friends} memorials={memorials} />;
+  return <FlagDetail flag={flagData} myUserId={myUserId} friends={friends} memorials={memorials} comments={comments} />;
 }

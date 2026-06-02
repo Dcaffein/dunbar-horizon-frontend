@@ -13,4 +13,5 @@ export interface CommentResult {
   content?: string;
   isPrivate?: boolean;
   createdAt?: string;
+  isMine?: boolean;
 }

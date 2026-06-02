@@ -6,8 +6,10 @@ import Link from "next/link";
 import type { FlagDetailResult } from "@/api/model/flagDetailResult";
 import type { ParticipantResult } from "@/api/model/participantResult";
 import type { MemorialResult } from "@/api/model/memorialResult";
+import type { CommentResult } from "@/api/model/commentResult";
 import type { FriendshipDetail } from "@/components/socialGraph/types";
 import FlagMemorial from "./FlagMemorial";
+import FlagComments from "./FlagComments";
 import {
   closeRecruitmentAction,
   deleteFlagAction,
@@ -44,9 +46,10 @@ interface FlagDetailProps {
   myUserId?: number;
   friends: FriendshipDetail[];
   memorials: MemorialResult[];
+  comments: CommentResult[];
 }
 
-export default function FlagDetail({ flag, myUserId, friends, memorials }: FlagDetailProps) {
+export default function FlagDetail({ flag, myUserId, friends, memorials, comments }: FlagDetailProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -307,6 +310,14 @@ export default function FlagDetail({ flag, myUserId, friends, memorials }: FlagD
             )}
           </div>
         )}
+        {/* 댓글 섹션 */}
+        {flag.id && (
+          <FlagComments
+            flagId={flag.id}
+            initialComments={comments}
+          />
+        )}
+
         {/* Memorial 섹션 */}
         {flag.id && (
           <FlagMemorial
