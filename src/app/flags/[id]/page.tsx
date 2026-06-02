@@ -18,7 +18,7 @@ export default async function FlagDetailPage({
 
   try {
     const [profile, friendsData] = await Promise.all([
-      apiClient.get<{ id: number }>("/api/v1/accounts/me"),
+      apiClient.get<{ id: number }>("/api/v1/users/me"),
       apiClient.get<FriendshipDetail[]>("/api/v1/friends"),
     ]);
     myUserId = profile.id;

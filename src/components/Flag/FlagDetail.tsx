@@ -52,7 +52,7 @@ export default function FlagDetail({ flag, myUserId, friends }: FlagDetailProps)
   const [selectedFriendId, setSelectedFriendId] = useState<number | "">("");
   const [isInviting, setIsInviting] = useState(false);
 
-  const isHost = !!myUserId && flag.host?.id === myUserId;
+  const isHost = flag.isHost ?? (!!myUserId && flag.host?.id === myUserId);
   const myParticipant = participants.find((p) => p.id === myUserId);
   const isParticipating = !!myParticipant;
   const canInvite = isHost || myParticipant?.canInvite === true;
@@ -148,6 +148,14 @@ export default function FlagDetail({ flag, myUserId, friends }: FlagDetailProps)
         </div>
         <div className="flex items-center gap-2">
           {rem && <span className="text-xs text-gray-400 font-medium">{rem}</span>}
+          {isHost && (
+            <Link
+              href={`/flags/${flag.id}/edit`}
+              className="text-xs px-2.5 py-1 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50"
+            >
+              수정
+            </Link>
+          )}
           {isHost && (
             <Link
               href={`/flags/new?parentFlagId=${flag.id}`}

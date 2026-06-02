@@ -1,94 +1,93 @@
-# PLAN — Task 13: Flag 초대
+# PLAN: Task 14 — Flag 세부 수정
 
-> 참조 태스크: `harness/tasks/13-flag-invitation.md`
-> 작업 브랜치: `agent/task-13-flag-invitation`
+> 참조 태스크: `harness/tasks/14-flag-edit.md`
 
 ## 요구사항 분석
 
-- Flag 상세 페이지 확장: 참가자 `canInvite` 토글(host 전용) + 친구 초대 섹션
-- 알림 페이지 확장: `FLAG_INVITATION` 알림에 [수락][거절] 버튼
-- 수락 → `/flags/{flagId}` 이동, 거절 → 버튼 숨김
+Flag Host가 생성된 Flag의 제목·설명·인원·일정을 수정할 수 있는 편집 페이지를 구현한다.
 
-## API 확인
+- `/flags/{id}/edit` 신규 페이지 (서버 컴포넌트가 현재 값 조회 → 클라이언트 폼에 초기값 전달)
+- 저장 시 **변경된 항목에 따라** API 선택적 호출 (변경 없으면 호출 안 함)
+- 비Host 접근 시 `/flags/{id}` 리다이렉트
 
-| 액션 | 엔드포인트 |
+## 사용 API
+
+| 변경 항목 | API |
 |---|---|
-| 친구 초대 | `POST /api/v1/flags/{flagId}/invitations` `{ inviteeId }` |
-| 초대 수락 | `POST /api/v1/flag-invitations/{invitationId}/accept` |
-| 초대 거절 | `POST /api/v1/flag-invitations/{invitationId}/reject` |
-| 초대 권한 토글 | `PATCH /api/v1/flags/{flagId}/participants/{participantId}/invite-permission` `{ canInvite }` |
+| 제목 or 설명 변경 | `PATCH /api/v1/flags/{id}/details` |
+| 인원 변경 | `PATCH /api/v1/flags/{id}/capacity` |
+| 일정(셋 중 하나라도) 변경 | `PUT /api/v1/flags/{id}/schedule` (전체 필드 전송) |
 
----
+## 작업 범위 (수정/생성 파일)
 
-## 수정 파일
+### 수정 파일
 
-| 파일 | 내용 |
-|---|---|
-| `src/app/actions/flag.ts` | `inviteFriendAction`, `acceptInvitationAction`, `rejectInvitationAction`, `updateInvitePermissionAction` 추가 |
-| `src/app/flags/[id]/page.tsx` | 친구 목록(`FriendshipDetail[]`) 추가 조회 → `FlagDetail`에 전달 |
-| `src/components/Flag/FlagDetail.tsx` | ① 참가자 `canInvite` 토글(host 전용) ② 초대 섹션 ③ 토스트 |
-| `src/components/Notifications/NotificationList.tsx` | `FLAG_INVITATION` 항목에 [수락][거절] 버튼 추가 |
+1. **`src/app/actions/flag.ts`**
+   - `updateFlagDetailsAction(id, body)` 추가 — `PATCH /details`
+   - `updateFlagCapacityAction(id, body)` 추가 — `PATCH /capacity`
+   - `updateFlagScheduleAction(id, body)` 추가 — `PUT /schedule`
 
----
+2. **`src/components/Flag/FlagForm.tsx`**
+   - `flagId?: number` + `initialValues?` props 추가
+   - `flagId` 존재 시 edit 모드: 초기값으로 state 초기화, submit 시 diff 감지 후 선택적 API 호출
+   - 헤더 타이틀 "Flag 만들기" → "Flag 수정" (edit 모드)
+   - 버튼 레이블 "Flag 만들기" → "저장" (edit 모드), "생성 중..." → "저장 중..." (edit 모드)
 
-## 상세 설계
+3. **`src/components/Flag/FlagDetail.tsx`**
+   - 헤더 우측 `isHost && <Link href={/flags/${flag.id}/edit}>수정</Link>` 추가
 
-### `flag.ts` 추가 Server Actions
+### 신규 파일
+
+4. **`src/app/flags/[id]/edit/page.tsx`** (서버 컴포넌트)
+   - `getFlagDetailAction(id)` 로 현재 값 조회
+   - `apiClient.get("/api/v1/accounts/me")` 로 내 userId 조회
+   - `flag.host?.id !== myUserId` 이면 `redirect(\`/flags/${id}\`)`
+   - `FlagForm`에 `flagId` + `initialValues` 전달
+
+## initialValues 인터페이스
 
 ```ts
-inviteFriendAction(flagId, inviteeId)           → POST /api/v1/flags/{flagId}/invitations
-acceptInvitationAction(invitationId)            → POST /api/v1/flag-invitations/{invitationId}/accept
-rejectInvitationAction(invitationId)            → POST /api/v1/flag-invitations/{invitationId}/reject
-updateInvitePermissionAction(flagId, participantId, canInvite) → PATCH .../invite-permission
+interface FlagFormInitialValues {
+  title: string;
+  description: string;
+  startDateTime: string;   // datetime-local 포맷 "YYYY-MM-DDTHH:mm"
+  endDateTime: string;
+  deadline: string;        // 없으면 ""
+  capacity: string;        // 없으면 ""
+}
 ```
 
-### `FlagDetail.tsx` 확장
+## 변경 감지 로직 (edit 모드 submit)
 
-**참가자 목록 canInvite 토글** (host만 표시):
 ```
-참가자 3명
-├─ 박민준  [초대 가능 ✓]  ← 클릭하면 canInvite 토글
-├─ 김철수  [초대 불가  ]
-```
-- 로컬 state로 `participants` 관리 (토글 후 즉시 반영)
+detailsChanged  = title !== initial.title || description !== initial.description
+capacityChanged = capacity !== initial.capacity
+scheduleChanged = startDateTime !== initial.startDateTime
+               || endDateTime !== initial.endDateTime
+               || deadline !== initial.deadline
 
-**초대 섹션** (host OR canInvite 참가자만 표시):
-- 친구 드롭다운 (이미 참가 중인 친구 제외)
-- [초대 전송] 버튼 → `inviteFriendAction` → 토스트 3초 후 소멸
-
-**토스트**: 컴포넌트 내 `toast: string | null` state, 3초 `setTimeout` 후 null
-
-### `NotificationList.tsx` 확장
-
-`FLAG_INVITATION` 타입 감지:
-```tsx
-const meta = n.metadata as unknown as Record<string, unknown>;
-const invitationId = meta?.invitationId as number | undefined;
-const flagId = meta?.flagId as number | undefined;
+→ detailsChanged  → updateFlagDetailsAction
+→ capacityChanged → updateFlagCapacityAction
+→ scheduleChanged → updateFlagScheduleAction (startDateTime + endDateTime + deadline? 전송)
+→ 모두 false      → API 호출 없이 router.push(`/flags/${flagId}`)
 ```
 
-버튼 동작:
-- [거절] → `rejectInvitationAction(invitationId)` → 해당 알림 state에서 `{ ...n, _rejected: true }` 표시
-- [수락] → `acceptInvitationAction(invitationId)` → 읽음 처리 + `router.push('/flags/{flagId}')`
-- 수락/거절 완료 후 버튼 숨김
-
----
-
-## 테스트 시나리오
+## 테스트 시나리오 (harness/TESTING_RULES.md 3단계)
 
 ### Phase 1 — 정적 분석
 - `npx tsc --noEmit` 에러 없음
-- `npm run lint` error 없음
+- `npm run lint` 에러 없음
 
-### Phase 2 — UI/State ✅ PASS (일부 BLOCKED)
-- `/notifications` FLAG_INVITATION 알림에 [수락][거절] 버튼 표시 확인 ✅
-- [거절] 클릭 → "응답 완료" 표시 + 버튼 숨김 확인 ✅
-- 초대 API(POST /api/v1/flags/{flagId}/invitations) → 201 정상 ✅
-- `/flags/{id}` FlagDetail 페이지 → Turbopack 캐시 불일치로 307 redirect (개발 서버 재시작 필요, 코드 버그 아님)
+### Phase 2 — UI/State 검증
+- Flag 상세(Host 로그인) → 헤더에 [수정] 버튼 표시
+- `/flags/{id}/edit` 진입 → 현재 값이 폼 필드에 채워짐
+- 제목 수정 후 저장 → `PATCH /details` 200 → `/flags/{id}` 이동, 변경 반영
+- 인원 수정 후 저장 → `PATCH /capacity` 200 → 반영
+- 일정(시작·종료·마감 중 하나) 수정 후 저장 → `PUT /schedule` 200 → 반영
 
-### Phase 3 — Edge Cases ✅ PASS
-- FLAG_INVITATION 아닌 알림에 수락/거절 버튼 미표시 확인
-- 이미 응답 완료된 초대 → 동일 세션 내 버튼 숨김 + "응답 완료" 표시 확인
-- 수락 클릭 → acceptInvitationAction 성공 + router.push('/flags/{id}') 실행 확인
-  (FlagDetail 페이지는 Turbopack 캐시 문제로 /flags 리다이렉트 — 코드 자체는 정상)
-- 거절 클릭 → rejectInvitationAction 성공 + 버튼 숨김 확인
+### Phase 3 — Edge Case
+- 아무것도 바꾸지 않고 저장 → API 호출 없이 `/flags/{id}` 이동
+- 비Host 로그인 상태로 `/flags/{id}/edit` 직접 접근 → `/flags/{id}` 리다이렉트
+- 잘못된 id(NaN) → `/flags` 리다이렉트
+- 시작 일시 ≥ 종료 일시 → 클라이언트 validation 에러 표시
+- 여러 항목 동시 수정 → 해당 API 모두 호출, 전부 성공 후 이동

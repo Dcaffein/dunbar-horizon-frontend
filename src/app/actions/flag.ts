@@ -4,6 +4,9 @@ import { apiClient, isRedirectError } from "@/api/apiClient";
 import type { FlagResult } from "@/api/model/flagResult";
 import type { FlagDetailResult } from "@/api/model/flagDetailResult";
 import type { FlagCreateRequest } from "@/api/model/flagCreateRequest";
+import type { FlagDetailsUpdateRequest } from "@/api/model/flagDetailsUpdateRequest";
+import type { FlagCapacityUpdateRequest } from "@/api/model/flagCapacityUpdateRequest";
+import type { FlagScheduleUpdateRequest } from "@/api/model/flagScheduleUpdateRequest";
 
 export async function getHostingFlagsAction() {
   try {
@@ -125,6 +128,39 @@ export async function rejectInvitationAction(invitationId: number) {
   } catch (error) {
     if (isRedirectError(error)) throw error;
     return { success: false as const, message: "초대 거절에 실패했습니다." };
+  }
+}
+
+export async function updateFlagDetailsAction(id: number, body: FlagDetailsUpdateRequest) {
+  try {
+    await apiClient.patch(`/api/v1/flags/${id}/details`, body);
+    return { success: true as const };
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    const message = error instanceof Error ? error.message : "제목·설명 수정에 실패했습니다.";
+    return { success: false as const, message };
+  }
+}
+
+export async function updateFlagCapacityAction(id: number, body: FlagCapacityUpdateRequest) {
+  try {
+    await apiClient.patch(`/api/v1/flags/${id}/capacity`, body);
+    return { success: true as const };
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    const message = error instanceof Error ? error.message : "인원 수정에 실패했습니다.";
+    return { success: false as const, message };
+  }
+}
+
+export async function updateFlagScheduleAction(id: number, body: FlagScheduleUpdateRequest) {
+  try {
+    await apiClient.put(`/api/v1/flags/${id}/schedule`, body);
+    return { success: true as const };
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    const message = error instanceof Error ? error.message : "일정 수정에 실패했습니다.";
+    return { success: false as const, message };
   }
 }
 

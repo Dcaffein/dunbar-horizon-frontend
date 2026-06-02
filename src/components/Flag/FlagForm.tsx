@@ -2,10 +2,21 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createFlagAction } from "@/app/actions/flag";
+import { createFlagAction, updateFlagDetailsAction, updateFlagCapacityAction, updateFlagScheduleAction } from "@/app/actions/flag";
+
+export interface FlagFormInitialValues {
+  title: string;
+  description: string;
+  startDateTime: string;
+  endDateTime: string;
+  deadline: string;
+  capacity: string;
+}
 
 interface FlagFormProps {
   parentFlagId?: number;
+  flagId?: number;
+  initialValues?: FlagFormInitialValues;
 }
 
 function toLocalDatetimeValue(date: Date): string {
@@ -13,20 +24,21 @@ function toLocalDatetimeValue(date: Date): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-export default function FlagForm({ parentFlagId }: FlagFormProps) {
+export default function FlagForm({ parentFlagId, flagId, initialValues }: FlagFormProps) {
   const router = useRouter();
   const isEncore = !!parentFlagId;
+  const isEdit = !!flagId;
 
   const now = new Date();
   const defaultStart = new Date(now.getTime() + 60 * 60 * 1000);
   const defaultEnd = new Date(now.getTime() + 3 * 60 * 60 * 1000);
 
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [startDateTime, setStartDateTime] = useState(toLocalDatetimeValue(defaultStart));
-  const [endDateTime, setEndDateTime] = useState(toLocalDatetimeValue(defaultEnd));
-  const [deadline, setDeadline] = useState("");
-  const [capacity, setCapacity] = useState("");
+  const [title, setTitle] = useState(initialValues?.title ?? "");
+  const [description, setDescription] = useState(initialValues?.description ?? "");
+  const [startDateTime, setStartDateTime] = useState(initialValues?.startDateTime ?? toLocalDatetimeValue(defaultStart));
+  const [endDateTime, setEndDateTime] = useState(initialValues?.endDateTime ?? toLocalDatetimeValue(defaultEnd));
+  const [deadline, setDeadline] = useState(initialValues?.deadline ?? "");
+  const [capacity, setCapacity] = useState(initialValues?.capacity ?? "");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -46,10 +58,7 @@ export default function FlagForm({ parentFlagId }: FlagFormProps) {
     return Object.keys(e).length === 0;
   }
 
-  async function handleSubmit() {
-    if (!validate()) return;
-    setIsSubmitting(true);
-
+  async function handleCreate() {
     const result = await createFlagAction({
       title: title.trim(),
       description: description.trim(),
@@ -60,13 +69,81 @@ export default function FlagForm({ parentFlagId }: FlagFormProps) {
       ...(parentFlagId ? { parentFlagId } : {}),
     });
 
-    setIsSubmitting(false);
-
     if (result.success) {
       router.push("/flags");
     } else {
       setErrors({ submit: result.message ?? "Flag 생성에 실패했습니다." });
     }
+  }
+
+  async function handleEdit() {
+    if (!flagId || !initialValues) return;
+
+    const detailsChanged =
+      title.trim() !== initialValues.title || description.trim() !== initialValues.description;
+    const capacityChanged = capacity !== initialValues.capacity;
+    const scheduleChanged =
+      startDateTime !== initialValues.startDateTime ||
+      endDateTime !== initialValues.endDateTime ||
+      deadline !== initialValues.deadline;
+
+    if (!detailsChanged && !capacityChanged && !scheduleChanged) {
+      router.push(`/flags/${flagId}`);
+      return;
+    }
+
+    const calls: Promise<{ success: boolean; message?: string }>[] = [];
+
+    if (detailsChanged) {
+      calls.push(updateFlagDetailsAction(flagId, { title: title.trim(), description: description.trim() }));
+    }
+    if (capacityChanged) {
+      calls.push(updateFlagCapacityAction(flagId, capacity ? { capacity: Number(capacity) } : {}));
+    }
+    if (scheduleChanged) {
+      calls.push(
+        updateFlagScheduleAction(flagId, {
+          startDateTime: new Date(startDateTime).toISOString(),
+          endDateTime: new Date(endDateTime).toISOString(),
+          ...(deadline ? { deadline: new Date(deadline).toISOString() } : {}),
+        }),
+      );
+    }
+
+    const results = await Promise.all(calls);
+    const failed = results.find((r) => !r.success);
+
+    if (failed) {
+      setErrors({ submit: failed.message ?? "수정에 실패했습니다." });
+    } else {
+      router.push(`/flags/${flagId}`);
+    }
+  }
+
+  async function handleSubmit() {
+    if (!validate()) return;
+    setIsSubmitting(true);
+
+    if (isEdit) {
+      await handleEdit();
+    } else {
+      await handleCreate();
+    }
+
+    setIsSubmitting(false);
+  }
+
+  function headerTitle() {
+    if (isEdit) return "Flag 수정";
+    if (isEncore) return "Encore 생성";
+    return "Flag 만들기";
+  }
+
+  function submitLabel() {
+    if (isSubmitting) return isEdit ? "저장 중..." : "생성 중...";
+    if (isEdit) return "저장";
+    if (isEncore) return "Encore 생성";
+    return "Flag 만들기";
   }
 
   return (
@@ -77,9 +154,7 @@ export default function FlagForm({ parentFlagId }: FlagFormProps) {
             <path d="m15 18-6-6 6-6" />
           </svg>
         </button>
-        <h1 className="text-lg font-bold text-gray-900">
-          {isEncore ? "Encore 생성" : "Flag 만들기"}
-        </h1>
+        <h1 className="text-lg font-bold text-gray-900">{headerTitle()}</h1>
       </header>
 
       <div className="flex-1 overflow-y-auto">
@@ -169,13 +244,24 @@ export default function FlagForm({ parentFlagId }: FlagFormProps) {
       </div>
 
       <div className="bg-white border-t border-gray-100 px-4 py-4 shrink-0">
-        <button
-          onClick={handleSubmit}
-          disabled={isSubmitting}
-          className="w-full max-w-lg mx-auto block py-3 bg-indigo-600 text-white text-sm font-bold rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-colors"
-        >
-          {isSubmitting ? "생성 중..." : isEncore ? "Encore 생성" : "Flag 만들기"}
-        </button>
+        <div className="max-w-lg mx-auto flex gap-2">
+          {isEdit && (
+            <button
+              onClick={() => router.back()}
+              disabled={isSubmitting}
+              className="flex-1 py-3 border border-gray-300 text-gray-700 text-sm font-medium rounded-xl hover:bg-gray-50 disabled:opacity-50 transition-colors"
+            >
+              취소
+            </button>
+          )}
+          <button
+            onClick={handleSubmit}
+            disabled={isSubmitting}
+            className="flex-1 py-3 bg-indigo-600 text-white text-sm font-bold rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+          >
+            {submitLabel()}
+          </button>
+        </div>
       </div>
     </div>
   );

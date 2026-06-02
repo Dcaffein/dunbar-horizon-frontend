@@ -12,7 +12,7 @@ export default async function BuzzDetailPage({
 
   let myUserId: number | undefined;
   try {
-    const profile = await apiClient.get<{ id: number }>("/api/v1/accounts/me");
+    const profile = await apiClient.get<{ id: number }>("/api/v1/users/me");
     myUserId = profile.id;
   } catch (error) {
     if (isRedirectError(error)) throw error;
