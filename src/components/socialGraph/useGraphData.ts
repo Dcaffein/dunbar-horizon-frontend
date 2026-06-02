@@ -40,8 +40,13 @@ export function useGraphData({
 
     const validNodeIds = new Set(friends.map((f) => String(f.friendId)));
     const buzzUnreadSet = new Set(unreadBuzzSenderIds);
+    const seenNodeIds = new Set<number>();
 
-    const nodes: ElementDefinition[] = friends.map((f) => ({
+    const nodes: ElementDefinition[] = friends.filter((f) => {
+      if (seenNodeIds.has(f.friendId)) return false;
+      seenNodeIds.add(f.friendId);
+      return true;
+    }).map((f) => ({
       data: {
         id: String(f.friendId),
         label: f.friendAlias || f.friendNickname,
@@ -55,12 +60,17 @@ export function useGraphData({
       classes: buzzUnreadSet.has(f.friendId) ? "buzz-unread" : undefined,
     }));
 
+    const seenEdgeIds = new Set<string>();
     const graphEdges: ElementDefinition[] = edges
-      .filter(
-        (e) =>
-          validNodeIds.has(String(e.friendAId)) &&
-          validNodeIds.has(String(e.friendBId)),
-      )
+      .filter((e) => {
+        if (!validNodeIds.has(String(e.friendAId)) || !validNodeIds.has(String(e.friendBId))) return false;
+        const minId = Math.min(e.friendAId, e.friendBId);
+        const maxId = Math.max(e.friendAId, e.friendBId);
+        const edgeId = `edge-${minId}-${maxId}`;
+        if (seenEdgeIds.has(edgeId)) return false;
+        seenEdgeIds.add(edgeId);
+        return true;
+      })
       .map((e) => {
         const minId = Math.min(e.friendAId, e.friendBId);
         const maxId = Math.max(e.friendAId, e.friendBId);
