@@ -87,4 +87,7 @@ const EXPANSION_LEVELS = [
 
 ## Result
 
-<!-- 구현 완료 후 작성 -->
+- `BuzzForm.tsx` 단일 파일 수정으로 완결
+- `EXPANSION_LEVELS` 상수 + 버튼 3개 → `expansionLabel()` 헬퍼 + `<input type="range">` 슬라이더 교체
+- `expansionValue` state·API 연동은 변경 없음 (기존 구현 유지)
+- Phase 1: `npx tsc --noEmit` 에러 없음, `npm run lint` 에러 없음 (기존 warning만)
