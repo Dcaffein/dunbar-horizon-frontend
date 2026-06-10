@@ -7,9 +7,10 @@ import type { ConnectionPathResult } from "@/api/model/connectionPathResult";
 interface FriendProfileProps {
   profile: FriendshipDetailResult;
   path: ConnectionPathResult | null;
+  revealed?: boolean;
 }
 
-export default function FriendProfile({ profile, path }: FriendProfileProps) {
+export default function FriendProfile({ profile, path, revealed = false }: FriendProfileProps) {
   const router = useRouter();
 
   const displayName = profile.friendAlias || profile.friendNickname;
@@ -56,6 +57,13 @@ export default function FriendProfile({ profile, path }: FriendProfileProps) {
           <p className={`text-sm ${profile.friendAlias ? "text-gray-500 mt-0.5" : "text-lg font-bold text-gray-900"}`}>
             {profile.friendNickname}
           </p>
+
+          {revealed && (
+            <div className="mt-3 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-2">
+              <span className="text-base">👀</span>
+              <span className="text-xs text-amber-700 font-medium">최근 서로 자주 방문했습니다</span>
+            </div>
+          )}
         </div>
 
         {/* 연결 경로 */}
