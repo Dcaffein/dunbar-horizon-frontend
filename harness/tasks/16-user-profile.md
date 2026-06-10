@@ -115,4 +115,11 @@ const [profile, pathResult] = await Promise.all([
 - 비친구 ID (`/friends/999999`) 접근 → `/` 리다이렉트
 - FriendActionPanel 프로필 보기 링크 컴포넌트 확인
 
+**Phase 3 결과: 10/10 PASS**
+- `/friends/abc`, `/friends/-1`, `/friends/0` → 모두 `/` 리다이렉트
+- `friendProfileImageUrl` 없음 → letter avatar (이니셜) 표시
+- `friendAlias` 없음 → 닉네임 단독 bold 표시, 불필요 텍스트 없음
+- `friendAlias` 있음 → 별칭 bold + 닉네임 소자 서브텍스트 표시
+- `path=null` 시 연결 경로 섹션 숨김 (`label && ...` guard)
+
 **브랜치**: `agent/task-16-user-profile` → `develop` 머지 완료
