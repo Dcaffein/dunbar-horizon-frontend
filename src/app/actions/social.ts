@@ -6,6 +6,7 @@ import type { NetworkFriendEdgeResult } from "@/api/model/networkFriendEdgeResul
 import { GetFriendsNetworkCircleSize } from "@/api/model/getFriendsNetworkCircleSize";
 import type { AnchorExpansionResult } from "@/api/model/anchorExpansionResult";
 import type { NetworkOneHopsByTwoHopResult } from "@/api/model/networkOneHopsByTwoHopResult";
+import type { TraceResult } from "@/api/model/traceResult";
 
 function toNetworkEdge(r: NetworkFriendEdgeResult): NetworkFriendEdge {
   return {
@@ -58,6 +59,19 @@ export async function getTwoHopMutualFriendsAction(targetId: number) {
     if (isRedirectError(error)) throw error;
     console.error("getTwoHopMutualFriendsAction error:", error);
     return { success: false as const, message: "공통 친구를 불러오는 데 실패했습니다." };
+  }
+}
+
+export async function recordTraceAction(targetId: number) {
+  try {
+    const data = await apiClient.post<TraceResult, { targetId: number }>(
+      "/api/v1/social/traces",
+      { targetId },
+    );
+    return { success: true as const, data };
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    return { success: false as const };
   }
 }
 
