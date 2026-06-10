@@ -118,6 +118,14 @@ export default function FriendActionPanel({
           </button>
         </div>
 
+        {/* 프로필 보기 */}
+        <Link
+          href={`/friends/${friend.friendId}`}
+          className="flex items-center justify-center w-full text-xs py-1.5 border border-gray-200 rounded-md text-gray-600 hover:bg-gray-50"
+        >
+          프로필 보기
+        </Link>
+
         {/* 친구 삭제 */}
         <button
           onClick={handleDelete}

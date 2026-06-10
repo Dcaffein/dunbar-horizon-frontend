@@ -67,6 +67,7 @@ export default function FlagDetail({ flag, myUserId, friends, memorials, comment
 
   const participantIds = new Set(participants.map((p) => p.id));
   const invitableFriends = friends.filter((f) => !participantIds.has(f.friendId));
+  const friendIdSet = new Set(friends.map((f) => f.friendId));
 
   useEffect(() => {
     if (!toast) return;
@@ -257,7 +258,13 @@ export default function FlagDetail({ flag, myUserId, friends, memorials, comment
                       <span className="text-gray-500 font-bold text-xs">{p.nickname?.charAt(0) ?? "?"}</span>
                     )}
                   </div>
-                  <span className="text-sm text-gray-700 flex-1">{p.nickname}</span>
+                  {p.id != null && friendIdSet.has(p.id) ? (
+                    <Link href={`/friends/${p.id}`} className="text-sm text-indigo-600 hover:underline flex-1">
+                      {p.nickname}
+                    </Link>
+                  ) : (
+                    <span className="text-sm text-gray-700 flex-1">{p.nickname}</span>
+                  )}
                   {isHost && (
                     <button
                       onClick={() => handleToggleCanInvite(p)}
