@@ -23,6 +23,7 @@ import {
   getLabelNetworkAction,
   getTwoHopSuggestionsByAnchorAction,
   getTwoHopMutualFriendsAction,
+  getOneHopMutualFriendEdgesAction,
 } from "@/app/actions/social";
 import { sendFriendRequestAction } from "@/app/actions/friendRequest";
 import { GetFriendsNetworkCircleSize } from "@/api/model/getFriendsNetworkCircleSize";
@@ -68,6 +69,9 @@ export default function SocialGraph({ friends, unreadBuzzSenderIds = [] }: Socia
   const [circleSize, setCircleSize] = useState<GetFriendsNetworkCircleSize | null>(null);
   const [activeLabelId, setActiveLabelId] = useState<string | null>(null);
 
+  // 수동 추가 노드
+  const [manuallyAddedIds, setManuallyAddedIds] = useState<Set<number>>(new Set());
+
   // 2-hop 추천 state
   const [suggestionNodes, setSuggestionNodes] = useState<AnchorExpansionResult[]>([]);
   const [suggestionAnchorId, setSuggestionAnchorId] = useState<number | null>(null);
@@ -87,7 +91,13 @@ export default function SocialGraph({ friends, unreadBuzzSenderIds = [] }: Socia
     mutualFriendIds,
     selectedSuggestionId,
     unreadBuzzSenderIds,
+    manuallyAddedIds,
   });
+
+  const graphNodeIds = useMemo(
+    () => new Set(elements.filter((e) => !e.data.source).map((e) => e.data.id as string)),
+    [elements],
+  );
 
   const selectedFriend = friendsList.find(
     (f) => String(f.friendId) === selectedNodeId,
@@ -118,13 +128,40 @@ export default function SocialGraph({ friends, unreadBuzzSenderIds = [] }: Socia
     setSuggestionSendError(null);
   }
 
+  function handleAddFriend(friendId: number) {
+    setManuallyAddedIds((prev) => new Set(prev).add(friendId));
+  }
+
   async function handleAnchorTap(anchorId: number) {
-    // 기존 추천 초기화 후 새 anchor 추천 로드
     setMutualFriendIds([]);
     setSelectedSuggestionId(null);
     setSuggestionSendStatus("idle");
     setSuggestionSendError(null);
 
+    // 수동 추가 노드 클릭 시 one-hop 엣지 로드
+    if (manuallyAddedIds.has(anchorId)) {
+      const result = await getOneHopMutualFriendEdgesAction(anchorId);
+      if (result.success && result.data.length > 0) {
+        setEdges((prev) => {
+          const existingIds = new Set(prev.map((e) => `${Math.min(e.friendAId, e.friendBId)}-${Math.max(e.friendAId, e.friendBId)}`));
+          const newEdges = result.data
+            .filter((e) => e.friendAId != null && e.friendBId != null)
+            .filter((e) => {
+              const key = `${Math.min(e.friendAId!, e.friendBId!)}-${Math.max(e.friendAId!, e.friendBId!)}`;
+              return !existingIds.has(key);
+            })
+            .map((e) => ({
+              friendAId: e.friendAId!,
+              friendBId: e.friendBId!,
+              intimacy: e.intimacy ?? 0,
+            }));
+          return [...prev, ...newEdges];
+        });
+      }
+      return;
+    }
+
+    // 일반 친구 노드: 2-hop 추천 로드
     const result = await getTwoHopSuggestionsByAnchorAction(anchorId);
     if (result.success && result.data) {
       setSuggestionNodes(result.data);
@@ -367,21 +404,42 @@ export default function SocialGraph({ friends, unreadBuzzSenderIds = [] }: Socia
                 </div>
 
                 <div className="p-4 space-y-2">
-                  {friendsList.map((friend) => (
-                    <div
-                      key={friend.friendId}
-                      className="flex items-center gap-3 p-2 bg-white rounded-lg shadow-sm border border-gray-100"
-                    >
-                      <div className="w-8 h-8 rounded-full bg-gray-200 shrink-0 overflow-hidden">
-                        {friend.friendProfileImageUrl && (
-                          <img src={friend.friendProfileImageUrl} alt="profile" />
+                  {!isGraphActive && (
+                    <p className="text-xs text-gray-400 text-center py-2">
+                      네트워크 범위를 선택하면 친구를 추가할 수 있습니다.
+                    </p>
+                  )}
+                  {friendsList.map((friend) => {
+                    const inGraph = graphNodeIds.has(String(friend.friendId));
+                    return (
+                      <div
+                        key={friend.friendId}
+                        className="flex items-center gap-3 p-2 bg-white rounded-lg shadow-sm border border-gray-100"
+                      >
+                        <div className="w-8 h-8 rounded-full bg-gray-200 shrink-0 overflow-hidden">
+                          {friend.friendProfileImageUrl && (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={friend.friendProfileImageUrl} alt="profile" className="w-full h-full object-cover" />
+                          )}
+                        </div>
+                        <p className="text-sm font-medium truncate flex-1">
+                          {friend.friendAlias || friend.friendNickname}
+                        </p>
+                        {isGraphActive && !inGraph && (
+                          <button
+                            onClick={() => handleAddFriend(friend.friendId)}
+                            className="shrink-0 w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 hover:bg-indigo-200 text-sm font-bold flex items-center justify-center transition"
+                            title="그래프에 추가"
+                          >
+                            +
+                          </button>
+                        )}
+                        {inGraph && (
+                          <span className="shrink-0 w-2 h-2 rounded-full bg-indigo-400" title="그래프에 있음" />
                         )}
                       </div>
-                      <p className="text-sm font-medium truncate">
-                        {friend.friendAlias || friend.friendNickname}
-                      </p>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </>
             ) : (

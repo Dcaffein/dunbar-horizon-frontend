@@ -14,6 +14,7 @@ interface UseGraphDataProps {
   mutualFriendIds: number[];
   selectedSuggestionId: number | null;
   unreadBuzzSenderIds: number[];
+  manuallyAddedIds: Set<number>;
 }
 
 export function useGraphData({
@@ -25,6 +26,7 @@ export function useGraphData({
   mutualFriendIds,
   selectedSuggestionId,
   unreadBuzzSenderIds,
+  manuallyAddedIds,
 }: UseGraphDataProps) {
   const connectionMap = useMemo(() => {
     const counts = new Map<number, number>();
@@ -38,27 +40,34 @@ export function useGraphData({
   return useMemo(() => {
     if (friends.length === 0) return [];
 
-    const validNodeIds = new Set(friends.map((f) => String(f.friendId)));
     const buzzUnreadSet = new Set(unreadBuzzSenderIds);
     const seenNodeIds = new Set<number>();
 
-    const nodes: ElementDefinition[] = friends.filter((f) => {
+    // 현재 뷰 친구 + 수동 추가 친구 모두 포함
+    const allDisplayFriends = friends.filter((f) => {
       if (seenNodeIds.has(f.friendId)) return false;
       seenNodeIds.add(f.friendId);
       return true;
-    }).map((f) => ({
-      data: {
-        id: String(f.friendId),
-        label: f.friendAlias || f.friendNickname,
-        image: f.friendProfileImageUrl || undefined,
-        intimacy: f.intimacy,
-        interest: f.myInterestScore,
-        mutualCount: connectionMap.get(f.friendId) || 0,
-        isMuted: f.isMuted,
-        type: "friend",
-      },
-      classes: buzzUnreadSet.has(f.friendId) ? "buzz-unread" : undefined,
-    }));
+    });
+
+    const validNodeIds = new Set(allDisplayFriends.map((f) => String(f.friendId)));
+
+    const nodes: ElementDefinition[] = allDisplayFriends.map((f) => {
+      const isManual = manuallyAddedIds.has(f.friendId);
+      return {
+        data: {
+          id: String(f.friendId),
+          label: f.friendAlias || f.friendNickname,
+          image: f.friendProfileImageUrl || undefined,
+          intimacy: f.intimacy,
+          interest: f.myInterestScore,
+          mutualCount: connectionMap.get(f.friendId) || 0,
+          isMuted: f.isMuted,
+          type: isManual ? "manual" : "friend",
+        },
+        classes: buzzUnreadSet.has(f.friendId) ? "buzz-unread" : undefined,
+      };
+    });
 
     const seenEdgeIds = new Set<string>();
     const graphEdges: ElementDefinition[] = edges
@@ -146,5 +155,6 @@ export function useGraphData({
     mutualFriendIds,
     selectedSuggestionId,
     unreadBuzzSenderIds,
+    manuallyAddedIds,
   ]);
 }
