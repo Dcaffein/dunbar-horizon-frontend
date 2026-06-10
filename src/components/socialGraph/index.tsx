@@ -94,10 +94,16 @@ export default function SocialGraph({ friends, unreadBuzzSenderIds = [] }: Socia
     manuallyAddedIds,
   });
 
-  const graphNodeIds = useMemo(
-    () => new Set(elements.filter((e) => !e.data.source).map((e) => e.data.id as string)),
-    [elements],
-  );
+  // "그래프에 있는 친구" = 현재 circleSize 엣지에 포함된 친구 + 수동 추가 친구
+  const graphNodeIds = useMemo(() => {
+    const ids = new Set<string>();
+    edges.forEach((e) => {
+      ids.add(String(e.friendAId));
+      ids.add(String(e.friendBId));
+    });
+    manuallyAddedIds.forEach((id) => ids.add(String(id)));
+    return ids;
+  }, [edges, manuallyAddedIds]);
 
   const selectedFriend = friendsList.find(
     (f) => String(f.friendId) === selectedNodeId,
