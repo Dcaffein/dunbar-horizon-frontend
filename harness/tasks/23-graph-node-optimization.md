@@ -1,38 +1,60 @@
-# Task 23: 그래프 노드 수 최적화
+# Task 23: 그래프 노드/엣지 circleSize 필터
 
 ## 배경
 
-현재 `app/page.tsx`는 `GET /api/v1/friends`로 전체 친구를 가져와 모두 노드로 렌더링한다.
-친구가 많아질수록 그래프가 과밀해져 UX와 성능이 모두 저하된다.
+현재 `useGraphData`는 전체 친구 목록(`friendsList`)을 항상 노드로 생성한다.
+circleSize가 SUPPORT(엣지 2개)여도 58개 노드 전원이 렌더링되어 대부분이 고립 노드로 표시된다.
+친구 수가 늘어날수록 Cytoscape 렌더링 부담이 증가하고 그래프 가독성이 저하된다.
 
-circleSize 개념(Dunbar Number)에 맞게 현재 선택된 circleSize에 해당하는 친구들만 노드로 렌더링해야 한다.
+## 작업 범위
 
-## 현재 방식 vs 목표 방식
+### 1. 엣지 circleSize 필터 (이미 구현됨)
+`getFriendsNetworkAction(circleSize)` 호출 시 파라미터 전달 → `social.ts` 기반으로 확인 완료.
 
-| | 현재 | 목표 |
-|---|---|---|
-| 친구 목록 API | `GET /api/v1/friends` (전체) | circleSize 파라미터 추가 |
-| 노드 수 | 전체 친구 수 | circleSize 범위 내 친구만 |
-| 엣지 | circleSize 기반 필터 | 동일 |
+### 2. 노드 circleSize 필터 (신규)
+`useGraphData`에서 `friends` 전체를 노드로 만들던 것을 변경:
+- **표시 대상** = 현재 circleSize 엣지에 포함된 친구 + `manuallyAddedIds`
+- 엣지가 없는 친구는 노드 자체를 생성하지 않음 (isolated 노드 제거)
 
-## 선행 조건
+```ts
+// useGraphData.ts 변경 방향
+const edgeNodeIds = useMemo(() => {
+  const ids = new Set<number>();
+  edges.forEach(e => { ids.add(e.friendAId); ids.add(e.friendBId); });
+  manuallyAddedIds.forEach(id => ids.add(id));
+  return ids;
+}, [edges, manuallyAddedIds]);
 
-백엔드 `GET /api/v1/friends`에 circleSize 필터 파라미터 추가 필요.
-또는 별도 엔드포인트 — PLAN 단계에서 백엔드와 협의.
+const allDisplayFriends = friends.filter(f => edgeNodeIds.has(f.friendId));
+```
+
+## 사용 API
+
+```ts
+GET /api/v1/networks/me?circleSize=SUPPORT|SYMPATHY|KINSHIP|DUNBAR
+→ NetworkFriendEdgeResult[]  // 해당 circleSize 내 엣지만
+```
 
 ## 고려사항
 
-- circleSize 변경 시 노드 목록도 재조회 필요 (현재는 엣지만 재조회)
-- 현재 뷰에 없는 친구를 Task 21(드래그 앤 드롭)로 임시 추가하는 흐름과 연계
-- FriendActionPanel, Buzz 발신자 하이라이트 등 기존 기능이 전체 친구 목록에 의존하는 부분 점검 필요
+- `FriendActionPanel` 클릭(사이드바 아이콘) — `friendsList` 기반이라 영향 없음
+- Buzz 발신자 하이라이트 — `unreadBuzzSenderIds` + `buzzUnreadSet` 기반이라 영향 없음
+- `manuallyAddedIds`(Task 21 수동 추가 노드) — 엣지가 없어도 노드로 포함해야 함
+- suggestion 노드/엣지 — `useGraphData` 내 별도 처리, 영향 없음
+- `node.isolated` 스타일 클래스 — 노드 자체가 없어지므로 사실상 불필요해짐
 
 ## 검증
 
-- circleSize 변경 시 해당 범위의 친구 노드만 렌더링
-- 전체 친구 수 대비 렌더링 노드 수 감소 확인
-- 기존 기능(패널, Buzz 하이라이트, suggestion) 정상 동작
+- SUPPORT 뷰: 엣지에 포함된 친구만 노드로 렌더링 (고립 노드 없음)
+- circleSize 변경 시 노드/엣지 함께 재렌더링
+- 수동 추가 노드([+] 클릭) 정상 표시
+- FriendActionPanel·Buzz 하이라이트 정상 동작
 - `npx tsc --noEmit` 에러 없음
 
 ## Result
 
-<!-- 백엔드 API 변경 후 구현 -->
+- `useGraphData.ts` 단일 파일 수정으로 완결
+- `allDisplayFriends`를 전체 friends → edges 기반 edgeNodeIds 필터로 변경
+- Phase 2: 7/7 통과 — SUPPORT 2개 / KINSHIP 42개 / DUNBAR 52개 (circleSize별 단계적 증가)
+- Phase 3: 5/5 통과 — 비활성 시 노드 없음, 전체 58명 분류 정합성 확인
+- `npx tsc --noEmit` 에러 없음
