@@ -14,11 +14,11 @@ interface BuzzFormProps {
   labels: LabelResult[];
 }
 
-const EXPANSION_LEVELS = [
-  { label: "좁게", value: 0.2 },
-  { label: "보통", value: 0.5 },
-  { label: "넓게", value: 0.8 },
-];
+function expansionLabel(v: number): string {
+  if (v <= 0.3) return "좁게";
+  if (v <= 0.6) return "보통";
+  return "넓게";
+}
 
 export default function BuzzForm({ friends, labels }: BuzzFormProps) {
   const router = useRouter();
@@ -136,22 +136,20 @@ export default function BuzzForm({ friends, labels }: BuzzFormProps) {
               </div>
               <div>
                 <label className="text-xs font-bold text-gray-500 mb-1.5 block">
-                  수신 범위 — {EXPANSION_LEVELS.find((l) => l.value === expansionValue)?.label ?? expansionValue}
+                  수신 범위 — {expansionLabel(expansionValue)}
                 </label>
-                <div className="flex gap-2">
-                  {EXPANSION_LEVELS.map((l) => (
-                    <button
-                      key={l.value}
-                      onClick={() => setExpansionValue(l.value)}
-                      className={`flex-1 py-1.5 text-xs rounded-lg border transition font-medium ${
-                        expansionValue === l.value
-                          ? "bg-orange-500 text-white border-orange-500"
-                          : "bg-white text-gray-600 border-gray-200 hover:border-orange-300"
-                      }`}
-                    >
-                      {l.label}
-                    </button>
-                  ))}
+                <input
+                  type="range"
+                  min={0.1}
+                  max={1.0}
+                  step={0.1}
+                  value={expansionValue}
+                  onChange={(e) => setExpansionValue(Number(e.target.value))}
+                  className="w-full accent-orange-500"
+                />
+                <div className="flex justify-between text-xs text-gray-400 mt-1">
+                  <span>좁게</span>
+                  <span>넓게</span>
                 </div>
               </div>
             </div>
