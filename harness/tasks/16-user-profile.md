@@ -1,17 +1,18 @@
-# Task 16: 친구 프로필 조회
+# Task 16: 친구 프로필 + 연결 경로
 
 ## 배경
 
 그래프 노드 클릭, Flag 참가자 목록 등 여러 진입점에서
-친구의 소셜 프로필을 조회하는 페이지가 필요하다.
+친구의 프로필을 조회하고, 나와의 연결 경로(중개인)를 확인하는 페이지.
 
-`GET /api/v1/friends/{friendId}` → `FriendshipDetailResult`로 친구 관계 정보와 프로필을 함께 조회한다.
+Task 22(경로 탐색)를 이 태스크에 통합한다.
 
 ## 사용 API
 
 | 액션 | API |
 |---|---|
 | 친구 프로필 조회 | `GET /api/v1/friends/{friendId}` → `FriendshipDetailResult` |
+| 연결 경로 조회 | `GET /api/v1/networks/path?targetId={friendId}` → `ConnectionPathResult` |
 
 ```ts
 FriendshipDetailResult {
@@ -23,6 +24,17 @@ FriendshipDetailResult {
   myInterestScore?: number;
   isMuted?: boolean;
   isRoutable?: boolean;
+}
+
+ConnectionPathResult {
+  direct?: boolean;
+  intermediaries?: IntermediaryResult[];  // 중개인 최대 1명
+}
+
+IntermediaryResult {
+  userId?: number;
+  nickname?: string;
+  score?: number;  // UI에 노출하지 않음
 }
 ```
 
@@ -44,30 +56,63 @@ FriendshipDetailResult {
 │  별칭: 민준이  (friendAlias)      │
 │  닉네임: 박민준                   │
 │                                   │
-│  함께하는 Flag                    │
-│  ├─ 주말 등산 모임 · 토요일        │
-│  └─ 금요일 맥주 · 내일 오후 7시   │
+│  ──────────────────────────────  │
+│  연결 경로                        │
+│  직접 연결된 친구입니다.           │
+│  또는                             │
+│  박민준을 통해 연결됩니다.         │
 └──────────────────────────────────┘
 ```
 
-- 친구가 아닌 유저 접근 시 → 404 또는 `/` 리다이렉트 (API 자체가 403/404 반환)
-- 네트워크에 던지기 기능 없음 — 그래프에서 드래그 앤 드롭으로 처리 (별도 태스크)
+- `direct: true` → "직접 연결된 친구입니다."
+- `direct: false`, intermediaries[0] 존재 → "**{nickname}**을 통해 연결됩니다."
+- 친밀도(score) 수치는 UI에 노출하지 않음
+- 친구가 아닌 유저 접근 시 → `/` 리다이렉트 (API 403/404)
+- 네트워크에 던지기 기능 없음
 
-## 상태 동기화
+## 데이터 페칭
 
-읽기 전용 — 별도 mutation 없음. 서버 컴포넌트 단일 조회.
+두 API를 서버 컴포넌트에서 병렬 조회.
+
+```ts
+const [profile, pathResult] = await Promise.all([
+  getFriendProfile(friendId),
+  getConnectionPath({ targetId: friendId }),
+]);
+```
+
+경로 조회 실패 시 연결 경로 섹션만 숨김 — 프로필은 정상 표시.
 
 ## 스코프 외
 
-- 비친구 유저 프로필 조회 — 별도 API 필요 시 추후 태스크
-- 친구 관계 설정(alias 변경 등)은 Task 06 FriendActionPanel에서 처리
+- 비친구 유저 프로필 조회
+- 친구 관계 설정(alias 변경 등) — Task 06 FriendActionPanel에서 처리
+- 함께하는 Flag 목록 — 전용 API 없음, 추후 태스크
 
 ## 검증
 
-- `/friends/{friendId}` 진입 시 닉네임·프로필 이미지·친밀도 표시
-- 비친구 접근 시 적절한 처리
+- `/friends/{friendId}` 진입 → 닉네임·별칭·프로필 이미지 표시
+- `direct: true` → "직접 연결된 친구입니다." 표시
+- `direct: false` → 중개인 닉네임 포함 문구 표시
+- 경로 API 실패 → 프로필은 정상 표시, 경로 섹션만 숨김
+- 비친구 접근 → 리다이렉트
 - `npx tsc --noEmit` 에러 없음
 
 ## Result
 
-<!-- 작업 완료 후 기록 -->
+### 완료 (2026-06-10)
+
+**구현 파일**
+- `src/app/actions/friendship.ts` — `getFriendProfileAction`, `getConnectionPathAction` 추가
+- `src/app/friends/[friendId]/page.tsx` — 신규 서버 컴포넌트 (병렬 조회, 비친구 접근 시 `/` 리다이렉트)
+- `src/components/FriendProfile/FriendProfile.tsx` — 신규 클라이언트 컴포넌트
+- `src/components/FriendActionPanel/FriendActionPanel.tsx` — "프로필 보기" Link 추가
+- `src/components/Flag/FlagDetail.tsx` — 참가자 중 친구인 경우 `/friends/{id}` 링크 처리
+
+**Phase 2 결과: 9/9 PASS**
+- 프로필 페이지 정상 로드 (닉네임·아바타·헤더 표시)
+- `direct: true` → "직접 연결된 친구입니다." 표시
+- 비친구 ID (`/friends/999999`) 접근 → `/` 리다이렉트
+- FriendActionPanel 프로필 보기 링크 컴포넌트 확인
+
+**브랜치**: `agent/task-16-user-profile` → `develop` 머지 완료
