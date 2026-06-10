@@ -41,14 +41,13 @@ export function useGraphData({
     if (friends.length === 0) return [];
 
     const buzzUnreadSet = new Set(unreadBuzzSenderIds);
-    const seenNodeIds = new Set<number>();
 
-    // 현재 뷰 친구 + 수동 추가 친구 모두 포함
-    const allDisplayFriends = friends.filter((f) => {
-      if (seenNodeIds.has(f.friendId)) return false;
-      seenNodeIds.add(f.friendId);
-      return true;
-    });
+    // 현재 circleSize 엣지에 포함된 친구 + 수동 추가 친구만 노드로 렌더링
+    const edgeNodeIds = new Set<number>();
+    edges.forEach((e) => { edgeNodeIds.add(e.friendAId); edgeNodeIds.add(e.friendBId); });
+    manuallyAddedIds.forEach((id) => edgeNodeIds.add(id));
+
+    const allDisplayFriends = friends.filter((f) => edgeNodeIds.has(f.friendId));
 
     const validNodeIds = new Set(allDisplayFriends.map((f) => String(f.friendId)));
 
