@@ -14,11 +14,6 @@ interface BuzzFormProps {
   labels: LabelResult[];
 }
 
-function expansionLabel(v: number): string {
-  if (v <= 0.3) return "좁게";
-  if (v <= 0.6) return "보통";
-  return "넓게";
-}
 
 export default function BuzzForm({ friends, labels }: BuzzFormProps) {
   const router = useRouter();
@@ -136,7 +131,7 @@ export default function BuzzForm({ friends, labels }: BuzzFormProps) {
               </div>
               <div>
                 <label className="text-xs font-bold text-gray-500 mb-1.5 block">
-                  수신 범위 — {expansionLabel(expansionValue)}
+                  전파 범위 — {expansionValue.toFixed(1)}
                 </label>
                 <input
                   type="range"
@@ -148,8 +143,8 @@ export default function BuzzForm({ friends, labels }: BuzzFormProps) {
                   className="w-full accent-orange-500"
                 />
                 <div className="flex justify-between text-xs text-gray-400 mt-1">
-                  <span>좁게</span>
-                  <span>넓게</span>
+                  <span>0.1</span>
+                  <span>1.0</span>
                 </div>
               </div>
             </div>
