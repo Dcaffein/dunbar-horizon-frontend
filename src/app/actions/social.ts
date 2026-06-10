@@ -7,6 +7,7 @@ import { GetFriendsNetworkCircleSize } from "@/api/model/getFriendsNetworkCircle
 import type { AnchorExpansionResult } from "@/api/model/anchorExpansionResult";
 import type { NetworkOneHopsByTwoHopResult } from "@/api/model/networkOneHopsByTwoHopResult";
 import type { TraceResult } from "@/api/model/traceResult";
+import type { MutualFriendEdgeResult } from "@/api/model/mutualFriendEdgeResult";
 
 function toNetworkEdge(r: NetworkFriendEdgeResult): NetworkFriendEdge {
   return {
@@ -59,6 +60,18 @@ export async function getTwoHopMutualFriendsAction(targetId: number) {
     if (isRedirectError(error)) throw error;
     console.error("getTwoHopMutualFriendsAction error:", error);
     return { success: false as const, message: "공통 친구를 불러오는 데 실패했습니다." };
+  }
+}
+
+export async function getOneHopMutualFriendEdgesAction(targetId: number) {
+  try {
+    const data = await apiClient.get<MutualFriendEdgeResult[]>(
+      `/api/v1/networks/mutual/one-hop?targetId=${targetId}`,
+    );
+    return { success: true as const, data };
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    return { success: false as const, data: [] as MutualFriendEdgeResult[] };
   }
 }
 
