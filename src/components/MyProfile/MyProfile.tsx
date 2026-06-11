@@ -65,8 +65,8 @@ export default function MyProfile({ profile }: MyProfileProps) {
       if (!updateResult.success) throw new Error(updateResult.message ?? "프로필 업데이트 실패");
 
       router.refresh();
-    } catch (err) {
-      setImageError(err instanceof Error ? err.message : "이미지 변경에 실패했습니다.");
+    } catch {
+      setImageError("이미지 변경에 실패했습니다.");
     } finally {
       setImageUploading(false);
       e.target.value = "";
