@@ -79,6 +79,16 @@ export default async function MainPage() {
             Buzz
           </Link>
           <NotificationBell initialUnreadCount={unreadCount} />
+          <Link
+            href="/profile"
+            className="flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-indigo-600 transition-colors px-3 py-1.5 rounded-lg hover:bg-indigo-50"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="8" r="4" />
+              <path d="M20 21a8 8 0 1 0-16 0" />
+            </svg>
+            내 프로필
+          </Link>
           <LogoutButton />
         </div>
       </header>
