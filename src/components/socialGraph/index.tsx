@@ -230,7 +230,7 @@ export default function SocialGraph({ friends, unreadBuzzSenderIds = [] }: Socia
       if (node.length === 0) return;
 
       cy.elements().removeClass("highlighted faded visible");
-      cy.elements().difference(node.neighborhood()).addClass("faded");
+      cy.elements().difference(node.neighborhood().union(node)).addClass("faded");
       node.addClass("highlighted");
       node.neighborhood("node").addClass("highlighted");
       node.connectedEdges().addClass("visible");
