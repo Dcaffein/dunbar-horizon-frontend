@@ -37,10 +37,10 @@ type SidebarTab = "network" | "label";
 type SuggestionSendStatus = "idle" | "loading" | "sent" | "error";
 
 const CIRCLE_SIZE_LABELS: Record<GetFriendsNetworkCircleSize, string> = {
-  SUPPORT: "SUPPORT ~5",
-  SYMPATHY: "SYMPATHY ~15",
-  KINSHIP: "KINSHIP ~50",
-  DUNBAR: "DUNBAR ~150",
+  SUPPORT: "SUPPORT",
+  SYMPATHY: "SYMPATHY",
+  KINSHIP: "KINSHIP",
+  DUNBAR: "DUNBAR",
 };
 
 const CIRCLE_SIZE_ORDER: GetFriendsNetworkCircleSize[] = [
@@ -367,13 +367,13 @@ export default function SocialGraph({ friends, unreadBuzzSenderIds = [] }: Socia
                     <label className="block text-xs font-bold text-gray-500 mb-2 px-1">
                       네트워크 범위
                     </label>
-                    <div className="grid grid-cols-2 gap-1.5">
+                    <div className="grid grid-cols-4 gap-1.5">
                       {CIRCLE_SIZE_ORDER.map((size) => (
                         <button
                           key={size}
                           onClick={() => handleCircleSizeSelect(size)}
                           disabled={isLoading}
-                          className={`py-2 text-xs font-bold rounded-lg transition ${
+                          className={`py-1.5 text-xs font-bold rounded-lg transition ${
                             circleSize === size
                               ? "bg-indigo-600 text-white shadow"
                               : "bg-white border border-gray-200 text-gray-600 hover:border-indigo-300 hover:text-indigo-600"
@@ -497,6 +497,25 @@ export default function SocialGraph({ friends, unreadBuzzSenderIds = [] }: Socia
       </div>
 
       <main className="flex-1 h-full relative">
+        {isGraphActive && (
+          <div className="absolute bottom-4 right-4 z-10 flex flex-col gap-1">
+            <button
+              onClick={() => cyRef.current?.zoom(cyRef.current.zoom() * 1.2)}
+              className="w-8 h-8 bg-white border border-gray-200 rounded-lg shadow text-gray-600 hover:text-indigo-600 hover:border-indigo-300 flex items-center justify-center text-lg font-bold transition"
+              title="줌 인"
+            >
+              +
+            </button>
+            <button
+              onClick={() => cyRef.current?.zoom(cyRef.current.zoom() / 1.2)}
+              className="w-8 h-8 bg-white border border-gray-200 rounded-lg shadow text-gray-600 hover:text-indigo-600 hover:border-indigo-300 flex items-center justify-center text-lg font-bold transition"
+              title="줌 아웃"
+            >
+              −
+            </button>
+          </div>
+        )}
+
         {isLoading && (
           <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm">
             <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4"></div>

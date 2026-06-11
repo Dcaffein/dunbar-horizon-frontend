@@ -39,15 +39,13 @@ export default function FriendActionPanel({
   });
 
   const displayName = friend.friendAlias || friend.friendNickname;
-  const intimacyPct = Math.round((friend.intimacy ?? 0) * 100);
   const isRoutable = friend.isRoutable ?? true;
 
   return (
     <div className="border-t border-gray-200 bg-white p-4 shrink-0">
-      {/* 친구 이름 + 친밀도 */}
+      {/* 친구 이름 */}
       <div className="mb-3">
         <p className="font-bold text-gray-800 text-sm truncate">{displayName}</p>
-        <p className="text-xs text-gray-400 mt-0.5">친밀도 {intimacyPct}%</p>
       </div>
 
       <div className="space-y-2">

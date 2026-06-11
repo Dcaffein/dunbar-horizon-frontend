@@ -26,6 +26,8 @@ export default function CytoscapeWrapper({
     cyRef.current = cytoscape({
       container: containerRef.current,
       wheelSensitivity: 0.5,
+      minZoom: 0.1,
+      maxZoom: 5.0,
     });
 
     if (setCy) {
@@ -81,9 +83,16 @@ export default function CytoscapeWrapper({
       });
     });
 
-    // 레이지 로딩 상황일 때는 카메라 전체 화면 리셋(fit)을 강제로 끔.
-    // 현재의 줌 인 상태를 유지하면서 노드들만 움직임
-    cy.layout({ ...layout, fit: !isLazyLoadUpdate }).run();
+    // 최초 렌더링: fit 없이 레이아웃 → layoutstop 후 zoom 1.0으로 고정
+    // lazy-load: 현재 줌/팬 유지
+    const layoutInstance = cy.layout({ ...layout, fit: false });
+    if (!isLazyLoadUpdate) {
+      layoutInstance.one("layoutstop", () => {
+        cy.zoom(1.0);
+        cy.center();
+      });
+    }
+    layoutInstance.run();
   }, [elements]);
 
   // '스타일(stylesheet)'이 바뀌었을 때는 노드를 지우지 않고 스타일만 변경

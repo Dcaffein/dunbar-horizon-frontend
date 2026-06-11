@@ -25,7 +25,6 @@ export default function LabelManager({
 
   const [isCreateFormOpen, setIsCreateFormOpen] = useState(false);
   const [labelNameInput, setLabelNameInput] = useState("");
-  const [exposureInput, setExposureInput] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
   const selectedFriend = selectedNodeId
@@ -48,7 +47,6 @@ export default function LabelManager({
 
     const request: LabelCreateRequest = {
       labelName: labelNameInput,
-      exposure: exposureInput,
     };
 
     const error = createLabel(request);
@@ -59,7 +57,6 @@ export default function LabelManager({
     }
 
     setLabelNameInput("");
-    setExposureInput(false);
     setIsCreateFormOpen(false);
   }
 
@@ -71,7 +68,6 @@ export default function LabelManager({
           setIsCreateFormOpen((prev) => !prev);
           setFormError(null);
           setLabelNameInput("");
-          setExposureInput(false);
         }}
         className="w-full flex items-center justify-center gap-2 py-2 rounded-lg border border-dashed border-indigo-300 text-indigo-600 text-sm font-semibold hover:bg-indigo-50 transition"
       >
@@ -107,23 +103,6 @@ export default function LabelManager({
             {formError && (
               <p className="text-xs text-red-500 mt-1">{formError}</p>
             )}
-          </div>
-
-          <div className="flex items-center justify-between mb-3">
-            <label className="text-xs text-gray-600">공개 여부</label>
-            <button
-              type="button"
-              onClick={() => setExposureInput((prev) => !prev)}
-              className={`relative w-10 h-5 rounded-full transition-colors ${
-                exposureInput ? "bg-indigo-500" : "bg-gray-300"
-              }`}
-            >
-              <span
-                className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
-                  exposureInput ? "translate-x-5" : "translate-x-0.5"
-                }`}
-              />
-            </button>
           </div>
 
           <button
@@ -164,20 +143,9 @@ export default function LabelManager({
                 >
                   {label.labelName}
                 </span>
-                <div className="flex items-center gap-2 shrink-0 ml-2">
-                  <span className="text-xs text-gray-400">
-                    {label.members.length}명
-                  </span>
-                  <span
-                    className={`text-xs px-1.5 py-0.5 rounded-full ${
-                      label.exposure
-                        ? "bg-green-100 text-green-600"
-                        : "bg-gray-100 text-gray-500"
-                    }`}
-                  >
-                    {label.exposure ? "공개" : "비공개"}
-                  </span>
-                </div>
+                <span className="text-xs text-gray-400 shrink-0 ml-2">
+                  {label.members.length}명
+                </span>
               </button>
 
               {/* 인라인 멤버 추가 버튼 */}

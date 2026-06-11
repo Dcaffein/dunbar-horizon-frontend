@@ -32,7 +32,6 @@ export function useLabelManager(): UseLabelManagerResult {
     const newLabel: Label = {
       id: Date.now().toString(),
       labelName: trimmedName,
-      exposure: request.exposure,
       members: [],
     };
 

@@ -40,11 +40,6 @@ export default async function MainPage() {
           <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">
             Dunbar Horizon
           </h1>
-          <p className="text-gray-500 text-sm mt-1">
-            총{" "}
-            <span className="font-bold text-indigo-600">{friends.length}</span>
-            명의 친구가 있습니다
-          </p>
         </div>
         <div className="flex items-center gap-3">
           <Link

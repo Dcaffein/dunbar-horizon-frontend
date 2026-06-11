@@ -30,30 +30,30 @@ function addMemberToLabel(
 
 describe("validateLabelCreate", () => {
   it("정상 입력 시 에러가 없어야 한다", () => {
-    expect(validateLabelCreate({ labelName: "친한 친구", exposure: true })).toBeNull();
+    expect(validateLabelCreate({ labelName: "친한 친구" })).toBeNull();
   });
 
   it("빈 문자열 입력 시 에러를 반환해야 한다", () => {
-    expect(validateLabelCreate({ labelName: "", exposure: false })).toBe(
+    expect(validateLabelCreate({ labelName: "" })).toBe(
       "라벨 이름을 입력해주세요.",
     );
   });
 
   it("공백만 있는 입력 시 에러를 반환해야 한다", () => {
-    expect(validateLabelCreate({ labelName: "   ", exposure: false })).toBe(
+    expect(validateLabelCreate({ labelName: "   " })).toBe(
       "라벨 이름을 입력해주세요.",
     );
   });
 
   it("20자 초과 입력 시 에러를 반환해야 한다", () => {
     const longName = "가".repeat(21);
-    const error = validateLabelCreate({ labelName: longName, exposure: true });
+    const error = validateLabelCreate({ labelName: longName });
     expect(error).toBe(`라벨 이름은 ${LABEL_NAME_MAX_LENGTH}자 이하여야 합니다.`);
   });
 
   it("정확히 20자 입력은 허용해야 한다", () => {
     const exactName = "가".repeat(20);
-    expect(validateLabelCreate({ labelName: exactName, exposure: true })).toBeNull();
+    expect(validateLabelCreate({ labelName: exactName })).toBeNull();
   });
 });
 
