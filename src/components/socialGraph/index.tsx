@@ -209,8 +209,8 @@ export default function SocialGraph({ friends, unreadBuzzSenderIds = [] }: Socia
         setSelectedSuggestionId(null);
         setSuggestionSendStatus("idle");
         setSuggestionSendError(null);
+        clearSuggestions();
         setSelectedNodeId(rawId);
-        handleAnchorTap(parseInt(rawId, 10));
       }
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -428,7 +428,7 @@ export default function SocialGraph({ friends, unreadBuzzSenderIds = [] }: Socia
                             <img src={friend.friendProfileImageUrl} alt="profile" className="w-full h-full object-cover" />
                           )}
                         </div>
-                        <p className="text-sm font-medium truncate flex-1">
+                        <p className="text-sm font-medium truncate flex-1 text-gray-800">
                           {friend.friendAlias || friend.friendNickname}
                         </p>
                         {isGraphActive && !inGraph && (
@@ -467,6 +467,7 @@ export default function SocialGraph({ friends, unreadBuzzSenderIds = [] }: Socia
               onRoutableToggle={(id, val) => handleFriendUpdate(id, { isRoutable: val })}
               onDelete={handleFriendDelete}
               hasBuzzUnread={unreadBuzzSenderIds.includes(selectedFriend.friendId)}
+              onSuggestRequest={() => handleAnchorTap(selectedFriend.friendId)}
             />
           )}
           {selectedSuggestion && (

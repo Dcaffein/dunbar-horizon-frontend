@@ -11,6 +11,7 @@ interface FriendActionPanelProps {
   onRoutableToggle: (friendId: number, newValue: boolean) => void;
   onDelete: (friendId: number) => void;
   hasBuzzUnread?: boolean;
+  onSuggestRequest?: () => void;
 }
 
 export default function FriendActionPanel({
@@ -20,6 +21,7 @@ export default function FriendActionPanel({
   onRoutableToggle,
   onDelete,
   hasBuzzUnread = false,
+  onSuggestRequest,
 }: FriendActionPanelProps) {
   const {
     aliasInput,
@@ -115,6 +117,17 @@ export default function FriendActionPanel({
             />
           </button>
         </div>
+
+        {/* 친구 추천받기 */}
+        {onSuggestRequest && (
+          <button
+            onClick={onSuggestRequest}
+            disabled={isLoading}
+            className="w-full text-xs py-1.5 border border-indigo-200 rounded-md text-indigo-600 hover:bg-indigo-50 disabled:opacity-50 transition"
+          >
+            친구 추천받기
+          </button>
+        )}
 
         {/* 프로필 보기 */}
         <Link
