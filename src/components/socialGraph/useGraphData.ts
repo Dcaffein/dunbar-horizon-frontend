@@ -11,6 +11,7 @@ interface UseGraphDataProps {
   layoutType: LayoutType;
   suggestionNodes: AnchorExpansionResult[];
   suggestionAnchorId: number | null;
+  suggestionAnchorPos: { x: number; y: number } | null;
   mutualFriendIds: number[];
   selectedSuggestionId: number | null;
   unreadBuzzSenderIds: number[];
@@ -23,6 +24,7 @@ export function useGraphData({
   layoutType,
   suggestionNodes,
   suggestionAnchorId,
+  suggestionAnchorPos,
   mutualFriendIds,
   selectedSuggestionId,
   unreadBuzzSenderIds,
@@ -95,17 +97,25 @@ export function useGraphData({
         };
       });
 
-    // 추천 노드
-    const suggestionNodeEls: ElementDefinition[] = suggestionNodes.map((s) => ({
-      data: {
-        id: `suggestion-${s.id}`,
-        label: s.nickname ?? "",
-        intimacy: s.intimacy ?? 0,
-        mutualCount: s.mutualCount ?? 0,
-        type: "suggestion",
-      },
-      classes: "suggestion",
-    }));
+    // 추천 노드 (anchor 근처에 초기 위치 배치 → fcose가 시작점으로 사용)
+    const total = suggestionNodes.length;
+    const suggestionNodeEls: ElementDefinition[] = suggestionNodes.map((s, i) => {
+      const angle = (2 * Math.PI * i) / Math.max(total, 1);
+      const pos = suggestionAnchorPos
+        ? { x: suggestionAnchorPos.x + Math.cos(angle) * 100, y: suggestionAnchorPos.y + Math.sin(angle) * 100 }
+        : undefined;
+      return {
+        data: {
+          id: `suggestion-${s.id}`,
+          label: s.nickname ?? "",
+          intimacy: s.intimacy ?? 0,
+          mutualCount: s.mutualCount ?? 0,
+          type: "suggestion",
+        },
+        ...(pos ? { position: pos } : {}),
+        classes: "suggestion",
+      };
+    });
 
     // anchor → 추천 노드 엣지
     const suggestionEdgeEls: ElementDefinition[] =
@@ -151,6 +161,7 @@ export function useGraphData({
     connectionMap,
     suggestionNodes,
     suggestionAnchorId,
+    suggestionAnchorPos,
     mutualFriendIds,
     selectedSuggestionId,
     unreadBuzzSenderIds,

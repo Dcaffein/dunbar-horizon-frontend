@@ -75,6 +75,7 @@ export default function SocialGraph({ friends, unreadBuzzSenderIds = [] }: Socia
   // 2-hop 추천 state
   const [suggestionNodes, setSuggestionNodes] = useState<AnchorExpansionResult[]>([]);
   const [suggestionAnchorId, setSuggestionAnchorId] = useState<number | null>(null);
+  const [suggestionAnchorPos, setSuggestionAnchorPos] = useState<{ x: number; y: number } | null>(null);
   const [mutualFriendIds, setMutualFriendIds] = useState<number[]>([]);
   const [selectedSuggestionId, setSelectedSuggestionId] = useState<number | null>(null);
   const [suggestionSendStatus, setSuggestionSendStatus] = useState<SuggestionSendStatus>("idle");
@@ -88,6 +89,7 @@ export default function SocialGraph({ friends, unreadBuzzSenderIds = [] }: Socia
     layoutType,
     suggestionNodes,
     suggestionAnchorId,
+    suggestionAnchorPos,
     mutualFriendIds,
     selectedSuggestionId,
     unreadBuzzSenderIds,
@@ -128,6 +130,7 @@ export default function SocialGraph({ friends, unreadBuzzSenderIds = [] }: Socia
   function clearSuggestions() {
     setSuggestionNodes([]);
     setSuggestionAnchorId(null);
+    setSuggestionAnchorPos(null);
     setMutualFriendIds([]);
     setSelectedSuggestionId(null);
     setSuggestionSendStatus("idle");
@@ -167,7 +170,11 @@ export default function SocialGraph({ friends, unreadBuzzSenderIds = [] }: Socia
       return;
     }
 
-    // 일반 친구 노드: 2-hop 추천 로드
+    // 일반 친구 노드: 2-hop 추천 로드 (anchor 위치 캡처 후 suggestion 노드 초기 위치 설정)
+    const anchorNode = cyRef.current?.getElementById(String(anchorId));
+    if (anchorNode && anchorNode.length > 0) {
+      setSuggestionAnchorPos({ ...anchorNode.position() });
+    }
     const result = await getTwoHopSuggestionsByAnchorAction(anchorId);
     if (result.success && result.data) {
       setSuggestionNodes(result.data);
@@ -236,7 +243,7 @@ export default function SocialGraph({ friends, unreadBuzzSenderIds = [] }: Socia
       node.connectedEdges().addClass("visible");
 
       cy.animate(
-        { center: { eles: node }, zoom: 1.0 },
+        { center: { eles: node }, zoom: 0.8 },
         { duration: 350, easing: "ease-out-quad" },
       );
     }, 100);

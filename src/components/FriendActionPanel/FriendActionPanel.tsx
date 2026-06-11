@@ -44,7 +44,7 @@ export default function FriendActionPanel({
   const isRoutable = friend.isRoutable ?? true;
 
   return (
-    <div className="border-t-2 border-indigo-100 bg-white p-4 shrink-0 shadow-[0_-4px_12px_rgba(0,0,0,0.06)]">
+    <div className="border-t-2 border-indigo-300 bg-indigo-50 p-4 shrink-0 shadow-[0_-4px_12px_rgba(99,102,241,0.12)]">
       {/* 친구 이름 */}
       <div className="mb-3">
         <p className="font-bold text-gray-800 text-sm truncate">{displayName}</p>

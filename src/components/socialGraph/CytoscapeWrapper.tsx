@@ -88,7 +88,7 @@ export default function CytoscapeWrapper({
     const layoutInstance = cy.layout({ ...layout, fit: false });
     if (!isLazyLoadUpdate) {
       layoutInstance.one("layoutstop", () => {
-        cy.zoom(1.0);
+        cy.zoom(0.7);
         cy.center();
       });
     }
