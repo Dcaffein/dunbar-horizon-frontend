@@ -61,7 +61,17 @@ export default function CytoscapeWrapper({
       const elementsToAdd = elements.filter(
         (el: any) => cy.getElementById(el.data.id).length === 0,
       );
-      if (elementsToAdd.length > 0) cy.add(elementsToAdd);
+      if (elementsToAdd.length > 0) {
+        // position 없는 새 노드는 현재 그래프 중심에 배치 (off-screen 방지)
+        const ext = cy.extent();
+        const graphCenter = { x: (ext.x1 + ext.x2) / 2, y: (ext.y1 + ext.y2) / 2 };
+        cy.add(elementsToAdd.map((el: any) => {
+          if (!el.data.source && !el.position) {
+            return { ...el, position: graphCenter };
+          }
+          return el;
+        }));
+      }
 
       // 캔버스에 이미 데이터가 있었고, 삭제된 요소가 하나도 없거나
       // 삭제된 요소가 전부 suggestion 타입인 경우 (anchor 재선택) fit 비활성.
