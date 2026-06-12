@@ -8,7 +8,7 @@
 
 export interface UserProfileUpdateRequest {
   /**
-     * @minLength 2
+     * @minLength 1
      * @maxLength 20
      */
   nickname: string;

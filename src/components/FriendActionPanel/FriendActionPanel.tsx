@@ -71,7 +71,7 @@ export default function FriendActionPanel({
             onKeyDown={(e) => e.key === "Enter" && handleSaveAlias()}
             placeholder="별칭"
             disabled={isLoading}
-            className="flex-1 text-xs border border-gray-200 rounded-md px-2 py-1.5 focus:outline-none focus:border-indigo-400 disabled:opacity-50"
+            className="flex-1 text-xs text-gray-900 border border-gray-200 rounded-md px-2 py-1.5 focus:outline-none focus:border-indigo-400 disabled:opacity-50"
           />
           <button
             onClick={handleSaveAlias}

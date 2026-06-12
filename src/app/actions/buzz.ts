@@ -25,7 +25,7 @@ export async function getUnreadSendersAction() {
 export async function getReceivedBuzzesAction(page = 0, size = 20) {
   try {
     const data = await apiClient.get<SliceBuzzSummaryResult>(
-      `/api/v1/buzzes?page=${page}&size=${size}`,
+      `/api/v1/buzzes/?page=${page}&size=${size}`,
     );
     return { success: true as const, data };
   } catch (error) {

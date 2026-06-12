@@ -1,10 +1,33 @@
 // components/socialGraph/layout.ts
-import type { NodeSingular, EdgeSingular } from "cytoscape";
+import type { EdgeSingular } from "cytoscape";
 import type { FcoseLayoutOptions, LayoutType } from "./types";
+import { GetFriendsNetworkCircleSize } from "@/api/model/getFriendsNetworkCircleSize";
+
+// circleSize별 예상 노드 수 힌트 (gravity/repulsion 스케일 기준)
+const CIRCLE_NODE_HINTS: Partial<Record<GetFriendsNetworkCircleSize, number>> = {
+  [GetFriendsNetworkCircleSize.SUPPORT]: 5,
+  [GetFriendsNetworkCircleSize.SYMPATHY]: 15,
+  [GetFriendsNetworkCircleSize.KINSHIP]: 50,
+  [GetFriendsNetworkCircleSize.DUNBAR]: 150,
+};
+
+function gravityForCircle(circleSize: GetFriendsNetworkCircleSize | null): number {
+  const n = circleSize ? (CIRCLE_NODE_HINTS[circleSize] ?? 0) : 0;
+  if (n <= 0) return 0.05;
+  // 노드 수가 적을수록 강한 중력으로 그래프를 중앙에 모음
+  return Math.max(0.05, Math.min(0.8, 4 / n));
+}
+
+function repulsionForCircle(circleSize: GetFriendsNetworkCircleSize | null): number {
+  const n = circleSize ? (CIRCLE_NODE_HINTS[circleSize] ?? 0) : 0;
+  if (n <= 0) return 400000;
+  return Math.max(20000, Math.min(400000, n * 8000));
+}
 
 export const getLayoutOptions = (
   type: LayoutType,
   isSnapshot: boolean = false,
+  circleSize: GetFriendsNetworkCircleSize | null = null,
 ): FcoseLayoutOptions => {
   const baseOptions: Partial<FcoseLayoutOptions> = {
     quality: "proof",
@@ -17,6 +40,9 @@ export const getLayoutOptions = (
     tile: false,
   };
 
+  const gravity = gravityForCircle(circleSize);
+  const repulsion = repulsionForCircle(circleSize);
+
   // gravity: 0.25, // 전체 그래프를 가운데로 묶는 중력의 기본값
   // nodeRepulsion: 4500, // 노드 간의 기본적인 척력
   // idealEdgeLength: 50, // 모든 선의 기본 길이(50이면 한 점에 모임)
@@ -25,10 +51,8 @@ export const getLayoutOptions = (
     connectivity: {
       ...baseOptions,
       name: "fcose",
-      // 매우 강한 척력으로 노드 간 기본 거리를 넓게 확보함
-      nodeRepulsion: 400000,
-      // 중력을 최소화하여 척력에 의한 팽창을 허용함
-      gravity: 0.05,
+      nodeRepulsion: repulsion,
+      gravity,
 
       idealEdgeLength: (edge: EdgeSingular) => {
         const sourceNeighbors = edge.source().neighborhood("node");
@@ -70,9 +94,8 @@ export const getLayoutOptions = (
     intimacy: {
       ...baseOptions,
       name: "fcose",
-      // 강한 척력과 약한 중력으로 노드 간 기본 거리를 넓게 확보함
-      nodeRepulsion: 400000,
-      gravity: 0.05,
+      nodeRepulsion: repulsion,
+      gravity,
 
       idealEdgeLength: (edge: EdgeSingular) => {
         const rawIntimacy = edge.data("intimacy") || 0;
@@ -99,32 +122,18 @@ export const getLayoutOptions = (
       ...baseOptions,
       name: "fcose",
 
-      nodeRepulsion: (node: NodeSingular) => {
-        const interest = node.data("interest") || 0;
-        // 관심도가 높을수록 더 큰 척력으로 자기 영역을 확보함 (기본 10,000 ~ 최대 230,000)
-        return 10000 + interest * 220000;
-      },
+      nodeRepulsion: repulsion,
 
-      // 척력이 약해진 만큼 중력을 살짝 올려서 전체 그래프의 파편화를 막음
-      gravity: 0.2,
+      gravity,
+
+      idealEdgeLength: 150,
 
       edgeElasticity: (edge: EdgeSingular) => {
-        const a = edge.data("friendAInterest") || 0;
-        const b = edge.data("friendBInterest") || 0;
-
-        // 양쪽 관심도의 합에 비례하여 장력이 강해짐 (최소 0.1 ~ 최대 1.5)
-        return 0.1 + (a + b) * 0.7;
-      },
-
-      idealEdgeLength: (edge: EdgeSingular) => {
-        const a = edge.data("friendAInterest") || 0;
-        const b = edge.data("friendBInterest") || 0;
-
-        // 두 관심도의 평균값을 산출함
-        const avgI = (a + b) / 2;
-
-        // 평균 관심도가 높을수록 거리가 짧아짐 (최대 400px ~ 최소 100px)
-        return 400 - avgI * 300;
+        const deltaA = Math.max(0, (edge.source().data("interest") || 0) - (edge.source().data("intimacy") || 0));
+        const deltaB = Math.max(0, (edge.target().data("interest") || 0) - (edge.target().data("intimacy") || 0));
+        // 어느 한쪽 노드라도 delta가 크면 장력이 강해짐 (주인공 노드 기준)
+        const dominantDelta = Math.max(deltaA, deltaB);
+        return 0.45 + Math.sqrt(dominantDelta) * 8;
       },
     },
   };

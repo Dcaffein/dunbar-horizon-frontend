@@ -8,4 +8,5 @@
 
 export type GetTwoHopSuggestionsByAnchorParams = {
 anchorId: number;
+expansionValue: number;
 };

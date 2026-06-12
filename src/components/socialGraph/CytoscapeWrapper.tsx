@@ -16,6 +16,7 @@ export default function CytoscapeWrapper({
   stylesheet,
   layout,
   cy: setCy,
+  onLayoutStop,
 }: any) {
   const containerRef = useRef<HTMLDivElement>(null);
   const cyRef = useRef<cytoscape.Core | null>(null);
@@ -44,7 +45,13 @@ export default function CytoscapeWrapper({
 
   useEffect(() => {
     const cy = cyRef.current;
-    if (!cy || !elements || elements.length === 0) return;
+    if (!cy) return;
+
+    // elements가 비었으면 cy도 비워서 다음 로드 시 hadElementsBefore = false 보장
+    if (!elements || elements.length === 0) {
+      if (cy.elements().length > 0) cy.elements().remove();
+      return;
+    }
 
     // 단순 엣지 추가 여부를 판별할 변수
     let isLazyLoadUpdate = false;
@@ -62,15 +69,21 @@ export default function CytoscapeWrapper({
         (el: any) => cy.getElementById(el.data.id).length === 0,
       );
       if (elementsToAdd.length > 0) {
-        // position 없는 새 노드는 현재 그래프 중심에 배치 (off-screen 방지)
-        const ext = cy.extent();
-        const graphCenter = { x: (ext.x1 + ext.x2) / 2, y: (ext.y1 + ext.y2) / 2 };
-        cy.add(elementsToAdd.map((el: any) => {
-          if (!el.data.source && !el.position) {
-            return { ...el, position: graphCenter };
-          }
-          return el;
-        }));
+        // 기존 노드가 남아있을 때만 그래프 중심 기준으로 position 없는 새 노드 배치
+        // 초기 로드/전체 교체 시에는 cy가 비어있어 cy.extent()가 유효하지 않으므로 적용 안 함
+        const remainingNodes = cy.nodes();
+        if (remainingNodes.length > 0) {
+          const ext = cy.extent();
+          const graphCenter = { x: (ext.x1 + ext.x2) / 2, y: (ext.y1 + ext.y2) / 2 };
+          cy.add(elementsToAdd.map((el: any) => {
+            if (!el.data.source && !el.position) {
+              return { ...el, position: graphCenter };
+            }
+            return el;
+          }));
+        } else {
+          cy.add(elementsToAdd);
+        }
       }
 
       // 캔버스에 이미 데이터가 있었고, 삭제된 요소가 하나도 없거나
@@ -84,23 +97,13 @@ export default function CytoscapeWrapper({
       isLazyLoadUpdate =
         hadElementsBefore &&
         (elementsToRemove.length === 0 || removedAreSuggestionOnly);
-      cy.nodes().forEach((node: any) => {
-        if (node.degree() === 0) {
-          node.addClass("isolated"); // 선이 0개면 흐릿하게
-        } else {
-          node.removeClass("isolated"); // 선이 1개라도 생기면 선명하게
-        }
-      });
     });
 
-    // 최초 렌더링: fit 없이 레이아웃 → layoutstop 후 zoom 1.0으로 고정
+    // 최초 렌더링/전체 교체: layoutstop 후 onLayoutStop 콜백으로 zoom 재조정
     // lazy-load: 현재 줌/팬 유지
     const layoutInstance = cy.layout({ ...layout, fit: false });
-    if (!isLazyLoadUpdate) {
-      layoutInstance.one("layoutstop", () => {
-        cy.zoom(0.7);
-        cy.center();
-      });
+    if (!isLazyLoadUpdate && onLayoutStop) {
+      layoutInstance.one("layoutstop", onLayoutStop);
     }
     layoutInstance.run();
   }, [elements]);
@@ -112,13 +115,16 @@ export default function CytoscapeWrapper({
     }
   }, [stylesheet]); // 테마가 바뀔 때 실행됨
 
-  // 레이아웃만 바뀌었을 때는 기존 위치에서 물리 엔진 재가동
+  // 테마(레이아웃) 변경 시 기존 위치에서 물리 엔진 재가동 → 완료 후 zoom 재조정
   useEffect(() => {
-    // 노드가 화면에 있을 때만 실행
-    if (cyRef.current && cyRef.current.elements().length > 0) {
-      cyRef.current.layout(layout).run();
+    const cy = cyRef.current;
+    if (!cy || cy.elements().length === 0) return;
+    const layoutInstance = cy.layout({ ...layout, fit: false });
+    if (onLayoutStop) {
+      layoutInstance.one("layoutstop", onLayoutStop);
     }
-  }, [layout]);
+    layoutInstance.run();
+  }, [layout]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return <div ref={containerRef} style={{ width: "100%", height: "100%" }} />;
 }

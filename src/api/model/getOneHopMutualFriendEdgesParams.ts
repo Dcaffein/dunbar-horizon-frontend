@@ -5,10 +5,8 @@
  * DunbarHorizon 백엔드 API
  * OpenAPI spec version: 1.0.0
  */
-import type { GetOneHopMutualFriendEdgesCircleSize } from './getOneHopMutualFriendEdgesCircleSize';
 
 export type GetOneHopMutualFriendEdgesParams = {
 targetId: number;
-labelId?: string;
-circleSize?: GetOneHopMutualFriendEdgesCircleSize;
+skeletonIds: number[];
 };
