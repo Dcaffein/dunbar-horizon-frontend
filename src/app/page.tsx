@@ -6,11 +6,14 @@ import NotificationBell from "@/components/Notifications/NotificationBell";
 import { apiClient } from "@/api/apiClient";
 import { getUnreadCountAction } from "@/app/actions/notification";
 import { getUnreadSendersAction } from "@/app/actions/buzz";
+import { getLabelsAction } from "@/app/actions/label";
 import type { FriendshipDetail } from "@/components/socialGraph/types";
+import type { Label } from "@/components/Label/types";
 import { isRedirectError } from "@/api/apiClient";
 
 export default async function MainPage() {
   let friends: FriendshipDetail[] = [];
+  let initialLabels: Label[] = [];
   let unreadCount = 0;
   let unreadBuzzSenderIds: number[] = [];
 
@@ -19,6 +22,19 @@ export default async function MainPage() {
   } catch (error) {
     if (isRedirectError(error)) throw error;
     console.error("친구 목록을 불러오는 데 실패했습니다.", error);
+  }
+
+  try {
+    const labelsResult = await getLabelsAction();
+    if (labelsResult.success) {
+      initialLabels = labelsResult.data.map((r) => ({
+        id: r.id!,
+        labelName: r.labelName ?? "",
+        members: (r.members ?? []).map((m) => ({ id: m.id!, nickname: m.nickname ?? "" })),
+      }));
+    }
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
   }
 
   try {
@@ -115,7 +131,7 @@ export default async function MainPage() {
           </div>
         ) : (
           // 친구 데이터가 있으면 클라이언트 컴포넌트로 넘겨줌.
-          <SocialGraph friends={friends} unreadBuzzSenderIds={unreadBuzzSenderIds} />
+          <SocialGraph friends={friends} initialLabels={initialLabels} unreadBuzzSenderIds={unreadBuzzSenderIds} />
         )}
       </section>
     </main>

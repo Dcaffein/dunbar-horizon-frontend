@@ -3,12 +3,13 @@
 
 import { useState } from "react";
 import { useLabelManager } from "./useLabelManager";
-import type { LabelCreateRequest } from "./types";
+import type { Label, LabelCreateRequest } from "./types";
 import type { FriendshipDetail } from "@/components/socialGraph/types";
 
 const LABEL_NAME_MAX_LENGTH = 20;
 
 interface LabelManagerProps {
+  initialLabels: Label[];
   selectedNodeId: string | null;
   friends: FriendshipDetail[];
   onLabelSelect: (labelId: string | null) => void;
@@ -16,16 +17,19 @@ interface LabelManagerProps {
 }
 
 export default function LabelManager({
+  initialLabels,
   selectedNodeId,
   friends,
   onLabelSelect,
   activeLabelId,
 }: LabelManagerProps) {
-  const { labels, createLabel, addMember } = useLabelManager();
+  const { labels, createLabel, addMember } = useLabelManager(initialLabels);
 
   const [isCreateFormOpen, setIsCreateFormOpen] = useState(false);
   const [labelNameInput, setLabelNameInput] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+  const [addingMemberLabelId, setAddingMemberLabelId] = useState<string | null>(null);
 
   const selectedFriend = selectedNodeId
     ? friends.find((f) => String(f.friendId) === selectedNodeId)
@@ -35,21 +39,25 @@ export default function LabelManager({
     onLabelSelect(activeLabelId === labelId ? null : labelId);
   }
 
-  function handleAddMember(labelId: string) {
+  async function handleAddMember(labelId: string) {
     if (!selectedNodeId || !selectedFriend) return;
     const memberId = Number(selectedNodeId);
     const nickname = selectedFriend.friendAlias || selectedFriend.friendNickname;
-    addMember(labelId, memberId, nickname);
+    setAddingMemberLabelId(labelId);
+    await addMember(labelId, memberId, nickname);
+    setAddingMemberLabelId(null);
   }
 
-  function handleCreateLabel() {
+  async function handleCreateLabel() {
     setFormError(null);
 
     const request: LabelCreateRequest = {
       labelName: labelNameInput,
     };
 
-    const error = createLabel(request);
+    setIsCreating(true);
+    const error = await createLabel(request);
+    setIsCreating(false);
 
     if (error?.labelName) {
       setFormError(error.labelName);
@@ -107,9 +115,10 @@ export default function LabelManager({
 
           <button
             onClick={handleCreateLabel}
-            className="w-full bg-indigo-600 text-white text-sm font-semibold py-2 rounded-lg hover:bg-indigo-700 transition"
+            disabled={isCreating}
+            className="w-full bg-indigo-600 text-white text-sm font-semibold py-2 rounded-lg hover:bg-indigo-700 transition disabled:opacity-50"
           >
-            라벨 만들기
+            {isCreating ? "만드는 중..." : "라벨 만들기"}
           </button>
         </div>
       )}
@@ -152,10 +161,12 @@ export default function LabelManager({
               <div className="px-3 pb-2">
                 <button
                   onClick={() => handleAddMember(label.id)}
-                  disabled={!selectedNodeId}
+                  disabled={!selectedNodeId || addingMemberLabelId === label.id}
                   className="w-full text-xs py-1 rounded-md border border-indigo-200 text-indigo-600 hover:bg-indigo-50 transition disabled:opacity-30 disabled:cursor-not-allowed"
                 >
-                  {selectedNodeId
+                  {addingMemberLabelId === label.id
+                    ? "추가 중..."
+                    : selectedNodeId
                     ? `+ ${selectedFriend?.friendAlias || selectedFriend?.friendNickname} 멤버 추가`
                     : "+ 멤버 추가 (노드 선택 필요)"}
                 </button>

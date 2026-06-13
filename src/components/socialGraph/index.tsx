@@ -33,6 +33,7 @@ import LabelManager from "../Label/LabelManager";
 import FriendActionPanel from "../FriendActionPanel/FriendActionPanel";
 import SuggestionPanel from "../SuggestionPanel/SuggestionPanel";
 import type { FriendshipDetail, NetworkFriendEdge, LayoutType } from "./types";
+import type { Label } from "@/components/Label/types";
 
 type SidebarTab = "network" | "label";
 type SuggestionSendStatus = "idle" | "loading" | "sent" | "error";
@@ -53,11 +54,13 @@ const CIRCLE_SIZE_ORDER: GetFriendsNetworkCircleSize[] = [
 
 interface SocialGraphProps {
   friends: FriendshipDetail[];
+  initialLabels?: Label[];
   unreadBuzzSenderIds?: number[];
 }
 
 export default function SocialGraph({
   friends,
+  initialLabels = [],
   unreadBuzzSenderIds = [],
 }: SocialGraphProps) {
   const router = useRouter();
@@ -651,6 +654,7 @@ export default function SocialGraph({
               </>
             ) : (
               <LabelManager
+                initialLabels={initialLabels}
                 selectedNodeId={selectedNodeId}
                 friends={friendsList}
                 onLabelSelect={(id) => handleLabelSelect(id)}
