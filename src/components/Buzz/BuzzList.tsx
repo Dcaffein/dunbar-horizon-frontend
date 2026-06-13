@@ -50,7 +50,7 @@ export default function BuzzList({ initialBuzzes, initialHasMore }: BuzzListProp
   }
 
   return (
-    <div>
+    <div className="max-w-2xl mx-auto">
       <ul className="divide-y divide-gray-100">
         {buzzes.map((buzz) => {
           const { text: remText, urgent } = remainingLabel(buzz.remainingMinutes);
