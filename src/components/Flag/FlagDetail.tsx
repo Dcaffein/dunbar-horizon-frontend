@@ -63,6 +63,7 @@ export default function FlagDetail({ flag, myUserId, friends, memorials, comment
   const isParticipating = !!myParticipant;
   const canInvite = isHost || myParticipant?.canInvite === true;
   const isClosed = flag.status === "CLOSED";
+  const isEnded = isClosed || (!!flag.schedule?.endDateTime && new Date(flag.schedule.endDateTime) < new Date());
   const rem = remainingLabel(flag.schedule?.endDateTime);
 
   const participantIds = new Set(participants.map((p) => p.id));
@@ -163,12 +164,12 @@ export default function FlagDetail({ flag, myUserId, friends, memorials, comment
               수정
             </Link>
           )}
-          {isHost && (
+          {isHost && isEnded && (
             <Link
               href={`/flags/new?parentFlagId=${flag.id}`}
               className="text-xs px-2.5 py-1 border border-indigo-200 rounded-lg text-indigo-600 hover:bg-indigo-50"
             >
-              Encore
+              앙코르
             </Link>
           )}
         </div>
