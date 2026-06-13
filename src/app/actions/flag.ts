@@ -180,13 +180,25 @@ export async function updateInvitePermissionAction(
   }
 }
 
-export async function getMemorialsAction(flagId: number) {
+export async function getMemorialCountAction(flagId: number) {
   try {
-    const data = await apiClient.get<MemorialResult[]>(`/api/v1/flags/${flagId}/memorials`);
-    return { success: true as const, data };
+    const count = await apiClient.get<number>(`/api/v1/flags/${flagId}/memorials/count`);
+    return { success: true as const, count };
   } catch (error) {
     if (isRedirectError(error)) throw error;
-    return { success: false as const, data: [] as MemorialResult[] };
+    return { success: false as const, count: 0 };
+  }
+}
+
+export async function getMemorialsAction(flagId: number) {
+  try {
+    const res = await apiClient.get<{ memorials?: MemorialResult[]; locked?: boolean }>(
+      `/api/v1/flags/${flagId}/memorials`
+    );
+    return { success: true as const, data: res.memorials ?? [], locked: res.locked ?? false };
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    return { success: false as const, data: [] as MemorialResult[], locked: true };
   }
 }
 

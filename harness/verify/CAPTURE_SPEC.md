@@ -133,6 +133,19 @@ Password: String123!
 | 01 | Flag 상세 (제목·설명·일정·host 정보) | `01-detail.png` |
 | 02 | 참가자 목록 섹션 | `02-participants.png` |
 | 03 | 초대 섹션 (host로 로그인 시) | `03-invite-section.png` |
+| 04 | 종료된 Flag 상세 (host 시점, 앙코르 버튼·메모리얼 링크 행) | `04-detail-ended.png` |
+| 07 | 초대 바텀시트 모달 열린 상태 | `07-invite-modal.png` |
+| 08 | 메모리얼 링크 행 (종료 Flag 한정) | `08-memorial-link.png` |
+| 09 | 참여자 시점 — isHost:false, 참여 취소 버튼·초대권한 표시 | `09-participant-view.png` |
+
+---
+
+## `/flags/invitations`
+
+| step | 상태/동작 | 파일명 |
+|---|---|---|
+| 01 | 받은 초대 목록 (거절/수락 버튼) | `01-invitation-list.png` |
+| 02 | 빈 상태 ("받은 초대가 없습니다.") | `02-empty.png` |
 
 ---
 

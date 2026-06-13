@@ -6,12 +6,8 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export interface FriendUpdateRequest {
-  /**
-     * @minLength 0
-     * @maxLength 20
-     */
-  friendAlias?: string;
-  isMuted?: boolean;
-  isRoutable?: boolean;
+export interface ScheduleSeedItem {
+  startDateTime?: string;
+  endDateTime?: string;
+  deadline?: string;
 }

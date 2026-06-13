@@ -49,7 +49,7 @@ export default async function FlagsPage() {
         <FlagList
           initialHosting={hosting}
           initialParticipating={participating}
-          initialFriends={friends}
+          initialBrowse={friends}
         />
       </main>
     </div>

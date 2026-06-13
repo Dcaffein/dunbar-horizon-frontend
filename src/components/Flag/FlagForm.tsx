@@ -19,24 +19,16 @@ interface FlagFormProps {
   initialValues?: FlagFormInitialValues;
 }
 
-function toLocalDatetimeValue(date: Date): string {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
 
 export default function FlagForm({ parentFlagId, flagId, initialValues }: FlagFormProps) {
   const router = useRouter();
   const isEncore = !!parentFlagId;
   const isEdit = !!flagId;
 
-  const now = new Date();
-  const defaultStart = new Date(now.getTime() + 60 * 60 * 1000);
-  const defaultEnd = new Date(now.getTime() + 3 * 60 * 60 * 1000);
-
   const [title, setTitle] = useState(initialValues?.title ?? "");
   const [description, setDescription] = useState(initialValues?.description ?? "");
-  const [startDateTime, setStartDateTime] = useState(initialValues?.startDateTime ?? toLocalDatetimeValue(defaultStart));
-  const [endDateTime, setEndDateTime] = useState(initialValues?.endDateTime ?? toLocalDatetimeValue(defaultEnd));
+  const [startDateTime, setStartDateTime] = useState(initialValues?.startDateTime ?? "");
+  const [endDateTime, setEndDateTime] = useState(initialValues?.endDateTime ?? "");
   const [deadline, setDeadline] = useState(initialValues?.deadline ?? "");
   const [capacity, setCapacity] = useState(initialValues?.capacity ?? "");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -146,10 +138,21 @@ export default function FlagForm({ parentFlagId, flagId, initialValues }: FlagFo
     return "Flag 만들기";
   }
 
+  function splitDt(dt: string): [string, string] {
+    const [d = "", t = ""] = dt.split("T");
+    return [d, t];
+  }
+
+  const [startDate, startTime] = splitDt(startDateTime);
+  const [endDate, endTime] = splitDt(endDateTime);
+  const [deadlineDate, deadlineTime] = splitDt(deadline);
+
+  const dtInputCls = "text-sm text-gray-800 bg-gray-50 border border-gray-100 rounded-xl px-3 py-2.5 focus:outline-none focus:border-indigo-300 transition-colors";
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <header className="bg-white border-b border-gray-200 px-4 py-4 flex items-center gap-4 shrink-0">
-        <button onClick={() => router.back()} className="text-gray-500 hover:text-gray-700">
+      <header className="bg-white border-b border-gray-100 px-4 py-4 flex items-center gap-3 shrink-0">
+        <button onClick={() => router.back()} className="text-gray-400 hover:text-gray-600">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="m15 18-6-6 6-6" />
           </svg>
@@ -158,98 +161,156 @@ export default function FlagForm({ parentFlagId, flagId, initialValues }: FlagFo
       </header>
 
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-lg mx-auto px-4 py-5 space-y-4">
+        <div className="max-w-lg mx-auto px-4 py-4 space-y-3">
+
           {isEncore && (
-            <div className="bg-indigo-50 border border-indigo-200 rounded-xl px-3 py-2.5 text-xs text-indigo-700 font-medium">
-              이전 Flag를 기반으로 Encore를 생성합니다. 새로운 제목과 일정을 입력해주세요.
+            <div className="bg-indigo-50 border border-indigo-100 rounded-2xl px-4 py-3">
+              <p className="text-xs text-indigo-700 font-medium leading-relaxed">
+                이전 Flag를 기반으로 앙코르를 생성합니다. 새로운 제목과 일정을 입력하세요. 생성하면 이전 참여자들에게 초대장이 발송됩니다.
+              </p>
             </div>
           )}
 
-          {/* 제목 */}
-          <div>
-            <label className="text-xs font-bold text-gray-500 mb-1 block">제목 *</label>
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Flag 제목을 입력하세요"
-              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400"
-            />
-            {errors.title && <p className="text-xs text-red-500 mt-0.5">{errors.title}</p>}
+          {/* 기본 정보 */}
+          <div className="bg-white rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.06)] px-4 py-4 space-y-3">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">기본 정보</p>
+
+            <div>
+              <label className="text-xs font-semibold text-gray-500 mb-1 block">제목</label>
+              <input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Flag 제목을 입력하세요"
+                className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400"
+              />
+              {errors.title && <p className="text-xs text-red-500 mt-0.5">{errors.title}</p>}
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-gray-500 mb-1 block">설명</label>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Flag를 설명해주세요"
+                rows={3}
+                className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 resize-none focus:outline-none focus:border-indigo-400"
+              />
+              {errors.description && <p className="text-xs text-red-500 mt-0.5">{errors.description}</p>}
+            </div>
           </div>
 
-          {/* 설명 */}
-          <div>
-            <label className="text-xs font-bold text-gray-500 mb-1 block">설명 *</label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Flag를 설명해주세요"
-              rows={3}
-              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 resize-none focus:outline-none focus:border-indigo-400"
-            />
-            {errors.description && <p className="text-xs text-red-500 mt-0.5">{errors.description}</p>}
+          {/* 일정 */}
+          <div className="bg-white rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.06)] px-4 py-4">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3">일정</p>
+
+            {/* 컬럼 헤더 */}
+            <div className="flex items-center gap-2 mb-1.5 pl-10">
+              <span className="flex-1 text-[11px] text-gray-400">날짜</span>
+              <span className="w-24 text-[11px] text-gray-400">시간</span>
+            </div>
+
+            {/* 시작 */}
+            <div className="flex items-center gap-2 mb-2">
+              <span className="w-10 text-xs font-medium text-gray-500 shrink-0">시작</span>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDateTime(`${e.target.value}T${startTime || "00:00"}`)}
+                className={`flex-1 ${dtInputCls}`}
+              />
+              <input
+                type="time"
+                value={startTime}
+                onChange={(e) => setStartDateTime(`${startDate}T${e.target.value}`)}
+                className={`w-24 ${dtInputCls}`}
+              />
+            </div>
+            {errors.startDateTime && <p className="text-xs text-red-400 mb-2 pl-10">{errors.startDateTime}</p>}
+
+            {/* 종료 */}
+            <div className="flex items-center gap-2">
+              <span className="w-10 text-xs font-medium text-gray-500 shrink-0">종료</span>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDateTime(`${e.target.value}T${endTime || "00:00"}`)}
+                className={`flex-1 ${dtInputCls}`}
+              />
+              <input
+                type="time"
+                value={endTime}
+                onChange={(e) => setEndDateTime(`${endDate}T${e.target.value}`)}
+                className={`w-24 ${dtInputCls}`}
+              />
+            </div>
+            {errors.endDateTime && <p className="text-xs text-red-400 mt-1 pl-10">{errors.endDateTime}</p>}
+
+            <div className="border-t border-gray-100 mt-4 pt-4">
+              <div className="flex items-center gap-1.5 mb-2">
+                <span className="text-xs font-medium text-gray-500">모집 마감</span>
+                <span className="text-[10px] bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded-full">선택</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-10 shrink-0" />
+                <input
+                  type="date"
+                  value={deadlineDate}
+                  onChange={(e) => setDeadline(`${e.target.value}T${deadlineTime || "00:00"}`)}
+                  className={`flex-1 ${dtInputCls}`}
+                />
+                <input
+                  type="time"
+                  value={deadlineTime}
+                  onChange={(e) => setDeadline(`${deadlineDate}T${e.target.value}`)}
+                  className={`w-24 ${dtInputCls}`}
+                />
+              </div>
+            </div>
           </div>
 
-          {/* 시작 일시 */}
-          <div>
-            <label className="text-xs font-bold text-gray-500 mb-1 block">시작 일시 *</label>
-            <input
-              type="datetime-local"
-              value={startDateTime}
-              onChange={(e) => setStartDateTime(e.target.value)}
-              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400"
-            />
-            {errors.startDateTime && <p className="text-xs text-red-500 mt-0.5">{errors.startDateTime}</p>}
+          {/* 참여 설정 */}
+          <div className="bg-white rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.06)] px-4 py-4 space-y-3">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">참여 설정</p>
+
+            <div>
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <label className="text-xs font-semibold text-gray-500">최대 인원</label>
+                <span className="text-[10px] bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded-full">선택</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min={1}
+                  value={capacity}
+                  onChange={(e) => setCapacity(e.target.value)}
+                  placeholder="제한 없음"
+                  className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400"
+                />
+                <span className="text-sm text-gray-400 shrink-0">명</span>
+              </div>
+              {errors.capacity && <p className="text-xs text-red-500 mt-1">{errors.capacity}</p>}
+            </div>
           </div>
 
-          {/* 종료 일시 */}
-          <div>
-            <label className="text-xs font-bold text-gray-500 mb-1 block">종료 일시 *</label>
-            <input
-              type="datetime-local"
-              value={endDateTime}
-              onChange={(e) => setEndDateTime(e.target.value)}
-              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400"
-            />
-            {errors.endDateTime && <p className="text-xs text-red-500 mt-0.5">{errors.endDateTime}</p>}
-          </div>
-
-          {/* 모집 마감일 */}
-          <div>
-            <label className="text-xs font-bold text-gray-500 mb-1 block">모집 마감일 <span className="font-normal text-gray-400">(선택)</span></label>
-            <input
-              type="datetime-local"
-              value={deadline}
-              onChange={(e) => setDeadline(e.target.value)}
-              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400"
-            />
-          </div>
-
-          {/* 최대 인원 */}
-          <div>
-            <label className="text-xs font-bold text-gray-500 mb-1 block">최대 인원 <span className="font-normal text-gray-400">(선택)</span></label>
-            <input
-              type="number"
-              min={1}
-              value={capacity}
-              onChange={(e) => setCapacity(e.target.value)}
-              placeholder="예: 10"
-              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400"
-            />
-            {errors.capacity && <p className="text-xs text-red-500 mt-0.5">{errors.capacity}</p>}
-          </div>
-
-          {errors.submit && <p className="text-sm text-red-500">{errors.submit}</p>}
+          {errors.submit && <p className="text-sm text-red-500 text-center">{errors.submit}</p>}
         </div>
       </div>
 
       <div className="bg-white border-t border-gray-100 px-4 py-4 shrink-0">
         <div className="max-w-lg mx-auto flex gap-2">
-          {isEdit && (
+          {isEdit ? (
             <button
               onClick={() => router.back()}
               disabled={isSubmitting}
-              className="flex-1 py-3 border border-gray-300 text-gray-700 text-sm font-medium rounded-xl hover:bg-gray-50 disabled:opacity-50 transition-colors"
+              className="flex-1 py-3 border border-gray-200 text-gray-500 text-sm font-medium rounded-xl hover:bg-gray-50 disabled:opacity-50 transition-colors"
+            >
+              취소
+            </button>
+          ) : (
+            <button
+              onClick={() => router.push("/flags")}
+              disabled={isSubmitting}
+              className="flex-1 py-3 border border-gray-200 text-gray-500 text-sm font-medium rounded-xl hover:bg-gray-50 disabled:opacity-50 transition-colors"
             >
               취소
             </button>
