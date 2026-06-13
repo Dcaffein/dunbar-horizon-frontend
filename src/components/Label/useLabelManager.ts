@@ -7,11 +7,12 @@ import type { LabelResult } from "@/api/model/labelResult";
 
 const LABEL_NAME_MAX_LENGTH = 20;
 
-function toLabelFromResult(r: LabelResult): Label {
+function toLabelFromResult(r: LabelResult): Label | null {
+  if (r.id == null) return null;
   return {
-    id: r.id!,
+    id: r.id,
     labelName: r.labelName ?? "",
-    members: (r.members ?? []).map((m) => ({ id: m.id!, nickname: m.nickname ?? "" })),
+    members: (r.members ?? []).filter((m) => m.id != null).map((m) => ({ id: m.id!, nickname: m.nickname ?? "" })),
   };
 }
 
@@ -40,7 +41,8 @@ export function useLabelManager(initialLabels: Label[]): UseLabelManagerResult {
 
     const result = await createLabelAction(trimmedName);
     if (result.success && result.data) {
-      setLabels((prev) => [...prev, toLabelFromResult(result.data!)]);
+      const label = toLabelFromResult(result.data);
+      if (label) setLabels((prev) => [...prev, label]);
     }
     return null;
   }

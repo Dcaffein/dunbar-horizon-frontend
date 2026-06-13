@@ -27,11 +27,13 @@ export default async function MainPage() {
   try {
     const labelsResult = await getLabelsAction();
     if (labelsResult.success) {
-      initialLabels = labelsResult.data.map((r) => ({
-        id: r.id!,
-        labelName: r.labelName ?? "",
-        members: (r.members ?? []).map((m) => ({ id: m.id!, nickname: m.nickname ?? "" })),
-      }));
+      initialLabels = labelsResult.data
+        .filter((r) => r.id != null)
+        .map((r) => ({
+          id: r.id!,
+          labelName: r.labelName ?? "",
+          members: (r.members ?? []).filter((m) => m.id != null).map((m) => ({ id: m.id!, nickname: m.nickname ?? "" })),
+        }));
     }
   } catch (error) {
     if (isRedirectError(error)) throw error;
