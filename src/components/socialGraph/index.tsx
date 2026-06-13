@@ -411,7 +411,7 @@ export default function SocialGraph({
     }
   }
 
-  async function handleLabelSelect(labelId: string | null) {
+  async function handleLabelSelect(labelId: string | null, memberIds: number[] = []) {
     setActiveLabelId(labelId);
     if (!labelId) return;
 
@@ -428,8 +428,9 @@ export default function SocialGraph({
       if (result.success) {
         const labelEdges = result.data ?? [];
         setEdges(labelEdges);
-        const nodeIds = [...new Set(labelEdges.flatMap((e) => [e.friendAId, e.friendBId]))];
-        setCircleNodeIds(nodeIds);
+        // 멤버 ID를 우선 사용 → 엣지가 없는 고립 노드도 표시
+        const edgeDerivedIds = [...new Set(labelEdges.flatMap((e) => [e.friendAId, e.friendBId]))];
+        setCircleNodeIds(memberIds.length > 0 ? memberIds : edgeDerivedIds);
         setIsGraphActive(true);
       }
     } catch {
@@ -660,7 +661,7 @@ export default function SocialGraph({
                 initialLabels={initialLabels}
                 selectedNodeId={selectedNodeId}
                 friends={friendsList}
-                onLabelSelect={(id) => handleLabelSelect(id)}
+                onLabelSelect={(id, memberIds) => handleLabelSelect(id, memberIds)}
                 activeLabelId={activeLabelId}
               />
             )}

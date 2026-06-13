@@ -12,7 +12,7 @@ interface LabelManagerProps {
   initialLabels: Label[];
   selectedNodeId: string | null;
   friends: FriendshipDetail[];
-  onLabelSelect: (labelId: string | null) => void;
+  onLabelSelect: (labelId: string | null, memberIds: number[]) => void;
   activeLabelId: string | null;
 }
 
@@ -36,7 +36,13 @@ export default function LabelManager({
     : null;
 
   function handleCardClick(labelId: string) {
-    onLabelSelect(activeLabelId === labelId ? null : labelId);
+    const isDeselecting = activeLabelId === labelId;
+    if (isDeselecting) {
+      onLabelSelect(null, []);
+    } else {
+      const memberIds = labels.find((l) => l.id === labelId)?.members.map((m) => m.id) ?? [];
+      onLabelSelect(labelId, memberIds);
+    }
   }
 
   async function handleAddMember(labelId: string) {
@@ -159,17 +165,19 @@ export default function LabelManager({
 
               {/* 인라인 멤버 추가 버튼 */}
               <div className="px-3 pb-2">
-                <button
-                  onClick={() => handleAddMember(label.id)}
-                  disabled={!selectedNodeId || addingMemberLabelId === label.id}
-                  className="w-full text-xs py-1 rounded-md border border-indigo-200 text-indigo-600 hover:bg-indigo-50 transition disabled:opacity-30 disabled:cursor-not-allowed"
-                >
-                  {addingMemberLabelId === label.id
-                    ? "추가 중..."
-                    : selectedNodeId
-                    ? `+ ${selectedFriend?.friendAlias || selectedFriend?.friendNickname} 멤버 추가`
-                    : "+ 멤버 추가 (노드 선택 필요)"}
-                </button>
+                {selectedNodeId ? (
+                  <button
+                    onClick={() => handleAddMember(label.id)}
+                    disabled={addingMemberLabelId === label.id}
+                    className="w-full text-xs py-1 rounded-md border border-indigo-300 text-indigo-600 font-medium hover:bg-indigo-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {addingMemberLabelId === label.id
+                      ? "추가 중..."
+                      : `+ ${selectedFriend?.friendAlias || selectedFriend?.friendNickname} 멤버 추가`}
+                  </button>
+                ) : (
+                  <p className="text-xs text-gray-400 text-center py-1">노드를 선택하면 멤버 추가</p>
+                )}
               </div>
             </div>
           ))}
