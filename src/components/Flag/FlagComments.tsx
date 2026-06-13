@@ -61,7 +61,7 @@ function CommentItem({
               )}
             </div>
             <span className="text-xs font-semibold text-gray-700">{comment.writerInfo?.nickname}</span>
-            {comment.isPrivate && (
+            {comment.isPrivate && comment.isMine && (
               <span className="text-xs text-gray-400 bg-gray-100 px-1 rounded">🔒</span>
             )}
           </div>
@@ -250,7 +250,7 @@ export default function FlagComments({ flagId, initialComments }: FlagCommentsPr
                           : "border-gray-200 text-gray-400"
                       }`}
                     >
-                      🔒
+                      {replyPrivate ? "🔒" : "🔓"}
                     </button>
                     <button
                       onClick={() => handleReply(comment.id!)}
@@ -291,7 +291,7 @@ export default function FlagComments({ flagId, initialComments }: FlagCommentsPr
               : "border-gray-200 text-gray-400 hover:border-gray-300"
           }`}
         >
-          🔒
+          {isPrivate ? "🔒" : "🔓"}
         </button>
         <button
           onClick={handleCreate}

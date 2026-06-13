@@ -19,24 +19,16 @@ interface FlagFormProps {
   initialValues?: FlagFormInitialValues;
 }
 
-function toLocalDatetimeValue(date: Date): string {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
 
 export default function FlagForm({ parentFlagId, flagId, initialValues }: FlagFormProps) {
   const router = useRouter();
   const isEncore = !!parentFlagId;
   const isEdit = !!flagId;
 
-  const now = new Date();
-  const defaultStart = new Date(now.getTime() + 60 * 60 * 1000);
-  const defaultEnd = new Date(now.getTime() + 3 * 60 * 60 * 1000);
-
   const [title, setTitle] = useState(initialValues?.title ?? "");
   const [description, setDescription] = useState(initialValues?.description ?? "");
-  const [startDateTime, setStartDateTime] = useState(initialValues?.startDateTime ?? toLocalDatetimeValue(defaultStart));
-  const [endDateTime, setEndDateTime] = useState(initialValues?.endDateTime ?? toLocalDatetimeValue(defaultEnd));
+  const [startDateTime, setStartDateTime] = useState(initialValues?.startDateTime ?? "");
+  const [endDateTime, setEndDateTime] = useState(initialValues?.endDateTime ?? "");
   const [deadline, setDeadline] = useState(initialValues?.deadline ?? "");
   const [capacity, setCapacity] = useState(initialValues?.capacity ?? "");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -216,7 +208,7 @@ export default function FlagForm({ parentFlagId, flagId, initialValues }: FlagFo
 
           {/* 모집 마감일 */}
           <div>
-            <label className="text-xs font-bold text-gray-500 mb-1 block">모집 마감일 <span className="font-normal text-gray-400">(선택)</span></label>
+            <label className="text-xs font-bold text-gray-500 mb-1 block">모집 마감 <span className="font-normal text-gray-400">(선택)</span></label>
             <input
               type="datetime-local"
               value={deadline}
@@ -245,9 +237,17 @@ export default function FlagForm({ parentFlagId, flagId, initialValues }: FlagFo
 
       <div className="bg-white border-t border-gray-100 px-4 py-4 shrink-0">
         <div className="max-w-lg mx-auto flex gap-2">
-          {isEdit && (
+          {isEdit ? (
             <button
               onClick={() => router.back()}
+              disabled={isSubmitting}
+              className="flex-1 py-3 border border-gray-300 text-gray-700 text-sm font-medium rounded-xl hover:bg-gray-50 disabled:opacity-50 transition-colors"
+            >
+              취소
+            </button>
+          ) : (
+            <button
+              onClick={() => router.push("/flags")}
               disabled={isSubmitting}
               className="flex-1 py-3 border border-gray-300 text-gray-700 text-sm font-medium rounded-xl hover:bg-gray-50 disabled:opacity-50 transition-colors"
             >

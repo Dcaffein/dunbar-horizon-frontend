@@ -10,18 +10,26 @@ import {
   leaveAction,
 } from "@/app/actions/flag";
 
-type Tab = "hosting" | "participating" | "friends";
+type Tab = "browse" | "hosting" | "participating";
 
 const TAB_LABELS: Record<Tab, string> = {
-  hosting: "주최 중",
+  browse: "둘러보기",
+  hosting: "호스팅",
   participating: "참여 중",
-  friends: "친구 Flag",
 };
 
-function formatSchedule(dt?: string): string {
-  if (!dt) return "";
-  const d = new Date(dt);
-  return d.toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
+function formatScheduleRange(start?: string, end?: string): string {
+  if (!start) return "";
+  const fmt = (dt: string) =>
+    new Date(dt).toLocaleString("ko-KR", {
+      year: "numeric", month: "numeric", day: "numeric",
+      hour: "2-digit", minute: "2-digit", hour12: false,
+    });
+  const startStr = fmt(start);
+  if (!end) return startStr;
+  const endDate = new Date(end);
+  const endTime = `${String(endDate.getHours()).padStart(2, "0")}:${String(endDate.getMinutes()).padStart(2, "0")}`;
+  return `${startStr} ~ ${endTime}`;
 }
 
 function remainingLabel(endDateTime?: string): { text: string; urgent: boolean } {
@@ -72,7 +80,7 @@ function FlagCard({ flag, tab, onAction }: FlagCardProps) {
         <div className="flex items-start justify-between gap-2 mb-1">
           <div className="flex items-center gap-1.5 flex-wrap">
             {flag.parentFlagId && (
-              <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">Encore</span>
+              <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">앙코르</span>
             )}
             {isClosed && (
               <span className="text-xs font-bold text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">마감됨</span>
@@ -86,13 +94,17 @@ function FlagCard({ flag, tab, onAction }: FlagCardProps) {
           )}
         </div>
 
-        <div className="flex items-center gap-3 text-xs text-gray-500 mt-0.5">
+        {flag.description && (
+          <p className="text-xs text-gray-500 mt-0.5 line-clamp-2 leading-relaxed">{flag.description}</p>
+        )}
+
+        <div className="flex items-center gap-3 text-xs text-gray-400 mt-1">
           <span>
             {flag.participantCount ?? 0}
             {flag.capacity ? `/${flag.capacity}명` : "명 참여 중"}
           </span>
           {flag.schedule?.startDateTime && (
-            <span>{formatSchedule(flag.schedule.startDateTime)}</span>
+            <span>{formatScheduleRange(flag.schedule.startDateTime, flag.schedule.endDateTime)}</span>
           )}
           {isDeadlinePassed && !isClosed && (
             <span className="text-orange-500 font-medium">모집 마감</span>
@@ -117,7 +129,7 @@ function FlagCard({ flag, tab, onAction }: FlagCardProps) {
             <button
               disabled={isLoading}
               onClick={() => handle(() => deleteFlagAction(flag.id!))}
-              className="text-xs px-2.5 py-1 border border-red-200 rounded-lg text-red-500 hover:bg-red-50 disabled:opacity-50"
+              className="text-xs px-2.5 py-1 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50"
             >
               삭제
             </button>
@@ -125,7 +137,7 @@ function FlagCard({ flag, tab, onAction }: FlagCardProps) {
               href={`/flags/new?parentFlagId=${flag.id}`}
               className="text-xs px-2.5 py-1 border border-indigo-200 rounded-lg text-indigo-600 hover:bg-indigo-50"
             >
-              Encore
+              앙코르
             </a>
           </>
         )}
@@ -138,7 +150,7 @@ function FlagCard({ flag, tab, onAction }: FlagCardProps) {
             참여 취소
           </button>
         )}
-        {tab === "friends" && (
+        {tab === "browse" && (
           <button
             disabled={isLoading || isClosed}
             onClick={() => handle(() => participateAction(flag.id!))}
@@ -155,38 +167,51 @@ function FlagCard({ flag, tab, onAction }: FlagCardProps) {
 interface FlagListProps {
   initialHosting: FlagResult[];
   initialParticipating: FlagResult[];
-  initialFriends: FlagResult[];
+  initialBrowse: FlagResult[];
 }
 
-export default function FlagList({ initialHosting, initialParticipating, initialFriends }: FlagListProps) {
+export default function FlagList({ initialHosting, initialParticipating, initialBrowse }: FlagListProps) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<Tab>("hosting");
+  const [activeTab, setActiveTab] = useState<Tab>("browse");
+  const [showClosed, setShowClosed] = useState(false);
 
   const tabData: Record<Tab, FlagResult[]> = {
+    browse: initialBrowse,
     hosting: initialHosting,
     participating: initialParticipating,
-    friends: initialFriends,
   };
 
-  const flags = tabData[activeTab];
+  const allFlags = tabData[activeTab];
+  const flags = showClosed ? allFlags : allFlags.filter((f) => f.status !== "CLOSED");
 
   return (
     <div>
-      {/* 탭 */}
-      <div className="flex border-b border-gray-200 bg-white">
-        {(["hosting", "participating", "friends"] as Tab[]).map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`flex-1 py-3 text-sm font-medium transition-colors ${
-              activeTab === tab
-                ? "text-indigo-600 border-b-2 border-indigo-600"
-                : "text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            {TAB_LABELS[tab]}
-          </button>
-        ))}
+      {/* 탭 + 종료 포함 토글 */}
+      <div className="flex items-center border-b border-gray-200 bg-white px-1">
+        <div className="flex flex-1">
+          {(["browse", "hosting", "participating"] as Tab[]).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`flex-1 py-3 text-sm font-medium transition-colors ${
+                activeTab === tab
+                  ? "text-indigo-600 border-b-2 border-indigo-600"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              {TAB_LABELS[tab]}
+            </button>
+          ))}
+        </div>
+        <label className="flex items-center gap-1.5 text-xs text-gray-400 px-3 shrink-0 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={showClosed}
+            onChange={(e) => setShowClosed(e.target.checked)}
+            className="w-3.5 h-3.5 accent-indigo-600"
+          />
+          종료 포함
+        </label>
       </div>
 
       {/* 목록 */}

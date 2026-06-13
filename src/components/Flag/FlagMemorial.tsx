@@ -78,7 +78,7 @@ export default function FlagMemorial({
 
   return (
     <div className="bg-white px-4 py-4 border-b">
-      <p className="text-xs font-bold text-gray-500 mb-3">기억 남기기</p>
+      <p className="text-xs font-bold text-gray-500 mb-3">메모리얼 남기기</p>
 
       {memorials.length === 0 ? (
         <p className="text-xs text-gray-400 mb-3">아직 남겨진 기억이 없습니다.</p>

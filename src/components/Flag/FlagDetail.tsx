@@ -155,7 +155,7 @@ export default function FlagDetail({ flag, myUserId, friends, memorials, comment
         </div>
         <div className="flex items-center gap-2">
           {rem && <span className="text-xs text-gray-400 font-medium">{rem}</span>}
-          {isHost && (
+          {isHost && !isClosed && (
             <Link
               href={`/flags/${flag.id}/edit`}
               className="text-xs px-2.5 py-1 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50"
@@ -175,6 +175,7 @@ export default function FlagDetail({ flag, myUserId, friends, memorials, comment
       </header>
 
       <div className="flex-1 overflow-y-auto">
+        <div className="max-w-lg mx-auto">
         {/* 본문 */}
         <div className="bg-white px-4 py-5 border-b">
           <h1 className="text-lg font-bold text-gray-900 mb-1">{flag.title}</h1>
@@ -216,8 +217,9 @@ export default function FlagDetail({ flag, myUserId, friends, memorials, comment
             <div className="flex gap-2">
               <span className="text-gray-400 w-16 shrink-0">정원</span>
               <span>
-                {flag.participantCount ?? 0}
-                {flag.capacity ? `/${flag.capacity}명` : "명 참여 중"}
+                {flag.capacity
+                  ? `참여자 ${flag.participantCount ?? 0}명 / 최대 ${flag.capacity}명`
+                  : `참여자 ${flag.participantCount ?? 0}명`}
               </span>
             </div>
           </div>
@@ -334,6 +336,7 @@ export default function FlagDetail({ flag, myUserId, friends, memorials, comment
             isParticipant={isHost || isParticipating}
           />
         )}
+        </div>
       </div>
 
       {/* 액션 버튼 */}
