@@ -5,13 +5,9 @@
  * DunbarHorizon 백엔드 API
  * OpenAPI spec version: 1.0.0
  */
+import type { MemorialResult } from './memorialResult';
 
-export interface FriendUpdateRequest {
-  /**
-     * @minLength 0
-     * @maxLength 20
-     */
-  friendAlias?: string;
-  isMuted?: boolean;
-  isRoutable?: boolean;
+export interface MemorialListResult {
+  memorials?: MemorialResult[];
+  locked?: boolean;
 }

@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import type { CommentResult } from "@/api/model/commentResult";
+import type { WriterInfo } from "@/api/model/writerInfo";
 import {
   createCommentAction,
   createReplyAction,
@@ -16,6 +16,7 @@ type CommentTree = CommentResult & { replies?: CommentTree[] };
 interface FlagCommentsProps {
   flagId: number;
   initialComments: CommentResult[];
+  myWriterInfo?: WriterInfo;
 }
 
 function timeAgo(iso?: string): string {
@@ -73,7 +74,7 @@ function CommentItem({
             <input
               value={editText}
               onChange={(e) => onEditTextChange(e.target.value)}
-              className="w-full text-xs border border-gray-200 rounded px-2 py-1 focus:outline-none focus:border-indigo-400"
+              className="w-full text-xs text-gray-900 border border-gray-200 rounded px-2 py-1 focus:outline-none focus:border-indigo-400"
             />
             <div className="flex gap-2">
               <button onClick={() => onEditSubmit(comment.id!)} className="text-xs text-indigo-600 font-medium">저장</button>
@@ -88,7 +89,7 @@ function CommentItem({
           {depth === 0 && (
             <button
               onClick={() => onReply(comment.id!)}
-              className="text-xs text-gray-400 hover:text-indigo-500"
+              className="text-xs text-gray-500 hover:text-indigo-500"
             >
               답글
             </button>
@@ -97,13 +98,13 @@ function CommentItem({
             <>
               <button
                 onClick={() => onEdit(comment.id!, comment.content ?? "")}
-                className="text-xs text-gray-400 hover:text-gray-600"
+                className="text-xs text-gray-500 hover:text-gray-700"
               >
                 수정
               </button>
               <button
                 onClick={() => onDelete(comment.id!)}
-                className="text-xs text-red-400 hover:text-red-600"
+                className="text-xs text-red-500 hover:text-red-700"
               >
                 삭제
               </button>
@@ -131,8 +132,7 @@ function CommentItem({
   );
 }
 
-export default function FlagComments({ flagId, initialComments }: FlagCommentsProps) {
-  const router = useRouter();
+export default function FlagComments({ flagId, initialComments, myWriterInfo }: FlagCommentsProps) {
   const [comments, setComments] = useState<CommentTree[]>(initialComments as CommentTree[]);
   const [text, setText] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
@@ -148,12 +148,16 @@ export default function FlagComments({ flagId, initialComments }: FlagCommentsPr
     if (!text.trim()) return;
     setIsSubmitting(true);
     setError(null);
-    const result = await createCommentAction(flagId, text.trim(), isPrivate || undefined);
+    const content = text.trim();
+    const result = await createCommentAction(flagId, content, isPrivate || undefined);
     setIsSubmitting(false);
     if (result.success) {
+      setComments((prev) => [
+        ...prev,
+        { id: result.data, content, isPrivate, isMine: true, createdAt: new Date().toISOString(), writerInfo: myWriterInfo },
+      ]);
       setText("");
       setIsPrivate(false);
-      router.refresh();
     } else {
       setError(result.message ?? "댓글 작성에 실패했습니다.");
     }
@@ -163,13 +167,24 @@ export default function FlagComments({ flagId, initialComments }: FlagCommentsPr
     if (!replyText.trim()) return;
     setIsSubmitting(true);
     setError(null);
-    const result = await createReplyAction(parentId, replyText.trim(), replyPrivate || undefined);
+    const content = replyText.trim();
+    const result = await createReplyAction(parentId, content, replyPrivate || undefined);
     setIsSubmitting(false);
     if (result.success) {
+      const newReply: CommentTree = {
+        id: result.data,
+        content,
+        isPrivate: replyPrivate,
+        isMine: true,
+        createdAt: new Date().toISOString(),
+        writerInfo: myWriterInfo,
+      };
+      setComments((prev) =>
+        prev.map((c) => c.id === parentId ? { ...c, replies: [...(c.replies ?? []), newReply] } : c)
+      );
       setReplyText("");
       setReplyPrivate(false);
       setReplyingToId(null);
-      router.refresh();
     } else {
       setError(result.message ?? "대댓글 작성에 실패했습니다.");
     }
@@ -240,7 +255,7 @@ export default function FlagComments({ flagId, initialComments }: FlagCommentsPr
                       value={replyText}
                       onChange={(e) => setReplyText(e.target.value)}
                       placeholder="대댓글을 입력하세요"
-                      className="flex-1 text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:border-indigo-400"
+                      className="flex-1 text-xs text-gray-900 border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:border-indigo-400"
                     />
                     <button
                       onClick={() => setReplyPrivate((v) => !v)}
@@ -281,7 +296,7 @@ export default function FlagComments({ flagId, initialComments }: FlagCommentsPr
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleCreate()}
           placeholder="댓글을 입력하세요"
-          className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400"
+          className="flex-1 text-sm text-gray-900 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400"
         />
         <button
           onClick={() => setIsPrivate((v) => !v)}

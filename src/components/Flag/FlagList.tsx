@@ -26,10 +26,9 @@ const FILTER_LABELS: Record<StatusFilter, string> = {
 };
 
 function flagStatus(flag: FlagResult): StatusFilter {
-  const now = Date.now();
-  if (flag.schedule?.endDateTime && new Date(flag.schedule.endDateTime).getTime() < now) return "ended";
-  if (flag.status === "CLOSED") return "deadline";
-  return "active";
+  if (flag.status === "ENDED") return "ended";
+  if (flag.status === "WAITING") return "deadline";
+  return "active"; // RECRUITING
 }
 
 function formatScheduleRange(start?: string, end?: string): string {
@@ -43,14 +42,22 @@ function formatScheduleRange(start?: string, end?: string): string {
   return `${fmt(start)} ~ ${String(endDate.getHours()).padStart(2, "0")}:${String(endDate.getMinutes()).padStart(2, "0")}`;
 }
 
-function remainingLabel(endDateTime?: string): { text: string; urgent: boolean } {
-  if (!endDateTime) return { text: "", urgent: false };
-  const diff = new Date(endDateTime).getTime() - Date.now();
+function remainingLabel(target?: string): { text: string; urgent: boolean } {
+  if (!target) return { text: "", urgent: false };
+  const diff = new Date(target).getTime() - Date.now();
   if (diff <= 0) return { text: "종료됨", urgent: false };
+  const totalMins = Math.floor(diff / 60000);
+  if (totalMins < 60) return { text: `${totalMins}분 남음`, urgent: true };
   const h = Math.floor(diff / 3600000);
-  if (h < 24) return { text: `${h}시간 남음`, urgent: h < 3 };
-  const d = Math.floor(h / 24);
-  return { text: `D-${d}`, urgent: false };
+  if (h < 3) return { text: `${h}시간 남음`, urgent: true };
+  const dt = new Date(target);
+  const hhmm = `${String(dt.getHours()).padStart(2, "0")}:${String(dt.getMinutes()).padStart(2, "0")}`;
+  const today = new Date();
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  if (dt.toDateString() === today.toDateString()) return { text: `오늘 ${hhmm}`, urgent: false };
+  if (dt.toDateString() === tomorrow.toDateString()) return { text: `내일 ${hhmm}`, urgent: false };
+  return { text: `D-${Math.floor(h / 24)}`, urgent: false };
 }
 
 const STATUS_PILL: Record<StatusFilter, string> = {
@@ -71,7 +78,11 @@ function FlagCard({ flag, tab, onAction }: FlagCardProps) {
   const [error, setError] = useState<string | null>(null);
 
   const status = flagStatus(flag);
-  const { text: remText, urgent } = remainingLabel(flag.schedule?.endDateTime);
+  const countdownTarget =
+    status === "active" && flag.schedule?.deadline
+      ? flag.schedule.deadline
+      : flag.schedule?.endDateTime;
+  const { text: remText, urgent } = remainingLabel(countdownTarget);
 
   async function handle(action: () => Promise<{ success: boolean; message?: string }>) {
     setIsLoading(true);
@@ -148,7 +159,7 @@ function FlagCard({ flag, tab, onAction }: FlagCardProps) {
               <button
                 disabled={isLoading}
                 onClick={() => handle(() => deleteFlagAction(flag.id!))}
-                className="text-xs px-3 py-1.5 rounded-full bg-red-500 text-white hover:bg-red-600 disabled:opacity-50 transition-colors"
+                className="text-xs px-3 py-1.5 rounded-full border border-red-200 text-red-400 hover:bg-red-50 disabled:opacity-50 transition-colors"
               >
                 삭제
               </button>
@@ -237,6 +248,13 @@ export default function FlagList({ initialHosting, initialParticipating, initial
           </button>
         ))}
       </div>
+
+      {/* 종료됨 보존 안내 */}
+      {statusFilter === "ended" && activeTab !== "browse" && (
+        <p className="text-xs text-gray-400 px-4 py-2 bg-white border-b border-gray-50">
+          앙코르 또는 메모리얼을 남기면 Flag가 보존됩니다.
+        </p>
+      )}
 
       {/* 목록 */}
       {flags.length === 0 ? (
