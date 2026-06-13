@@ -120,6 +120,7 @@ export default function BuzzDetail({ buzz }: BuzzDetailProps) {
 
       {/* 본문 */}
       <div className="flex-1 overflow-y-auto">
+        <div className="max-w-2xl mx-auto">
         <div className="bg-white px-4 py-5 border-b">
           {buzz.text && <p className="text-gray-800 text-sm leading-relaxed whitespace-pre-wrap">{buzz.text}</p>}
           {(buzz.imageUrls?.length ?? 0) > 0 && (
@@ -166,21 +167,30 @@ export default function BuzzDetail({ buzz }: BuzzDetailProps) {
             );
           })}
         </div>
+        </div>
       </div>
 
       {/* 댓글 입력 */}
       <div className="bg-white border-t border-gray-200 px-4 py-3 shrink-0">
         {actionError && <p className="text-xs text-red-500 mb-2">{actionError}</p>}
         <div className="flex items-center gap-2 mb-2">
-          <label className="flex items-center gap-1 text-xs text-gray-500 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={isPublic}
-              onChange={(e) => setIsPublic(e.target.checked)}
-              className="accent-orange-500"
-            />
-            공개
-          </label>
+          <button
+            type="button"
+            onClick={() => setIsPublic((prev) => !prev)}
+            className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 transition-colors"
+          >
+            {isPublic ? (
+              <>
+                <span>🔓</span>
+                <span>공개</span>
+              </>
+            ) : (
+              <>
+                <span>🔒</span>
+                <span>비공개 · 작성자에게만 표시</span>
+              </>
+            )}
+          </button>
         </div>
         <div className="flex gap-2">
           <textarea

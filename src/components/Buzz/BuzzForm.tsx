@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import type { FriendshipDetail } from "@/components/socialGraph/types";
 import type { LabelResult } from "@/api/model/labelResult";
@@ -17,7 +17,7 @@ interface BuzzFormProps {
 
 export default function BuzzForm({ friends, labels }: BuzzFormProps) {
   const router = useRouter();
-  const [recipientType, setRecipientType] = useState<RecipientType>("ANCHOR");
+  const [recipientType, setRecipientType] = useState<RecipientType>("MANUAL");
 
   // ANCHOR
   const [anchorFriendId, setAnchorFriendId] = useState<number | null>(
@@ -34,6 +34,7 @@ export default function BuzzForm({ friends, labels }: BuzzFormProps) {
   // 내용
   const [text, setText] = useState("");
   const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -98,7 +99,7 @@ export default function BuzzForm({ friends, labels }: BuzzFormProps) {
           <div>
             <p className="text-xs font-bold text-gray-500 mb-2">수신자 지정</p>
             <div className="flex gap-1 bg-gray-200 p-1 rounded-lg">
-              {(["ANCHOR", "LABEL", "MANUAL"] as RecipientType[]).map((t) => (
+              {(["MANUAL", "LABEL", "ANCHOR"] as RecipientType[]).map((t) => (
                 <button
                   key={t}
                   onClick={() => setRecipientType(t)}
@@ -106,7 +107,7 @@ export default function BuzzForm({ friends, labels }: BuzzFormProps) {
                     recipientType === t ? "bg-white shadow text-orange-600" : "text-gray-500 hover:text-gray-700"
                   }`}
                 >
-                  {t === "ANCHOR" ? "Anchor" : t === "LABEL" ? "라벨" : "직접 선택"}
+                  {t === "ANCHOR" ? "수신자 추천" : t === "LABEL" ? "라벨" : "직접 선택"}
                 </button>
               ))}
             </div>
@@ -116,7 +117,8 @@ export default function BuzzForm({ friends, labels }: BuzzFormProps) {
           {recipientType === "ANCHOR" && (
             <div className="space-y-3">
               <div>
-                <label className="text-xs font-bold text-gray-500 mb-1.5 block">Anchor 친구</label>
+                <label className="text-xs font-bold text-gray-500 mb-1 block">기준 친구</label>
+                <p className="text-xs text-gray-400 mb-1.5">선택한 친구를 기준으로 관련도 높은 친구들이 자동으로 수신자로 등록됩니다.</p>
                 <select
                   value={anchorFriendId ?? ""}
                   onChange={(e) => setAnchorFriendId(Number(e.target.value))}
@@ -210,14 +212,25 @@ export default function BuzzForm({ friends, labels }: BuzzFormProps) {
           <div>
             <label className="text-xs font-bold text-gray-500 mb-1.5 block">이미지 첨부 (선택)</label>
             <input
+              ref={fileInputRef}
               type="file"
               accept="image/*"
               multiple
               onChange={(e) => setImageFiles(Array.from(e.target.files ?? []))}
-              className="text-xs text-gray-500"
+              className="hidden"
             />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <span>📎</span>
+              <span>이미지 첨부</span>
+            </button>
             {imageFiles.length > 0 && (
-              <p className="text-xs text-gray-400 mt-1">{imageFiles.length}장 선택됨</p>
+              <p className="text-xs text-gray-400 mt-1.5">
+                {imageFiles.length === 1 ? imageFiles[0].name : `${imageFiles.length}장 선택됨`}
+              </p>
             )}
           </div>
 

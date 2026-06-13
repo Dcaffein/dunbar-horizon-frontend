@@ -1,80 +1,61 @@
-# PLAN: Task 26-B — Flag 카드 리디자인 + 필터·앙코르 개선
+# PLAN.md — Task 29: Buzz UI/UX 개선
 
-## 1. 요구사항 분석
+## 1. 요구사항 분석 및 작업 범위
 
-UI 검토 피드백 3가지를 반영한다.
-
-1. **상태 필터 개선** — "종료 포함" 체크박스 → `모집중 / 모집마감 / 종료됨` 세그먼트 버튼
-2. **앙코르 버튼 이동** — 목록 카드에서 제거, 상세 페이지에서 종료된 Flag에만 표시
-3. **카드 UI 리디자인** — "알바 구인 게시판" 느낌 → 소셜/라이프스타일 카드 스타일
-
----
-
-## 2. 변경 파일
+Task 29 명세(`harness/tasks/29-buzz-ui-improvements.md`) 기반.
 
 | 파일 | 변경 내용 |
 |---|---|
-| `src/components/Flag/FlagList.tsx` | 필터 세그먼트, 카드 전면 리디자인, 앙코르 버튼 제거 |
-| `src/components/Flag/FlagDetail.tsx` | 앙코르 버튼 조건 → `isHost && isEnded` |
+| `src/components/Buzz/BuzzList.tsx` | 목록 전체를 `max-w-2xl mx-auto` 래퍼로 감싸 중앙 정렬 |
+| `src/components/Buzz/BuzzForm.tsx` | ① 탭명 `"Anchor"` → `"수신자 추천"` ② Anchor 섹션 레이블 `"Anchor 친구"` → `"기준 친구"` + 설명 문구 추가 ③ 파일 업로드 → 커스텀 버튼 UI |
+| `src/components/Buzz/BuzzDetail.tsx` | ① `max-w-2xl mx-auto` 중앙 정렬 ② 비공개 댓글 체크박스 → 잠금 아이콘 토글 |
+
+새로 생성하는 파일 없음. Mock 변경 없음.
 
 ---
 
-## 3. 변경 상세
+## 2. 변경 상세
 
-### 필터 세그먼트 (FlagList.tsx)
+### BuzzList.tsx
+- `<div>` 최상위 래퍼를 `<div className="max-w-2xl mx-auto">` 로 변경
 
-**상태 분류 함수**
-```
-종료됨: endDateTime < now  (이벤트 자체가 끝남)
-모집마감: status === "CLOSED" && endDateTime >= now  (모집은 닫혔지만 이벤트 아직)
-모집중: 나머지 (status === "OPEN")
-```
-우선순위: 종료됨 > 모집마감 > 모집중 (mutually exclusive)
+### BuzzForm.tsx
+- **탭명**: `t === "ANCHOR" ? "Anchor"` → `"수신자 추천"`
+- **Anchor 섹션 레이블**: `"Anchor 친구"` → `"기준 친구"`
+- **설명 문구**: 드롭다운 위에 `<p className="text-xs text-gray-400 mb-1.5">선택한 친구를 기준으로 관련도 높은 친구들이 자동으로 수신자로 등록됩니다.</p>` 추가
+- **파일 업로드**:
+  - `<input type="file">` hidden 처리
+  - `useRef<HTMLInputElement>` 로 trigger
+  - `[📎 이미지 첨부]` 버튼 → 클릭 시 `fileInputRef.current?.click()`
+  - 선택 후 파일명(1개) or `N장 선택됨`(복수) 텍스트 표시
 
-**필터 UI** — 탭 바 아래 별도 줄, 3개 pill 버튼
-- 기본값: `"모집중"` 탭 진입 시마다 리셋
-- 활성 pill: `bg-indigo-600 text-white rounded-full`
-- 비활성: `text-gray-400`
-
-### 앙코르 버튼 (FlagDetail.tsx)
-
-```ts
-const isEnded = isClosed || (!!flag.schedule?.endDateTime && new Date(flag.schedule.endDateTime) < new Date());
-```
-- `{isHost && isEnded && <Link>앙코르</Link>}` 로 변경
-
-### 카드 리디자인 (FlagList.tsx — FlagCard)
-
-**현재 → 변경**
-- 레이아웃: `border-b px-4 py-4` → `mx-4 my-3 rounded-2xl bg-white shadow-[0_2px_12px_rgba(0,0,0,0.07)] px-4 py-4`
-- 상태 뱃지: 텍스트 배지 → 컬러 pill
-  - 모집중: `bg-emerald-50 text-emerald-600`
-  - 모집마감: `bg-amber-50 text-amber-600`
-  - 종료됨: `bg-gray-100 text-gray-400`
-- 제목: `text-sm font-semibold` → `text-base font-bold`
-- description: `text-xs` → `text-sm text-gray-500`
-- 메타(인원/날짜): 아이콘 없이 `·` 구분자로 한 줄
-- 액션 버튼: 하단 구분선 위에 나란히, 더 작고 subtle하게
-- 앙코르 버튼 행 완전 제거
-
-**목록 컨테이너**
-- `<ul>` 배경을 `bg-gray-50`으로 — 카드가 float하는 느낌
+### BuzzDetail.tsx
+- 본문 스크롤 영역(`flex-1 overflow-y-auto` 내부) 및 댓글 섹션을 `max-w-2xl mx-auto` 로 중앙 정렬
+- 비공개 댓글 토글:
+  - 기존 `<label><input type="checkbox"> 공개</label>` 제거
+  - 상태명 `isPublic` 유지 (`BuzzCommentRequest.isPublic` 필드와 일치)
+  - 버튼: `isPublic === true` → `🔓 공개` / `false` → `🔒 비공개 · 작성자에게만 표시`
+  - `addCommentAction` / `updateCommentAction` 호출 시 기존과 동일하게 `isPublic` 전달
 
 ---
 
-## 4. 테스트 시나리오
+## 3. 테스트 시나리오
 
 ### Phase 1 — 정적 분석
-- `npx tsc --noEmit` 에러 0건
-- `npm run lint src/components/Flag/` 에러 0건
+- [ ] `npx tsc --noEmit` 에러 없음
+- [ ] `npm run lint` 에러 없음
 
-### Phase 2 — UI 확인
-| 시나리오 | 기대 결과 |
-|---|---|
-| 목록 페이지 초기 | 필터 `모집중` 활성, shadow 카드 표시 |
-| `모집마감` 필터 클릭 | 모집마감 Flag만 표시 (amber 뱃지) |
-| `종료됨` 필터 클릭 | 종료된 Flag만 표시 (gray 뱃지) |
-| 카드 디자인 | 라운드 카드, 그림자, 넉넉한 여백 |
-| 목록 앙코르 버튼 | 미노출 (호스팅 탭 포함) |
-| 상세 — 종료된 Flag | 앙코르 버튼 표시 |
-| 상세 — 모집중 Flag | 앙코르 버튼 미표시 |
+### Phase 2 — UI/State 검증
+- [ ] `/buzzes` 목록이 화면 중앙 좁게 표시됨
+- [ ] `/buzzes/new` 첫 탭이 `"수신자 추천"` 으로 표시
+- [ ] ANCHOR 탭: 드롭다운 위에 `"기준 친구"` 레이블 + 설명 문구 표시
+- [ ] `[📎 이미지 첨부]` 버튼 클릭 → 파일 선택 다이얼로그 열림
+- [ ] 파일 선택 후 파일명 / 개수 텍스트 표시
+- [ ] `/buzzes/{id}` 상세가 중앙 좁게 표시됨
+- [ ] 댓글 입력창 아래 `🔓 공개` 기본 표시
+- [ ] 클릭 시 `🔒 비공개 · 작성자에게만 표시` 전환
+
+### Phase 3 — Edge Case
+- [ ] 파일 선택 후 다시 클릭, 다른 파일 선택 → 상태 정상 갱신
+- [ ] 파일 선택 취소(다이얼로그 닫기) → 기존 선택 파일 유지
+- [ ] 비공개 상태에서 댓글 전송 → API에 `isPublic: false` 전달됨 (Network 탭 확인)
