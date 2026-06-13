@@ -425,8 +425,11 @@ export default function SocialGraph({
     clearSuggestions();
     try {
       const result = await getLabelNetworkAction(labelId);
-      if (result.success && result.data) {
-        setEdges(result.data);
+      if (result.success) {
+        const labelEdges = result.data ?? [];
+        setEdges(labelEdges);
+        const nodeIds = [...new Set(labelEdges.flatMap((e) => [e.friendAId, e.friendBId]))];
+        setCircleNodeIds(nodeIds);
         setIsGraphActive(true);
       }
     } catch {

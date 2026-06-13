@@ -69,7 +69,7 @@ export default function LabelManager({
   }
 
   return (
-    <div className="flex flex-col gap-3 p-4">
+    <div className="flex flex-col gap-3 p-4 bg-white min-h-full">
       {/* 새 라벨 만들기 토글 버튼 */}
       <button
         onClick={() => {
@@ -77,7 +77,7 @@ export default function LabelManager({
           setFormError(null);
           setLabelNameInput("");
         }}
-        className="w-full flex items-center justify-center gap-2 py-2 rounded-lg border border-dashed border-indigo-300 text-indigo-600 text-sm font-semibold hover:bg-indigo-50 transition"
+        className="w-full flex items-center justify-center gap-2 py-2 rounded-lg border border-dashed border-indigo-400 text-indigo-600 text-sm font-semibold hover:bg-indigo-50 transition"
       >
         {isCreateFormOpen ? "닫기" : "+ 새 라벨 만들기"}
       </button>
@@ -125,7 +125,7 @@ export default function LabelManager({
 
       {/* 라벨 목록 */}
       <div>
-        <p className="text-xs font-bold text-gray-500 mb-2 px-1">
+        <p className="text-xs font-bold text-gray-600 mb-2 px-1">
           내 라벨 ({labels.length})
         </p>
         <div className="flex flex-col gap-2">
@@ -134,25 +134,25 @@ export default function LabelManager({
               key={label.id}
               className={`rounded-lg border transition ${
                 activeLabelId === label.id
-                  ? "bg-indigo-50 border-indigo-400"
-                  : "bg-white border-gray-200"
+                  ? "bg-indigo-50 border-indigo-500 shadow-sm"
+                  : "bg-white border-gray-300 hover:border-gray-400"
               }`}
             >
               {/* 카드 전체 클릭 → 그래프 교체 */}
               <button
                 onClick={() => handleCardClick(label.id)}
-                className="flex items-center justify-between w-full px-3 py-2 text-left"
+                className="flex items-center justify-between w-full px-3 py-2.5 text-left"
               >
                 <span
-                  className={`text-sm font-medium truncate ${
+                  className={`text-sm font-semibold truncate ${
                     activeLabelId === label.id
                       ? "text-indigo-700"
-                      : "text-gray-700"
+                      : "text-gray-800"
                   }`}
                 >
                   {label.labelName}
                 </span>
-                <span className="text-xs text-gray-400 shrink-0 ml-2">
+                <span className="text-xs text-gray-500 shrink-0 ml-2 font-medium">
                   {label.members.length}명
                 </span>
               </button>

@@ -131,7 +131,7 @@ export async function getLabelNetworkAction(labelId: string) {
     const data = await apiClient.get<NetworkFriendEdgeResult[]>(
       `/api/v1/networks/labels/${labelId}`,
     );
-    return { success: true, data: data.map(toNetworkEdge) };
+    return { success: true, data: (data ?? []).map(toNetworkEdge) };
   } catch (error) {
     if (isRedirectError(error)) throw error;
     console.error("getLabelNetworkAction error:", error);
