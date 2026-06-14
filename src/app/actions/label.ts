@@ -50,3 +50,14 @@ export async function addLabelMemberAction(labelId: string, memberId: number) {
     return { success: false as const, message: "멤버 추가에 실패했습니다." };
   }
 }
+
+export async function removeLabelMemberAction(labelId: string, memberId: number) {
+  try {
+    await apiClient.delete(`/api/v1/labels/${labelId}/members/${memberId}`);
+    return { success: true as const };
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    console.error("removeLabelMemberAction error:", error);
+    return { success: false as const, message: "멤버 삭제에 실패했습니다." };
+  }
+}

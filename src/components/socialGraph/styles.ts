@@ -12,13 +12,13 @@ export const getGraphStylesheet = (
       style: {
         width: 45,
         height: 45,
-        "background-color": "#f3f4f6",
-        "background-opacity": 0.75,
+        "background-color": "#e0f2fe",
+        "background-opacity": 0.85,
 
         //  외곽선 설정
         "border-width": 2,
-        "border-color": "#9ca3af",
-        "border-opacity": 1, // 내부는 투명해도 테두리는 100% 진하게 유지
+        "border-color": "#0ea5e9",
+        "border-opacity": 1,
 
         label: "data(label)",
         "font-size": "11px",
@@ -86,13 +86,23 @@ export const getGraphStylesheet = (
       },
     },
     {
+      selector: "node.manual",
+      style: {
+        "background-color": "#e0f2fe",
+        "background-opacity": 0.7,
+        "border-color": "#0ea5e9",
+        "border-style": "dashed",
+        "border-width": 2.5,
+      },
+    },
+    {
       selector: "node.suggestion",
       style: {
-        "background-color": "#fef3c7",
-        "border-color": "#f59e0b",
+        "background-color": "#ccfbf1",
+        "background-opacity": 0.85,
+        "border-color": "#14b8a6",
         "border-style": "dashed",
         "border-width": 2,
-        "background-opacity": 0.9,
       },
     },
     {

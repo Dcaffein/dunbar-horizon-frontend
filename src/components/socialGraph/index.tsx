@@ -78,6 +78,7 @@ export default function SocialGraph({
   const [activeLabelId, setActiveLabelId] = useState<string | null>(null);
   const [isNetworkOpen, setIsNetworkOpen] = useState(true);
   const [isThemeOpen, setIsThemeOpen] = useState(false);
+  const [isLabelThemeOpen, setIsLabelThemeOpen] = useState(false);
 
   const [circleNodeIds, setCircleNodeIds] = useState<number[]>([]);
 
@@ -411,6 +412,41 @@ export default function SocialGraph({
     }
   }
 
+  async function handleLabelMemberAdd(friendId: number) {
+    if (!activeLabelId) return;
+
+    // 노드 즉시 추가 + 현재 스냅샷 캡처 (클로저 타이밍 문제 방지)
+    let snapshotIds: number[] = [];
+    setCircleNodeIds((prev) => {
+      if (prev.includes(friendId)) { snapshotIds = prev; return prev; }
+      snapshotIds = prev;
+      return [...prev, friendId];
+    });
+
+    const result = await getOneHopMutualFriendEdgesAction(friendId, snapshotIds);
+    if (result.success && result.data.length > 0) {
+      setEdges((prev) => {
+        const existingIds = new Set(
+          prev.map((e) => `${Math.min(e.friendAId, e.friendBId)}-${Math.max(e.friendAId, e.friendBId)}`),
+        );
+        const newEdges = result.data
+          .filter((e) => e.friendAId != null && e.friendBId != null)
+          .filter((e) => {
+            const key = `${Math.min(e.friendAId!, e.friendBId!)}-${Math.max(e.friendAId!, e.friendBId!)}`;
+            return !existingIds.has(key);
+          })
+          .map((e) => ({ friendAId: e.friendAId!, friendBId: e.friendBId!, intimacy: e.intimacy ?? 0 }));
+        return [...prev, ...newEdges];
+      });
+    }
+  }
+
+  function handleLabelMemberRemove(memberId: number) {
+    if (!activeLabelId) return;
+    setCircleNodeIds((prev) => prev.filter((id) => id !== memberId));
+    setEdges((prev) => prev.filter((e) => e.friendAId !== memberId && e.friendBId !== memberId));
+  }
+
   async function handleLabelSelect(labelId: string | null, memberIds: number[] = []) {
     setActiveLabelId(labelId);
     if (!labelId) return;
@@ -425,12 +461,13 @@ export default function SocialGraph({
     clearSuggestions();
     try {
       const result = await getLabelNetworkAction(labelId);
-      if (result.success) {
-        const labelEdges = result.data ?? [];
+      if (result.success && result.data) {
+        const { edges: labelEdges, nodeIds } = result.data;
         setEdges(labelEdges);
-        // 멤버 ID를 우선 사용 → 엣지가 없는 고립 노드도 표시
-        const edgeDerivedIds = [...new Set(labelEdges.flatMap((e) => [e.friendAId, e.friendBId]))];
-        setCircleNodeIds(memberIds.length > 0 ? memberIds : edgeDerivedIds);
+        // nodeIds(엣지 렌더링 기준) + memberIds 중 그래프에 없는 고립 멤버까지 합산
+        const nodeIdSet = new Set(nodeIds);
+        const isolatedMemberIds = memberIds.filter((id) => !nodeIdSet.has(id));
+        setCircleNodeIds([...nodeIds, ...isolatedMemberIds]);
         setIsGraphActive(true);
       }
     } catch {
@@ -463,7 +500,7 @@ export default function SocialGraph({
                   : "border-transparent text-gray-400 hover:text-gray-600"
               }`}
             >
-              네트워크
+              TOP-N
             </button>
             <button
               onClick={() => setSidebarTab("label")}
@@ -473,7 +510,7 @@ export default function SocialGraph({
                   : "border-transparent text-gray-400 hover:text-gray-600"
               }`}
             >
-              라벨 관리
+              라벨
             </button>
           </div>
 
@@ -657,13 +694,55 @@ export default function SocialGraph({
                 </div>
               </>
             ) : (
-              <LabelManager
-                initialLabels={initialLabels}
-                selectedNodeId={selectedNodeId}
-                friends={friendsList}
-                onLabelSelect={(id, memberIds) => handleLabelSelect(id, memberIds)}
-                activeLabelId={activeLabelId}
-              />
+              <>
+                {/* 라벨 탭 — 렌더링 테마 아코디언 */}
+                <div className="border-b">
+                  <button
+                    onClick={() => setIsLabelThemeOpen((v) => !v)}
+                    className="w-full flex items-center justify-between px-5 py-3 text-xs font-bold text-gray-500 hover:text-gray-700 transition"
+                  >
+                    <span>
+                      렌더링 테마
+                      <span className="ml-2 font-normal text-indigo-500">
+                        {layoutType === "connectivity" ? "연결성" : layoutType === "intimacy" ? "친밀도" : "관심도"}
+                      </span>
+                    </span>
+                    <svg
+                      className={`w-4 h-4 transition-transform ${isLabelThemeOpen ? "rotate-180" : ""}`}
+                      fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                  {isLabelThemeOpen && (
+                    <div className="px-5 pb-4">
+                      <div className="flex gap-1 bg-gray-200 p-1 rounded-lg">
+                        {(["intimacy", "connectivity", "interest"] as LayoutType[]).map((theme) => (
+                          <button
+                            key={theme}
+                            onClick={() => setLayoutType(theme)}
+                            className={`flex-1 py-1.5 text-xs font-bold rounded-md transition ${
+                              layoutType === theme
+                                ? "bg-white shadow text-indigo-700"
+                                : "text-gray-500 hover:text-gray-700"
+                            }`}
+                          >
+                            {theme === "connectivity" ? "연결성" : theme === "intimacy" ? "친밀도" : "관심도"}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <LabelManager
+                  initialLabels={initialLabels}
+                  friends={friendsList}
+                  onLabelSelect={(id, memberIds) => handleLabelSelect(id, memberIds)}
+                  activeLabelId={activeLabelId}
+                  onMemberAdd={handleLabelMemberAdd}
+                  onMemberRemove={handleLabelMemberRemove}
+                />
+              </>
             )}
           </div>
 

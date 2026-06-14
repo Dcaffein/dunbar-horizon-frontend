@@ -96,7 +96,11 @@ export function useGraphData({
             isMuted: f.isMuted,
             type: isManual ? "manual" : "friend",
           },
-          classes: buzzUnreadSet.has(f.friendId) ? "buzz-unread" : undefined,
+          classes: buzzUnreadSet.has(f.friendId)
+            ? "buzz-unread"
+            : isManual
+              ? "manual"
+              : undefined,
         };
       }),
       "node",

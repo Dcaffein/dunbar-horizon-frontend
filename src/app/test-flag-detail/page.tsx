@@ -105,7 +105,7 @@ export default function TestFlagDetailPage() {
           flag={MOCK_FLAG_ACTIVE_PARTICIPANT}
           myUserId={MY_PARTICIPANT_USER_ID}
           friends={MOCK_FRIENDS}
-          memorials={[]}
+          memorialCount={0}
           comments={MOCK_COMMENTS_PARTICIPANT}
         />
       </div>

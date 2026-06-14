@@ -2,23 +2,12 @@
 
 import { apiClient, isRedirectError } from "@/api/apiClient";
 import type { NetworkFriendEdge } from "@/components/socialGraph/types";
-import type { NetworkFriendEdgeResult } from "@/api/model/networkFriendEdgeResult";
 import type { NetworkGraphResult } from "@/api/model/networkGraphResult";
 import { GetFriendsNetworkCircleSize } from "@/api/model/getFriendsNetworkCircleSize";
 import type { AnchorExpansionResult } from "@/api/model/anchorExpansionResult";
 import type { NetworkOneHopsByTwoHopResult } from "@/api/model/networkOneHopsByTwoHopResult";
 import type { TraceResult } from "@/api/model/traceResult";
 import type { MutualFriendEdgeResult } from "@/api/model/mutualFriendEdgeResult";
-
-function toNetworkEdge(r: NetworkFriendEdgeResult): NetworkFriendEdge {
-  return {
-    friendAId: r.friendAId ?? 0,
-    friendBId: r.friendBId ?? 0,
-    intimacy: r.intimacy ?? 0,
-    friendAInterest: r.friendAInterest,
-    friendBInterest: r.friendBInterest,
-  };
-}
 
 function parseNetworkGraph(result: NetworkGraphResult): { nodeIds: number[]; edges: NetworkFriendEdge[] } {
   const nodes = result.nodes ?? [];
@@ -128,15 +117,15 @@ export async function recordTraceAction(targetId: number) {
 
 export async function getLabelNetworkAction(labelId: string) {
   try {
-    const data = await apiClient.get<NetworkFriendEdgeResult[]>(
+    const data = await apiClient.get<NetworkGraphResult>(
       `/api/v1/networks/labels/${labelId}`,
     );
-    return { success: true, data: (data ?? []).map(toNetworkEdge) };
+    return { success: true as const, data: parseNetworkGraph(data) };
   } catch (error) {
     if (isRedirectError(error)) throw error;
     console.error("getLabelNetworkAction error:", error);
     return {
-      success: false,
+      success: false as const,
       message: "라벨 네트워크를 불러오는 데 실패했습니다.",
     };
   }

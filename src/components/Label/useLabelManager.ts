@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { Label, LabelCreateRequest, LabelFormError } from "./types";
-import { createLabelAction, addLabelMemberAction } from "@/app/actions/label";
+import { createLabelAction, addLabelMemberAction, removeLabelMemberAction } from "@/app/actions/label";
 import type { LabelResult } from "@/api/model/labelResult";
 
 const LABEL_NAME_MAX_LENGTH = 20;
@@ -20,7 +20,8 @@ interface UseLabelManagerResult {
   labels: Label[];
   selectedLabelId: string | null;
   createLabel: (request: LabelCreateRequest) => Promise<LabelFormError | null>;
-  addMember: (labelId: string, memberId: number, nickname: string) => Promise<void>;
+  addMember: (labelId: string, memberId: number, nickname: string) => Promise<boolean>;
+  removeMember: (labelId: string, memberId: number) => Promise<boolean>;
   selectLabel: (id: string | null) => void;
 }
 
@@ -47,17 +48,56 @@ export function useLabelManager(initialLabels: Label[]): UseLabelManagerResult {
     return null;
   }
 
-  async function addMember(labelId: string, memberId: number, nickname: string): Promise<void> {
+  async function addMember(labelId: string, memberId: number, nickname: string): Promise<boolean> {
+    // 낙관적 추가
+    setLabels((prev) =>
+      prev.map((label) => {
+        if (label.id !== labelId) return label;
+        if (label.members.some((m) => m.id === memberId)) return label;
+        return { ...label, members: [...label.members, { id: memberId, nickname }] };
+      }),
+    );
+
     const result = await addLabelMemberAction(labelId, memberId);
-    if (result.success) {
+    if (!result.success) {
+      // 롤백
       setLabels((prev) =>
         prev.map((label) => {
           if (label.id !== labelId) return label;
-          if (label.members.some((m) => m.id === memberId)) return label;
-          return { ...label, members: [...label.members, { id: memberId, nickname }] };
+          return { ...label, members: label.members.filter((m) => m.id !== memberId) };
         }),
       );
+      return false;
     }
+    return true;
+  }
+
+  async function removeMember(labelId: string, memberId: number): Promise<boolean> {
+    // 낙관적 삭제 (롤백용 스냅샷 보관)
+    let removed: { id: number; nickname: string } | undefined;
+    setLabels((prev) =>
+      prev.map((label) => {
+        if (label.id !== labelId) return label;
+        removed = label.members.find((m) => m.id === memberId);
+        return { ...label, members: label.members.filter((m) => m.id !== memberId) };
+      }),
+    );
+
+    const result = await removeLabelMemberAction(labelId, memberId);
+    if (!result.success) {
+      // 롤백
+      if (removed) {
+        const snapshot = removed;
+        setLabels((prev) =>
+          prev.map((label) => {
+            if (label.id !== labelId) return label;
+            return { ...label, members: [...label.members, snapshot] };
+          }),
+        );
+      }
+      return false;
+    }
+    return true;
   }
 
   function selectLabel(id: string | null): void {
@@ -69,6 +109,7 @@ export function useLabelManager(initialLabels: Label[]): UseLabelManagerResult {
     selectedLabelId,
     createLabel,
     addMember,
+    removeMember,
     selectLabel,
   };
 }

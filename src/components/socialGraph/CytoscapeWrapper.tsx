@@ -115,14 +115,11 @@ export default function CytoscapeWrapper({
     }
   }, [stylesheet]); // 테마가 바뀔 때 실행됨
 
-  // 테마(레이아웃) 변경 시 기존 위치에서 물리 엔진 재가동 → 완료 후 zoom 재조정
+  // 테마(레이아웃) 변경 시 기존 위치에서 물리 엔진 재가동 — 카메라 위치는 유지
   useEffect(() => {
     const cy = cyRef.current;
     if (!cy || cy.elements().length === 0) return;
     const layoutInstance = cy.layout({ ...layout, fit: false });
-    if (onLayoutStop) {
-      layoutInstance.one("layoutstop", onLayoutStop);
-    }
     layoutInstance.run();
   }, [layout]); // eslint-disable-line react-hooks/exhaustive-deps
 
