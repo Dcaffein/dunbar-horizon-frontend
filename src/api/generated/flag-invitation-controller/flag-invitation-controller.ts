@@ -71,3 +71,35 @@ export const accept = async (invitationId: number, options?: RequestInit): Promi
 );}
 
 
+export type cancelResponse200 = {
+  data: void
+  status: 200
+}
+
+export type cancelResponseSuccess = (cancelResponse200) & {
+  headers: Headers;
+};
+;
+
+export type cancelResponse = (cancelResponseSuccess)
+
+export const getCancelUrl = (invitationId: number,) => {
+
+
+
+
+  return `/api/v1/flag-invitations/${invitationId}`
+}
+
+export const cancel = async (invitationId: number, options?: RequestInit): Promise<cancelResponse> => {
+
+  return customFetch<cancelResponse>(getCancelUrl(invitationId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+

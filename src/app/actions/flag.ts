@@ -30,6 +30,16 @@ export async function getParticipatingFlagsAction() {
   }
 }
 
+export async function getUserRecentFlagsAction(userId: number) {
+  try {
+    const data = await apiClient.get<FlagResult[]>(`/api/v1/flags/users/${userId}/recent`, { silent: true });
+    return { success: true as const, data };
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    return { success: false as const, data: [] as FlagResult[] };
+  }
+}
+
 export async function getFriendFlagsAction() {
   try {
     const data = await apiClient.get<FlagResult[]>("/api/v1/flags/friends");

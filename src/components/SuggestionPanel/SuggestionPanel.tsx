@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import type { AnchorExpansionResult } from "@/api/model/anchorExpansionResult";
 
 interface SuggestionPanelProps {
@@ -48,6 +49,15 @@ export default function SuggestionPanel({
 
       {sendStatus === "error" && sendError && (
         <p className="text-xs text-red-500 text-center mt-1.5">{sendError}</p>
+      )}
+
+      {suggestion.id !== undefined && (
+        <Link
+          href={`/users/${suggestion.id}`}
+          className="mt-2 w-full text-xs py-1.5 flex items-center justify-center border border-gray-200 rounded-md text-gray-500 hover:bg-gray-50 transition"
+        >
+          프로필 보기
+        </Link>
       )}
     </div>
   );

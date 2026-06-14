@@ -12,10 +12,11 @@ type RecipientType = "ANCHOR" | "LABEL" | "MANUAL";
 interface BuzzFormProps {
   friends: FriendshipDetail[];
   labels: LabelResult[];
+  initialMemberId?: number;
 }
 
 
-export default function BuzzForm({ friends, labels }: BuzzFormProps) {
+export default function BuzzForm({ friends, labels, initialMemberId }: BuzzFormProps) {
   const router = useRouter();
   const [recipientType, setRecipientType] = useState<RecipientType>("MANUAL");
 
@@ -29,7 +30,9 @@ export default function BuzzForm({ friends, labels }: BuzzFormProps) {
   const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
 
   // MANUAL
-  const [selectedMemberIds, setSelectedMemberIds] = useState<number[]>([]);
+  const [selectedMemberIds, setSelectedMemberIds] = useState<number[]>(
+    initialMemberId ? [initialMemberId] : [],
+  );
 
   // 내용
   const [text, setText] = useState("");

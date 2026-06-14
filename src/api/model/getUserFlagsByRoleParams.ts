@@ -5,9 +5,8 @@
  * DunbarHorizon 백엔드 API
  * OpenAPI spec version: 1.0.0
  */
+import type { GetUserFlagsByRoleRole } from './getUserFlagsByRoleRole';
 
-export interface SortObject {
-  empty?: boolean;
-  sorted?: boolean;
-  unsorted?: boolean;
-}
+export type GetUserFlagsByRoleParams = {
+role: GetUserFlagsByRoleRole;
+};

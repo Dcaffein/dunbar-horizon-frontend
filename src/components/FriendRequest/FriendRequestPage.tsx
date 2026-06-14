@@ -1,9 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import type { FriendRequestResult } from "@/api/model/friendRequestResult";
-import type { UserProfileInfo } from "@/api/model/userProfileInfo";
 import { useFriendRequest } from "./useFriendRequest";
 
 type Tab = "received" | "sent" | "search";
@@ -28,17 +27,19 @@ export default function FriendRequestPage({
     searchStatus,
     searchResult,
     searchError,
-    sendStatus,
-    sendError,
     actionLoadingId,
     actionError,
-    isAlreadySent,
     handleSearch,
-    handleSendRequest,
     handleAccept,
     handleHide,
     handleCancel,
   } = useFriendRequest({ initialReceived, initialSent });
+
+  useEffect(() => {
+    if (searchStatus === "found" && searchResult?.id) {
+      router.push(`/users/${searchResult.id}`);
+    }
+  }, [searchStatus, searchResult, router]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -110,12 +111,7 @@ export default function FriendRequestPage({
             onEmailChange={setSearchEmail}
             onSearch={handleSearch}
             searchStatus={searchStatus}
-            searchResult={searchResult}
             searchError={searchError}
-            sendStatus={sendStatus}
-            sendError={sendError}
-            isAlreadySent={isAlreadySent}
-            onSendRequest={handleSendRequest}
           />
         )}
       </main>
@@ -267,28 +263,14 @@ function SearchTab({
   onEmailChange,
   onSearch,
   searchStatus,
-  searchResult,
   searchError,
-  sendStatus,
-  sendError,
-  isAlreadySent,
-  onSendRequest,
 }: {
   searchEmail: string;
   onEmailChange: (v: string) => void;
   onSearch: () => void;
   searchStatus: "idle" | "loading" | "found" | "not-found" | "error";
-  searchResult: UserProfileInfo | null;
   searchError: string | null;
-  sendStatus: "idle" | "loading" | "sent" | "error";
-  sendError: string | null;
-  isAlreadySent: (id: number) => boolean;
-  onSendRequest: (id: number) => void;
 }) {
-  const alreadySent =
-    searchResult?.id !== undefined && isAlreadySent(searchResult.id);
-  const requestSent = alreadySent || sendStatus === "sent";
-
   return (
     <div className="space-y-4">
       {/* 검색 입력 */}
@@ -299,7 +281,7 @@ function SearchTab({
           onChange={(e) => onEmailChange(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && onSearch()}
           placeholder="이메일 주소 입력"
-          className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400"
+          className="flex-1 text-sm text-gray-900 placeholder-gray-400 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400"
         />
         <button
           onClick={onSearch}
@@ -310,57 +292,10 @@ function SearchTab({
         </button>
       </div>
 
-      {/* 검색 결과 — 유저 카드 */}
-      {searchStatus === "found" && searchResult && (
-        <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-full bg-indigo-100 shrink-0 overflow-hidden">
-              {searchResult.profileImage ? (
-                <img
-                  src={searchResult.profileImage}
-                  alt="profile"
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <span className="text-indigo-700 font-bold text-sm">
-                    {searchResult.nickname?.charAt(0) ?? "?"}
-                  </span>
-                </div>
-              )}
-            </div>
-            <p className="text-sm font-semibold text-gray-800 truncate">
-              {searchResult.nickname}
-            </p>
-          </div>
-
-          <div className="shrink-0">
-            {requestSent ? (
-              <span className="text-xs text-gray-400 font-medium">이미 요청을 보냈습니다</span>
-            ) : (
-              <button
-                onClick={() => onSendRequest(searchResult.id!)}
-                disabled={sendStatus === "loading"}
-                className="text-xs px-3 py-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 font-medium"
-              >
-                {sendStatus === "loading" ? "전송 중..." : "요청 보내기"}
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* 검색 실패 메시지 */}
       {(searchStatus === "not-found" || searchStatus === "error") && searchError && (
         <p className="text-sm text-red-500 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
           {searchError}
-        </p>
-      )}
-
-      {/* 요청 전송 실패 메시지 */}
-      {sendStatus === "error" && sendError && (
-        <p className="text-sm text-red-500 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
-          {sendError}
         </p>
       )}
     </div>

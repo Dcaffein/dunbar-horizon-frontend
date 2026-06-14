@@ -32,7 +32,7 @@ export async function deleteFriendAction(friendId: number) {
 
 export async function getFriendProfileAction(friendId: number) {
   try {
-    const data = await apiClient.get<FriendshipDetailResult>(`/api/v1/friends/${friendId}`);
+    const data = await apiClient.get<FriendshipDetailResult>(`/api/v1/friends/${friendId}`, { silent: true });
     return { success: true as const, data };
   } catch (error) {
     if (isRedirectError(error)) throw error;

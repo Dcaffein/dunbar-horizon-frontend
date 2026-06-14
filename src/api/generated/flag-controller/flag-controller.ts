@@ -11,7 +11,6 @@ import type {
   FlagDetailsUpdateRequest,
   FlagInvitePermissionRequest,
   FlagInviteRequest,
-  FlagResult,
   FlagScheduleUpdateRequest
 } from '../../model';
 
@@ -338,38 +337,6 @@ export const deleteFlag = async (id: number, options?: RequestInit): Promise<del
   {
     ...options,
     method: 'DELETE'
-
-
-  }
-);}
-
-
-export type getFriendFlagsResponse200 = {
-  data: FlagResult[]
-  status: 200
-}
-
-export type getFriendFlagsResponseSuccess = (getFriendFlagsResponse200) & {
-  headers: Headers;
-};
-;
-
-export type getFriendFlagsResponse = (getFriendFlagsResponseSuccess)
-
-export const getGetFriendFlagsUrl = () => {
-
-
-
-
-  return `/api/v1/flags/friends`
-}
-
-export const getFriendFlags = async ( options?: RequestInit): Promise<getFriendFlagsResponse> => {
-
-  return customFetch<getFriendFlagsResponse>(getGetFriendFlagsUrl(),
-  {
-    ...options,
-    method: 'GET'
 
 
   }
