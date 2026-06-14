@@ -109,3 +109,43 @@ const labels = await springClient.get<LabelResult[]>("/api/v1/labels");
 ### Phase 3
 - 멤버가 0명인 라벨 클릭 → 그래프 빈 상태 또는 안내 메시지
 - 백엔드 오류 시 기존 그래프 유지 + 에러 처리
+
+---
+
+## Result
+
+**완료일:** 2026-06-14  
+**커밋:** `e1851ec` (develop)
+
+### 원래 scope 대비 변경/추가된 사항
+
+#### 버그 수정
+- `getLabelNetworkAction`이 `NetworkFriendEdgeResult[]`로 파싱하던 것을 `NetworkGraphResult` + `parseNetworkGraph`로 수정 (백엔드 응답 스펙 불일치)
+- 라벨 카드 클릭 시 `circleNodeIds`를 `nodeIds`(그래프 응답)와 `memberIds`(카드 멤버)의 합집합으로 세팅 — 그래프에 엣지 없는 고립 멤버도 렌더링
+
+#### 기존 scope 이외 추가 구현
+- **멤버 삭제**: `DELETE /api/v1/labels/{labelId}/members/{memberId}` → `removeLabelMemberAction` 추가, 멤버 칩에 × 버튼
+- **멤버 추가 UX 교체**: 노드 클릭 기반 → 라벨 카드별 친구 검색 드롭다운 (비멤버만 필터링)
+- **낙관적 업데이트**: 멤버 추가·삭제 모두 API 완료 전 즉시 그래프·로컬 상태 반영, 실패 시 롤백
+- **그래프 동적 반영**: 멤버 추가 시 해당 친구의 1-hop 엣지를 `getOneHopMutualFriendEdgesAction`으로 fetch하여 엣지 추가, 삭제 시 관련 엣지 제거
+- **노드 3종 시각 구분**: 기본(하늘색 solid) / 동적 추가(하늘색 dashed, `.manual`) / 2-hop 추천(청록 dashed, `.suggestion`)
+- **탭명 변경**: "네트워크" → "TOP-N", "라벨 관리" → "라벨"
+- **렌더링 테마 아코디언**: 라벨 탭에도 TOP-N과 동일한 테마 선택 accordion 추가
+- **카메라 고정**: 렌더링 테마 전환 시 `zoomFit` 호출 제거 → 사용자 뷰포트 유지
+
+#### 확인된 백엔드 이슈 (세션 중 수정 완료)
+- `/api/v1/networks/labels/{labelId}` 가 `{ "nodes": [] }` 반환하던 백엔드 버그 → 백엔드 팀이 수정 완료
+
+### 최종 변경 파일
+
+| 파일 | 변경 내용 |
+|---|---|
+| `src/app/actions/label.ts` | `removeLabelMemberAction` 추가 |
+| `src/app/actions/social.ts` | `getLabelNetworkAction` 반환 타입 수정 |
+| `src/app/test-flag-detail/page.tsx` | TS 에러 수정 (`memorialCount` 누락) |
+| `src/components/Label/LabelManager.tsx` | 멤버 추가 드롭다운, × 삭제 버튼, 낙관적 업데이트 |
+| `src/components/Label/useLabelManager.ts` | `removeMember` 추가, 낙관적 업데이트 패턴 적용 |
+| `src/components/socialGraph/CytoscapeWrapper.tsx` | `[layout]` effect에서 `onLayoutStop` 제거 |
+| `src/components/socialGraph/index.tsx` | 탭명, 테마 아코디언, `handleLabelMemberAdd/Remove` |
+| `src/components/socialGraph/styles.ts` | `.manual`, `.suggestion` 노드 스타일 추가 |
+| `src/components/socialGraph/useGraphData.ts` | 동적 추가 노드에 `manual` 클래스 부여 |

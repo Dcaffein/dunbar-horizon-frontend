@@ -344,37 +344,6 @@ export default function SocialGraph({
     return () => clearTimeout(timer);
   }, [selectedNodeId, edges, layoutType, zoomToNode]);
 
-  function handleAliasUpdate(friendId: number, newAlias: string) {
-    setFriendsList((prev) =>
-      prev.map((f) =>
-        f.friendId === friendId ? { ...f, friendAlias: newAlias } : f,
-      ),
-    );
-    const nickname =
-      friendsList.find((f) => f.friendId === friendId)?.friendNickname || "";
-    const label =
-      newAlias && newAlias !== nickname
-        ? `${newAlias}\n${nickname}`
-        : nickname;
-    cyRef.current?.getElementById(String(friendId)).data("label", label);
-  }
-
-  function handleFriendUpdate(
-    friendId: number,
-    patch: Partial<FriendshipDetail>,
-  ) {
-    setFriendsList((prev) =>
-      prev.map((f) => (f.friendId === friendId ? { ...f, ...patch } : f)),
-    );
-  }
-
-  function handleFriendDelete(friendId: number) {
-    setFriendsList((prev) => prev.filter((f) => f.friendId !== friendId));
-    setEdges((prev) =>
-      prev.filter((e) => e.friendAId !== friendId && e.friendBId !== friendId),
-    );
-    setSelectedNodeId(null);
-  }
 
   async function handleSuggestionSendRequest(receiverId: number) {
     setSuggestionSendStatus("loading");
@@ -750,14 +719,6 @@ export default function SocialGraph({
           {selectedFriend && !selectedSuggestion && (
             <FriendActionPanel
               friend={selectedFriend}
-              onAliasUpdate={handleAliasUpdate}
-              onMuteToggle={(id, val) =>
-                handleFriendUpdate(id, { isMuted: val })
-              }
-              onRoutableToggle={(id, val) =>
-                handleFriendUpdate(id, { isRoutable: val })
-              }
-              onDelete={handleFriendDelete}
               hasBuzzUnread={unreadBuzzSenderIds.includes(
                 selectedFriend.friendId,
               )}

@@ -4,7 +4,14 @@ import { apiClient, isRedirectError } from "@/api/apiClient";
 import type { FriendshipDetail } from "@/components/socialGraph/types";
 import type { LabelResult } from "@/api/model/labelResult";
 
-export default async function BuzzNewPage() {
+export default async function BuzzNewPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ to?: string }>;
+}) {
+  const { to } = await searchParams;
+  const initialMemberId = to ? Number(to) : undefined;
+
   let friends: FriendshipDetail[] = [];
   let labels: LabelResult[] = [];
 
@@ -19,5 +26,5 @@ export default async function BuzzNewPage() {
     if (isRedirectError(error)) throw error;
   }
 
-  return <BuzzForm friends={friends} labels={labels} />;
+  return <BuzzForm friends={friends} labels={labels} initialMemberId={initialMemberId} />;
 }

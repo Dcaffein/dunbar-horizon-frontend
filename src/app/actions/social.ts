@@ -8,6 +8,7 @@ import type { AnchorExpansionResult } from "@/api/model/anchorExpansionResult";
 import type { NetworkOneHopsByTwoHopResult } from "@/api/model/networkOneHopsByTwoHopResult";
 import type { TraceResult } from "@/api/model/traceResult";
 import type { MutualFriendEdgeResult } from "@/api/model/mutualFriendEdgeResult";
+import type { SocialProfileResult } from "@/api/model/socialProfileResult";
 
 function parseNetworkGraph(result: NetworkGraphResult): { nodeIds: number[]; edges: NetworkFriendEdge[] } {
   const nodes = result.nodes ?? [];
@@ -108,6 +109,16 @@ export async function recordTraceAction(targetId: number) {
       "/api/v1/social/traces",
       { targetId },
     );
+    return { success: true as const, data };
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    return { success: false as const };
+  }
+}
+
+export async function getSocialProfileAction(userId: number) {
+  try {
+    const data = await apiClient.get<SocialProfileResult>(`/api/v1/social/users/${userId}`);
     return { success: true as const, data };
   } catch (error) {
     if (isRedirectError(error)) throw error;
