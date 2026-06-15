@@ -130,8 +130,12 @@ export const apiClient = {
   ) =>
     fetchInternal<TResult, TBody | undefined>(endpoint, "PUT", body, options),
 
-  delete: <TResult>(endpoint: string, options?: RequestOptions) =>
-    fetchInternal<TResult, undefined>(endpoint, "DELETE", undefined, options),
+  delete: <TResult, TBody = undefined>(
+    endpoint: string,
+    body?: TBody,
+    options?: RequestOptions,
+  ) =>
+    fetchInternal<TResult, TBody | undefined>(endpoint, "DELETE", body, options),
 
   patch: <TResult, TBody = undefined>(
     endpoint: string,

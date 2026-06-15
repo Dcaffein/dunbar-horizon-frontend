@@ -3,6 +3,7 @@
 import { apiClient, isRedirectError } from "@/api/apiClient";
 import type { NotificationResponse } from "@/api/model/notificationResponse";
 import type { SliceNotificationResponse } from "@/api/model/sliceNotificationResponse";
+import type { DeviceTokenStatusResponse } from "@/api/model/deviceTokenStatusResponse";
 
 export async function getUnreadCountAction() {
   try {
@@ -48,6 +49,30 @@ export async function registerDeviceTokenAction(token: string) {
   } catch (error) {
     if (isRedirectError(error)) throw error;
     console.error("registerDeviceTokenAction error:", error);
+    return { success: false as const };
+  }
+}
+
+export async function removeDeviceTokenAction(token: string) {
+  try {
+    await apiClient.delete("/api/v1/notifications/device-token", { token });
+    return { success: true as const };
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    console.error("removeDeviceTokenAction error:", error);
+    return { success: false as const };
+  }
+}
+
+export async function checkDeviceTokenStatusAction(token: string) {
+  try {
+    const data = await apiClient.get<DeviceTokenStatusResponse>(
+      `/api/v1/notifications/device-token/status?token=${encodeURIComponent(token)}`,
+    );
+    return { success: true as const, data };
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    console.error("checkDeviceTokenStatusAction error:", error);
     return { success: false as const };
   }
 }

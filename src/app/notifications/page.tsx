@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getNotificationsAction } from "@/app/actions/notification";
 import NotificationList from "@/components/Notifications/NotificationList";
+import AlarmToggle from "@/components/Notifications/AlarmToggle";
 import { isRedirectError } from "@/api/apiClient";
 import type { NotificationResponse } from "@/api/model/notificationResponse";
 
@@ -31,6 +32,7 @@ export default async function NotificationsPage() {
           </svg>
         </Link>
         <h1 className="text-lg font-bold text-gray-900">알림</h1>
+        <AlarmToggle />
       </header>
 
       <main className="max-w-lg mx-auto">
