@@ -51,7 +51,7 @@ export default async function MainPage() {
   }
 
   return (
-    <main className="h-screen bg-gray-50 flex flex-col p-6 overflow-hidden">
+    <main className="h-dvh bg-gray-50 flex flex-col p-6 overflow-hidden">
       {/* 상단 헤더: 로고 및 정보 */}
       <header className="flex justify-between items-center mb-4 px-2 shrink-0">
         <div>

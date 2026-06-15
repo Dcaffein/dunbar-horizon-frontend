@@ -24,6 +24,28 @@ function repulsionForCircle(circleSize: GetFriendsNetworkCircleSize | null): num
   return Math.max(20000, Math.min(400000, n * 8000));
 }
 
+function numIterForCircle(circleSize: GetFriendsNetworkCircleSize | null): number {
+  if (!circleSize) return 2500;
+  const map: Record<GetFriendsNetworkCircleSize, number> = {
+    [GetFriendsNetworkCircleSize.SUPPORT]: 2500,
+    [GetFriendsNetworkCircleSize.SYMPATHY]: 3500,
+    [GetFriendsNetworkCircleSize.KINSHIP]: 5000,
+    [GetFriendsNetworkCircleSize.DUNBAR]: 8000,
+  };
+  return map[circleSize];
+}
+
+function animationDurationForCircle(circleSize: GetFriendsNetworkCircleSize | null): number {
+  if (!circleSize) return 500;
+  const map: Record<GetFriendsNetworkCircleSize, number> = {
+    [GetFriendsNetworkCircleSize.SUPPORT]: 400,
+    [GetFriendsNetworkCircleSize.SYMPATHY]: 400,
+    [GetFriendsNetworkCircleSize.KINSHIP]: 400,
+    [GetFriendsNetworkCircleSize.DUNBAR]: 400,
+  };
+  return map[circleSize];
+}
+
 export const getLayoutOptions = (
   type: LayoutType,
   isSnapshot: boolean = false,
@@ -32,11 +54,11 @@ export const getLayoutOptions = (
   const baseOptions: Partial<FcoseLayoutOptions> = {
     quality: "proof",
     animate: !isSnapshot,
-    animationDuration: isSnapshot ? 0 : 500,
+    animationDuration: isSnapshot ? 0 : animationDurationForCircle(circleSize),
     fit: true,
     nodeDimensionsIncludeLabels: true,
     randomize: false,
-    numIter: 5000,
+    numIter: numIterForCircle(circleSize),
     tile: false,
   };
 

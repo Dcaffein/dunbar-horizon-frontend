@@ -16,7 +16,7 @@ const CytoscapeWrapper = dynamic(() => import("./CytoscapeWrapper"), {
 });
 
 import { useGraphData } from "./useGraphData";
-import { useGraphZoom } from "./useGraphZoom";
+import { useGraphZoom, ZOOM_FIT_DURATION } from "./useGraphZoom";
 import { getGraphStylesheet } from "./styles";
 import { getLayoutOptions } from "./layout";
 import {
@@ -113,6 +113,47 @@ export default function SocialGraph({
 
   const cyRef = useRef<cytoscape.Core | null>(null);
   const { zoomFit, zoomToNode } = useGraphZoom(cyRef);
+
+  const handleLayoutStop = useCallback(() => {
+    zoomFit();
+    setTimeout(() => {
+      const cy = cyRef.current;
+      if (!cy || cy.nodes().length === 0) return;
+
+      let bestNodeId: string | null = null;
+
+      if (layoutType === "connectivity") {
+        let maxDegree = -1;
+        cy.nodes().forEach((node: any) => {
+          if (node.data("type") === "suggestion") return;
+          const deg = node.degree(false);
+          if (deg > maxDegree) {
+            maxDegree = deg;
+            bestNodeId = node.id();
+          }
+        });
+      } else if (layoutType === "intimacy") {
+        let maxIntimacy = -1;
+        for (const f of friendsList) {
+          if (f.intimacy > maxIntimacy && cy.getElementById(String(f.friendId)).length > 0) {
+            maxIntimacy = f.intimacy;
+            bestNodeId = String(f.friendId);
+          }
+        }
+      } else if (layoutType === "interest") {
+        let maxDelta = -Infinity;
+        for (const f of friendsList) {
+          const delta = (f.myInterestScore ?? 0) - (f.intimacy ?? 0);
+          if (delta > maxDelta && cy.getElementById(String(f.friendId)).length > 0) {
+            maxDelta = delta;
+            bestNodeId = String(f.friendId);
+          }
+        }
+      }
+
+      if (bestNodeId) setSelectedNodeId(bestNodeId);
+    }, ZOOM_FIT_DURATION);
+  }, [zoomFit, layoutType, friendsList, cyRef]);
 
   const elements = useGraphData({
     friends: friendsList,
@@ -433,7 +474,6 @@ export default function SocialGraph({
       if (result.success && result.data) {
         const { edges: labelEdges, nodeIds } = result.data;
         setEdges(labelEdges);
-        // nodeIds(엣지 렌더링 기준) + memberIds 중 그래프에 없는 고립 멤버까지 합산
         const nodeIdSet = new Set(nodeIds);
         const isolatedMemberIds = memberIds.filter((id) => !nodeIdSet.has(id));
         setCircleNodeIds([...nodeIds, ...isolatedMemberIds]);
@@ -710,6 +750,7 @@ export default function SocialGraph({
                   activeLabelId={activeLabelId}
                   onMemberAdd={handleLabelMemberAdd}
                   onMemberRemove={handleLabelMemberRemove}
+                  onMemberClick={(id) => { clearSuggestions(); setSelectedNodeId(String(id)); }}
                 />
               </>
             )}
@@ -827,7 +868,7 @@ export default function SocialGraph({
           style={CY_STYLE}
           wheelSensitivity={3.0}
           cy={handleCyInit}
-          onLayoutStop={zoomFit}
+          onLayoutStop={handleLayoutStop}
         />
       </main>
     </div>
