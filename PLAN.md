@@ -1,29 +1,39 @@
-# PLAN: Label 멤버 칩 클릭 → 그래프 하이라이트
+# PLAN: Task 34 — FCM 포그라운드 알림 핸들러
 
-## 요구사항
-
-라벨 탭에서 멤버 칩을 클릭하면 그래프에서 해당 친구 노드를 하이라이트하고 줌 이동.
-
-## 수정 파일
+## 작업 범위
 
 | 파일 | 변경 내용 |
 |---|---|
-| `src/components/Label/LabelManager.tsx` | `onMemberClick` prop 추가, 멤버 칩 클릭 핸들링 |
-| `src/components/socialGraph/index.tsx` | `onMemberClick` 콜백 전달 |
+| `src/lib/firebase.ts` | `setupForegroundHandler(cb)` 추가 |
+| `src/components/FcmInitializer.tsx` | NEW — 핸들러 등록 + 인앱 토스트 UI |
+| `src/app/layout.tsx` | `<FcmInitializer />` 추가 |
 
-## 변경 상세
+## 구현 상세
 
-### 1. LabelManager.tsx
-- `LabelManagerProps`에 `onMemberClick?: (memberId: number) => void` 추가
-- 멤버 칩 `<span>`에 `onClick={() => onMemberClick?.(m.id)}` + `cursor-pointer` 추가
-- × 버튼에 `e.stopPropagation()` 추가 (삭제 클릭이 하이라이트 트리거 방지)
+### 1. `src/lib/firebase.ts`에 추가
 
-### 2. index.tsx
-- `LabelManager`에 `onMemberClick={(id) => { clearSuggestions(); setSelectedNodeId(String(id)); }}` 전달
-- 기존 `selectedNodeId` useEffect가 하이라이트 + zoomToNode 처리
+```ts
+export function setupForegroundHandler(
+  onNotification: (title: string, body: string) => void
+): () => void {
+  const m = getFirebaseMessaging();
+  if (!m) return () => {};
+  return onMessage(m, (payload) => {
+    const title = payload.notification?.title ?? 'Dunbar Horizon';
+    const body = payload.notification?.body ?? '';
+    onNotification(title, body);
+  });
+}
+```
 
-## 테스트 시나리오
+### 2. `src/components/FcmInitializer.tsx` (NEW)
 
-1. 라벨 탭 → 라벨 선택 → 그래프 로드
-2. 멤버 칩 클릭 → 해당 노드 하이라이트 + 줌 이동
-3. × 버튼 클릭 → 하이라이트 없이 멤버 삭제만 동작
+- `"use client"` 컴포넌트
+- `useState<{ title: string; body: string } | null>` — 토스트 상태
+- `useEffect` → `setupForegroundHandler(setToast)` + cleanup unsubscribe
+- `useEffect[toast]` → toast가 세팅되면 5초 후 null로 자동 닫힘
+- 우상단 fixed 토스트 UI: 🔔 아이콘 + 제목(bold) + 본문 + X 버튼
+
+### 3. `src/app/layout.tsx`
+
+`<body>` 닫기 태그 바로 앞에 `<FcmInitializer />` 추가

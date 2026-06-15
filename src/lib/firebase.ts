@@ -22,7 +22,8 @@ export function getFirebaseMessaging(): Messaging | null {
 }
 
 async function getSwRegistration() {
-  return navigator.serviceWorker.register('/firebase-messaging-sw.js');
+  await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+  return navigator.serviceWorker.ready;
 }
 
 export async function requestNotificationPermission(): Promise<string | null> {
@@ -55,4 +56,16 @@ export async function getCurrentToken(): Promise<string | null> {
   }
 }
 
-export { onMessage, app };
+export function setupForegroundHandler(
+  onNotification: (title: string, body: string) => void
+): () => void {
+  const m = getFirebaseMessaging();
+  if (!m) return () => {};
+  return onMessage(m, (payload) => {
+    const title = payload.notification?.title ?? 'Dunbar Horizon';
+    const body = payload.notification?.body ?? '';
+    onNotification(title, body);
+  });
+}
+
+export { app };
