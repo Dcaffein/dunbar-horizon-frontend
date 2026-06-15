@@ -21,6 +21,10 @@ export function getFirebaseMessaging(): Messaging | null {
   return messaging;
 }
 
+async function getSwRegistration() {
+  return navigator.serviceWorker.register('/firebase-messaging-sw.js');
+}
+
 export async function requestNotificationPermission(): Promise<string | null> {
   const permission = await Notification.requestPermission();
   if (permission !== 'granted') return null;
@@ -30,8 +34,25 @@ export async function requestNotificationPermission(): Promise<string | null> {
 
   return getToken(m, {
     vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
-    serviceWorkerRegistration: await navigator.serviceWorker.register('/firebase-messaging-sw.js'),
+    serviceWorkerRegistration: await getSwRegistration(),
   });
+}
+
+export async function getCurrentToken(): Promise<string | null> {
+  if (typeof window === 'undefined') return null;
+  if (Notification.permission !== 'granted') return null;
+
+  const m = getFirebaseMessaging();
+  if (!m) return null;
+
+  try {
+    return await getToken(m, {
+      vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
+      serviceWorkerRegistration: await getSwRegistration(),
+    });
+  } catch {
+    return null;
+  }
 }
 
 export { onMessage, app };

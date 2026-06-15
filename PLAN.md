@@ -1,37 +1,76 @@
-# PLAN: Task 30 — 유저 프로필 페이지 (`/users/{id}`) 신설
+# PLAN: Task 32 — FCM 토큰 라이프사이클 관리
 
 ## 요구사항 분석
 
-비친구 유저 프로필을 독립 페이지로 조회할 수 없는 문제를 해결한다.
-`GET /api/v1/social/users/{id}` API를 활용해 `/users/{id}` 라우트를 신설하고,
-친구 여부에 따라 `FriendProfile` / `PublicProfile`을 분기 렌더링한다.
+- 최초 권한 요청을 사용자 제스처(토글 클릭)에 연결
+- 기기별 독립 알람 ON/OFF 토글 (`/notifications` 페이지 헤더)
+- 토큰 로테이션 자동 감지 및 교체 (NotificationBell useEffect)
+- 로그아웃 시 FCM 토큰을 백엔드에 전달 (LogoutButton → localStorage 읽기)
+- 브라우저 권한 취소 시 이전 토큰으로 백엔드 정리
 
 ---
 
-## 작업 범위 및 변경 파일
+## 작업 파일 목록
 
-| # | 파일 | 변경 내용 |
-|---|---|---|
-| 1 | `src/app/actions/social.ts` | `getSocialProfileAction(userId)` 추가 |
-| 2 | `src/app/users/[userId]/page.tsx` | **신규** — `/users/{id}` Server Component 라우트 |
-| 3 | `src/components/UserProfile/PublicProfile.tsx` | **신규** — 비친구 공개 프로필 컴포넌트 |
-| 4 | `src/components/FriendProfile/FriendProfile.tsx` | props 재설계, 연결 경로 lazy 버튼 추가 |
-| 5 | `src/app/friends/[friendId]/page.tsx` | `/users/{friendId}` redirect로 교체 |
-| 6 | `src/components/FriendRequest/FriendRequestPage.tsx` | found → `router.push("/users/{id}")` 이동 |
-| 7 | `src/components/FriendActionPanel/FriendActionPanel.tsx` | "프로필 보기" 링크 경로 변경 |
-| 8 | `src/app/buzzes/new/page.tsx` | `searchParams.to` → `BuzzForm` 초기 수신자 세팅 |
-| 9 | `src/components/Buzz/BuzzForm.tsx` | `initialMemberId?: number` prop 추가 |
+| # | 파일 | 변경 종류 | 내용 |
+|---|---|---|---|
+| 1 | `src/lib/firebase.ts` | 수정 | `getCurrentToken()` 추가 |
+| 2 | `src/app/actions/notification.ts` | 수정 | `removeDeviceTokenAction` / `checkDeviceTokenStatusAction` 추가 |
+| 3 | `src/app/actions/auth.ts` | 수정 | `logoutAction(fcmToken?: string)` 시그니처 변경, body에 fcmToken 포함 |
+| 4 | `src/components/LogoutButton.tsx` | 수정 | `"use client"` 전환, onClick에서 localStorage 읽어 logoutAction 호출 |
+| 5 | `src/components/Notifications/NotificationBell.tsx` | 수정 | requestNotificationPermission 제거 → getCurrentToken 기반 조용한 초기화 |
+| 6 | `src/hooks/useFcmToken.ts` | 신규 | 토글 상태 조회 / ON / OFF 로직 |
+| 7 | `src/components/Notifications/AlarmToggle.tsx` | 신규 | useFcmToken 사용하는 토글 UI 컴포넌트 |
+| 8 | `src/app/notifications/page.tsx` | 수정 | 헤더에 `<AlarmToggle />` 추가 |
 
 ---
 
 ## 상세 구현 계획
 
-### 1. `getSocialProfileAction` 추가 — `src/app/actions/social.ts`
+### Step 1: `src/lib/firebase.ts`
+
+`getCurrentToken()` 추가 — `Notification.permission !== 'granted'`이면 null 즉시 반환.
+권한 요청 없이 Firebase SDK `getToken()`만 호출.
 
 ```ts
-export async function getSocialProfileAction(userId: number) {
+export async function getCurrentToken(): Promise<string | null> {
+  if (typeof window === 'undefined') return null;
+  if (Notification.permission !== 'granted') return null;
+  const m = getFirebaseMessaging();
+  if (!m) return null;
   try {
-    const data = await apiClient.get<SocialProfileResult>(`/api/v1/social/users/${userId}`);
+    return await getToken(m, {
+      vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
+      serviceWorkerRegistration: await navigator.serviceWorker.register('/firebase-messaging-sw.js'),
+    });
+  } catch {
+    return null;
+  }
+}
+```
+
+---
+
+### Step 2: `src/app/actions/notification.ts`
+
+두 Server Action 추가:
+
+```ts
+export async function removeDeviceTokenAction(token: string) {
+  try {
+    await apiClient.delete("/api/v1/notifications/device-token", { token });
+    return { success: true as const };
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    return { success: false as const };
+  }
+}
+
+export async function checkDeviceTokenStatusAction(token: string) {
+  try {
+    const data = await apiClient.get<DeviceTokenStatusResponse>(
+      `/api/v1/notifications/device-token/status?token=${encodeURIComponent(token)}`
+    );
     return { success: true as const, data };
   } catch (error) {
     if (isRedirectError(error)) throw error;
@@ -40,153 +79,140 @@ export async function getSocialProfileAction(userId: number) {
 }
 ```
 
-import 추가: `SocialProfileResult` from `@/api/model/socialProfileResult`
-
 ---
 
-### 2. `/users/{id}` 라우트 신설 — `src/app/users/[userId]/page.tsx`
+### Step 3: `src/app/actions/auth.ts`
 
-```
-(Server Component)
-1. params에서 userId 파싱, NaN이면 redirect("/")
-2. getFriendProfileAction(userId)
-   - 성공 → <FriendProfile profile={data} userId={userId} />
-   - 실패 → getSocialProfileAction(userId)
-     - 성공 → <PublicProfile profile={data} userId={userId} />
-     - 실패 → redirect("/")
-```
+`logoutAction` 시그니처 변경:
 
-현재 `friends/[friendId]/page.tsx`가 서버에서 `recordTraceAction`, `getConnectionPathAction`을 선제 호출하고 있다.
-신규 라우트에서는 **두 액션 모두 서버에서 호출하지 않는다** — 클라이언트 컴포넌트 내부 `useEffect`로 이동.
-
----
-
-### 3. `PublicProfile.tsx` 신규 — `src/components/UserProfile/PublicProfile.tsx`
-
-Props: `profile: SocialProfileResult`, `userId: number`
-
-State:
-- `revealed: boolean` — `recordTraceAction` 결과
-- `requestStatus: "idle" | "loading" | "sent" | "error"` — 친구 요청 상태
-
-UI:
-- 프로필 이미지 (없으면 letter avatar)
-- `profile.nickname`
-- trace 카드: `revealed === true`이면 👀 "최근 서로 자주 방문했습니다"
-- `[친구 요청 보내기]` → `sendFriendRequestAction(userId)` → 완료 시 버튼 비활성화 + 문구
-- `[Buzz 보내기]` → `router.push("/buzzes/new?to=${userId}")`
-
-`useEffect`:
 ```ts
-useEffect(() => {
-  recordTraceAction(userId).then(r => {
-    if (r?.data?.revealed) setRevealed(true);
+export async function logoutAction(fcmToken?: string) {
+  // ...
+  await fetch(`${BASE_URL}/api/auth/tokens`, {
+    method: "DELETE",
+    headers: {
+      Cookie: `access_token=${accessToken}; refresh_token=${refreshToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ fcmToken }),
   });
-}, [userId]);
-```
-
----
-
-### 4. `FriendProfile.tsx` 수정 — `src/components/FriendProfile/FriendProfile.tsx`
-
-**변경 전 Props**: `profile`, `path: ConnectionPathResult | null`, `revealed?: boolean`
-**변경 후 Props**: `profile`, `userId: number`
-
-변경 내용:
-- `revealed` prop 제거 → 내부 `useState(false)` + `useEffect`에서 `recordTraceAction(userId)`
-- `path` prop 제거 → "관련도 높은 친구 찾기" 버튼 클릭 시 `getConnectionPathAction(userId)` lazy fetch
-- 연결 경로 UI:
-  ```
-  [관련도 높은 친구 찾기]   ← 클릭 전
-       ↓ 클릭 (로딩)
-  intermediaries 없음:  "공통 연결 고리를 찾을 수 없습니다."
-  intermediaries[0] 있음: "OO님을 통한 연결이 자연스러워 보입니다."
-  ```
-  score 수치 노출 없음.
-
-추가 state: `pathStatus: "idle" | "loading" | "done"`, `connectionLabel: string | null`
-
----
-
-### 5. `friends/[friendId]/page.tsx` — redirect로 교체
-
-기존 코드 전체 교체:
-```ts
-import { redirect } from "next/navigation";
-export default async function FriendProfilePage({ params }) {
-  const { friendId } = await params;
-  redirect(`/users/${friendId}`);
+  // ...
 }
 ```
 
 ---
 
-### 6. `FriendRequestPage.tsx` — found 시 페이지 이동
+### Step 4: `src/components/LogoutButton.tsx`
 
-`searchStatus === "found"` 인라인 카드 렌더링 블록 제거.
-`useEffect` 추가:
+`"use client"` 선언 후 `<form action>` → `<button onClick>` 전환.
+
 ```ts
-useEffect(() => {
-  if (searchStatus === "found" && searchResult?.id) {
-    router.push(`/users/${searchResult.id}`);
-  }
-}, [searchStatus, searchResult, router]);
+"use client";
+import { logoutAction } from "@/app/actions/auth";
+
+export default function LogoutButton() {
+  const handleLogout = async () => {
+    const fcmToken = localStorage.getItem("fcmToken") ?? undefined;
+    localStorage.removeItem("fcmToken");
+    await logoutAction(fcmToken);
+  };
+
+  return <button onClick={handleLogout}>로그아웃</button>;
+}
 ```
 
 ---
 
-### 7. `FriendActionPanel.tsx` — "프로필 보기" 링크 경로 변경
+### Step 5: `src/components/Notifications/NotificationBell.tsx`
+
+useEffect 교체 — `requestNotificationPermission` 제거, 조용한 초기화:
+
+```
+permission !== 'granted' → return (아무것도 안 함)
+getCurrentToken() 호출
+  null (getToken 실패 = 권한 취소됨)
+    → localStorage에 이전 토큰 있으면 removeDeviceTokenAction(이전 토큰) + localStorage 제거
+  토큰 === localStorage('fcmToken') → 아무것도 안 함 (토큰 동일)
+  토큰 !== localStorage('fcmToken') → registerDeviceTokenAction(토큰) + localStorage 저장
+```
+
+---
+
+### Step 6: `src/hooks/useFcmToken.ts` (신규)
+
+반환값:
+```ts
+{
+  alarmOn: boolean;
+  loading: boolean;
+  toggleOn: () => Promise<void>;
+  toggleOff: () => Promise<void>;
+}
+```
+
+마운트 시 초기 상태 결정:
+```
+permission !== 'granted' → alarmOn = false
+getCurrentToken()
+  → checkDeviceTokenStatusAction(token)
+    registered: true  → alarmOn = true
+    registered: false → alarmOn = false
+```
+
+`toggleOn`:
+- `granted` → `getCurrentToken()` → `registerDeviceTokenAction` → localStorage 저장 → alarmOn = true
+- `default` → `Notification.requestPermission()` → 허용이면 위와 동일, 무시면 변화 없음
+- `denied` → 안내 토스트 표시
+
+`toggleOff`:
+- `getCurrentToken()` → `removeDeviceTokenAction` → `localStorage.removeItem('fcmToken')` → alarmOn = false
+
+---
+
+### Step 7: `src/components/Notifications/AlarmToggle.tsx` (신규)
+
+`useFcmToken` 사용. 토글 스위치 UI + denied 시 안내 토스트.
 
 ```tsx
-// 변경 전
-href={`/friends/${friend.friendId}`}
-// 변경 후
-href={`/users/${friend.friendId}`}
+"use client";
+export default function AlarmToggle() {
+  const { alarmOn, loading, toggleOn, toggleOff } = useFcmToken();
+  const handleToggle = () => alarmOn ? toggleOff() : toggleOn();
+  // 토글 스위치 렌더링
+}
 ```
 
 ---
 
-### 8 & 9. `buzzes/new/page.tsx` + `BuzzForm.tsx` — 초기 수신자 세팅
+### Step 8: `src/app/notifications/page.tsx`
 
-`buzzes/new/page.tsx`:
-```ts
-export default async function BuzzNewPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ to?: string }>;
-}) {
-  const { to } = await searchParams;
-  const initialMemberId = to ? Number(to) : undefined;
-  // ... 기존 friends, labels fetch ...
-  return <BuzzForm friends={friends} labels={labels} initialMemberId={initialMemberId} />;
-}
+헤더에 `<AlarmToggle />` 추가. page.tsx는 Server Component 유지.
+
+```tsx
+import AlarmToggle from "@/components/Notifications/AlarmToggle";
+
+// 헤더 내부
+<h1 className="...">알림</h1>
+<AlarmToggle />
 ```
-
-`BuzzForm.tsx`:
-- `initialMemberId?: number` prop 추가
-- `selectedMemberIds` 초기값: `initialMemberId ? [initialMemberId] : []`
-- `recipientType` 초기값: MANUAL 유지 (기존과 동일)
 
 ---
 
 ## 테스트 시나리오
 
-### Phase 1 — 정적 검증
+### Phase 1
 - `npx tsc --noEmit` 에러 없음
 - `npm run lint` 에러 없음
 
-### Phase 2 — UI/State 검증
-- 친구 찾기 이메일 검색 → 유저 found → `/users/{id}` 자동 이동
-- 비친구 유저 프로필: 닉네임 + 프로필 이미지 표시
-- trace 카드: 페이지 로드 후 `recordTraceAction` 응답으로 `revealed=true`이면 출현
-- `[친구 요청 보내기]` → "친구 요청을 보냈습니다." + 버튼 비활성화
-- `[Buzz 보내기]` → `/buzzes/new?to={userId}`, BuzzForm에서 해당 유저 수신자 선택 상태
-- 친구 유저 URL `/users/{friendId}` 직접 접근 → FriendProfile UI 표시
-- FriendProfile — "관련도 높은 친구 찾기" 클릭 → 로딩 후 텍스트 카드 표시
-- 그래프 노드 → "프로필 보기" → `/users/{id}` 이동
-- `/friends/{id}` 직접 접근 → `/users/{id}` redirect
+### Phase 2
+- permission: default → 앱 로드 시 팝업 없음, /notifications 토글 OFF
+- 토글 ON 클릭 → 권한 팝업 → 허용 → 토글 ON 전환
+- 권한 팝업 무시(닫기) → 토글 상태 변화 없음
+- permission: granted + 등록됨 → /notifications 토글 ON
+- permission: granted + 미등록 → /notifications 토글 OFF
+- permission: denied → 토글 ON 클릭 → 안내 토스트, 팝업 없음
+- 로그아웃 → 백엔드 device_tokens 해당 토큰 삭제 + localStorage 제거
 
-### Phase 3 — Edge Case
-- 존재하지 않는 userId → `redirect("/")`
-- `recordTraceAction` 실패해도 프로필 페이지 정상 표시 (trace 카드만 안 뜸)
-- 이미 친구 요청을 보낸 유저 → 백엔드 에러 응답 기반으로 버튼 상태 처리
+### Phase 3
+- localStorage 토큰 임의 변조 → 앱 로드 → 새 토큰으로 자동 교체
+- 브라우저 권한 취소 → 앱 재방문 → 백엔드 토큰 삭제, /notifications 토글 OFF

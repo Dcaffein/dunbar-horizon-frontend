@@ -2,8 +2,11 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
-import { requestNotificationPermission } from "@/lib/firebase";
-import { registerDeviceTokenAction } from "@/app/actions/notification";
+import { getCurrentToken } from "@/lib/firebase";
+import {
+  registerDeviceTokenAction,
+  removeDeviceTokenAction,
+} from "@/app/actions/notification";
 
 interface NotificationBellProps {
   initialUnreadCount: number;
@@ -11,17 +14,29 @@ interface NotificationBellProps {
 
 export default function NotificationBell({ initialUnreadCount }: NotificationBellProps) {
   useEffect(() => {
-    async function registerFcmToken() {
-      try {
-        const token = await requestNotificationPermission();
-        if (token) {
-          await registerDeviceTokenAction(token);
+    async function initFcmToken() {
+      if (Notification.permission !== "granted") return;
+
+      const currentToken = await getCurrentToken();
+      const cachedToken = localStorage.getItem("fcmToken");
+
+      if (currentToken === null) {
+        // getToken 실패 = 브라우저 권한 취소됨
+        if (cachedToken) {
+          await removeDeviceTokenAction(cachedToken);
+          localStorage.removeItem("fcmToken");
         }
-      } catch {
-        // 알림 권한 거부 또는 FCM 초기화 실패 — 무시
+        return;
       }
+
+      if (currentToken === cachedToken) return;
+
+      // 토큰 로테이션 발생
+      await registerDeviceTokenAction(currentToken);
+      localStorage.setItem("fcmToken", currentToken);
     }
-    registerFcmToken();
+
+    initFcmToken();
   }, []);
 
   const badgeCount = Math.min(initialUnreadCount, 99);
