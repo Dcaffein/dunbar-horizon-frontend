@@ -15,6 +15,7 @@ interface LabelManagerProps {
   activeLabelId: string | null;
   onMemberAdd?: (friendId: number) => void;
   onMemberRemove?: (memberId: number) => void;
+  onMemberClick?: (memberId: number) => void;
 }
 
 export default function LabelManager({
@@ -24,6 +25,7 @@ export default function LabelManager({
   activeLabelId,
   onMemberAdd,
   onMemberRemove,
+  onMemberClick,
 }: LabelManagerProps) {
   const { labels, createLabel, addMember, removeMember } = useLabelManager(initialLabels);
 
@@ -178,10 +180,14 @@ export default function LabelManager({
                     {label.members.length > 0 ? (
                       <div className="flex flex-wrap gap-1 mb-2">
                         {label.members.map((m) => (
-                          <span key={m.id} className="flex items-center gap-1 text-xs pl-2 pr-1 py-0.5 bg-indigo-100 text-indigo-700 rounded-full">
+                          <span
+                            key={m.id}
+                            onClick={() => onMemberClick?.(m.id)}
+                            className="flex items-center gap-1 text-xs pl-2 pr-1 py-0.5 bg-indigo-100 text-indigo-700 rounded-full cursor-pointer hover:bg-indigo-200 transition"
+                          >
                             {m.nickname}
                             <button
-                              onClick={() => handleRemoveMember(label.id, m.id)}
+                              onClick={(e) => { e.stopPropagation(); handleRemoveMember(label.id, m.id); }}
                               className="w-3.5 h-3.5 flex items-center justify-center rounded-full hover:bg-indigo-300 text-indigo-500 hover:text-indigo-800 transition"
                               title="멤버 삭제"
                             >

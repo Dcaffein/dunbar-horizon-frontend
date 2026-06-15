@@ -35,7 +35,13 @@ export default function CytoscapeWrapper({
       setCy(cyRef.current);
     }
 
+    const observer = new ResizeObserver(() => {
+      cyRef.current?.resize();
+    });
+    observer.observe(containerRef.current);
+
     return () => {
+      observer.disconnect();
       if (cyRef.current) {
         cyRef.current.destroy();
         cyRef.current = null;
