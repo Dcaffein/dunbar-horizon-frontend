@@ -1,20 +1,21 @@
 import Link from "next/link";
 import { isRedirectError } from "@/api/apiClient";
-import { getNotificationsAction } from "@/app/actions/notification";
-import { NotificationResponseType } from "@/api/model/notificationResponseType";
-import FlagInvitationList from "@/components/Flag/FlagInvitationList";
-import type { NotificationResponse } from "@/api/model/notificationResponse";
+import { getReceivedInvitationsAction, getSentInvitationsAction } from "@/app/actions/flag";
+import FlagInvitationTabs from "@/components/Flag/FlagInvitationTabs";
+import type { ReceivedFlagInvitationResult } from "@/api/model/receivedFlagInvitationResult";
+import type { SentFlagInvitationResult } from "@/api/model/sentFlagInvitationResult";
 
 export default async function FlagInvitationsPage() {
-  let invitations: NotificationResponse[] = [];
+  let received: ReceivedFlagInvitationResult[] = [];
+  let sent: SentFlagInvitationResult[] = [];
 
   try {
-    const result = await getNotificationsAction(0, 100);
-    if (result.success && result.data) {
-      invitations = (result.data.content ?? []).filter(
-        (n) => n.type === NotificationResponseType.FLAG_INVITATION,
-      );
-    }
+    const [r, s] = await Promise.all([
+      getReceivedInvitationsAction(),
+      getSentInvitationsAction(),
+    ]);
+    received = r.data;
+    sent = s.data;
   } catch (error) {
     if (isRedirectError(error)) throw error;
   }
@@ -27,10 +28,10 @@ export default async function FlagInvitationsPage() {
             <path d="m15 18-6-6 6-6" />
           </svg>
         </Link>
-        <h1 className="text-base font-bold text-gray-900">받은 초대</h1>
+        <h1 className="text-base font-bold text-gray-900">Flag 초대</h1>
       </header>
       <div className="flex-1 max-w-lg mx-auto w-full">
-        <FlagInvitationList initialInvitations={invitations} />
+        <FlagInvitationTabs initialReceived={received} initialSent={sent} />
       </div>
     </div>
   );

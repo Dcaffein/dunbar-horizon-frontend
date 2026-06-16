@@ -9,10 +9,12 @@ import type { FlagCapacityUpdateRequest } from "@/api/model/flagCapacityUpdateRe
 import type { FlagScheduleUpdateRequest } from "@/api/model/flagScheduleUpdateRequest";
 import type { MemorialResult } from "@/api/model/memorialResult";
 import type { CommentResult } from "@/api/model/commentResult";
+import type { ReceivedFlagInvitationResult } from "@/api/model/receivedFlagInvitationResult";
+import type { SentFlagInvitationResult } from "@/api/model/sentFlagInvitationResult";
 
 export async function getHostingFlagsAction() {
   try {
-    const data = await apiClient.get<FlagResult[]>("/api/v1/flags/me/hosting");
+    const data = await apiClient.get<FlagResult[]>("/api/v1/flags/me?role=HOST");
     return { success: true as const, data };
   } catch (error) {
     if (isRedirectError(error)) throw error;
@@ -22,7 +24,7 @@ export async function getHostingFlagsAction() {
 
 export async function getParticipatingFlagsAction() {
   try {
-    const data = await apiClient.get<FlagResult[]>("/api/v1/flags/me/participating");
+    const data = await apiClient.get<FlagResult[]>("/api/v1/flags/me?role=PARTICIPANT");
     return { success: true as const, data };
   } catch (error) {
     if (isRedirectError(error)) throw error;
@@ -140,6 +142,36 @@ export async function rejectInvitationAction(invitationId: number) {
   } catch (error) {
     if (isRedirectError(error)) throw error;
     return { success: false as const, message: "초대 거절에 실패했습니다." };
+  }
+}
+
+export async function getReceivedInvitationsAction() {
+  try {
+    const data = await apiClient.get<ReceivedFlagInvitationResult[]>("/api/v1/flag-invitations/received");
+    return { success: true as const, data };
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    return { success: false as const, data: [] as ReceivedFlagInvitationResult[] };
+  }
+}
+
+export async function getSentInvitationsAction() {
+  try {
+    const data = await apiClient.get<SentFlagInvitationResult[]>("/api/v1/flag-invitations/sent");
+    return { success: true as const, data };
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    return { success: false as const, data: [] as SentFlagInvitationResult[] };
+  }
+}
+
+export async function cancelInvitationAction(invitationId: number) {
+  try {
+    await apiClient.delete(`/api/v1/flag-invitations/${invitationId}`);
+    return { success: true as const };
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    return { success: false as const, message: "초대 취소에 실패했습니다." };
   }
 }
 
