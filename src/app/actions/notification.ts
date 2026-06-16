@@ -53,13 +53,24 @@ export async function registerDeviceTokenAction(token: string) {
   }
 }
 
-export async function removeDeviceTokenAction(token: string) {
+export async function removeDeviceTokenAction() {
   try {
-    await apiClient.delete("/api/v1/notifications/device-token", { token });
+    await apiClient.delete("/api/v1/notifications/device-token");
     return { success: true as const };
   } catch (error) {
     if (isRedirectError(error)) throw error;
     console.error("removeDeviceTokenAction error:", error);
+    return { success: false as const };
+  }
+}
+
+export async function deleteNotificationAction(notificationId: string) {
+  try {
+    await apiClient.delete(`/api/v1/notifications/${notificationId}`);
+    return { success: true as const };
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    console.error("deleteNotificationAction error:", error);
     return { success: false as const };
   }
 }

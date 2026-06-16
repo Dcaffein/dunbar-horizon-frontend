@@ -29,15 +29,23 @@ export function useFcmToken(): UseFcmTokenResult {
         return;
       }
 
-      const token = await getCurrentToken();
-      if (!token) {
+      // localStorage를 1차 소스로 사용 (toggleOn/Off 성공 시 동기화됨)
+      const storedToken = localStorage.getItem("fcmToken");
+      if (!storedToken) {
+        setAlarmOn(false);
         setLoading(false);
         return;
       }
 
-      const result = await checkDeviceTokenStatusAction(token);
+      // 백엔드와 동기화 확인
+      const result = await checkDeviceTokenStatusAction(storedToken);
       if (result.success) {
-        setAlarmOn(result.data?.registered ?? false);
+        const registered = result.data?.registered ?? false;
+        setAlarmOn(registered);
+        if (!registered) localStorage.removeItem("fcmToken");
+      } else {
+        // 백엔드 확인 실패 시 localStorage 상태 유지
+        setAlarmOn(true);
       }
       setLoading(false);
     }
@@ -79,10 +87,7 @@ export function useFcmToken(): UseFcmTokenResult {
   const toggleOff = useCallback(async () => {
     setLoading(true);
     try {
-      const token = await getCurrentToken();
-      if (!token) return;
-
-      const result = await removeDeviceTokenAction(token);
+      const result = await removeDeviceTokenAction();
       if (result.success) {
         localStorage.removeItem("fcmToken");
         setAlarmOn(false);

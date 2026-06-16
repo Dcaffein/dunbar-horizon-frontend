@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { FriendshipDetailResult } from "@/api/model/friendshipDetailResult";
@@ -32,10 +32,15 @@ export default function FriendProfile({ profile, userId, myLabels }: FriendProfi
   const [settingsError, setSettingsError] = useState<string | null>(null);
   const [recentFlags, setRecentFlags] = useState<FlagResult[] | null>(null);
   const [selectedLabel, setSelectedLabel] = useState<LabelResult | null>(null);
+  const [revealDismissed, setRevealDismissed] = useState(false);
+  const traceCalled = useRef(false);
 
   const initial = (profile.friendAlias || profile.friendNickname)?.charAt(0) ?? "?";
 
   useEffect(() => {
+    if (traceCalled.current) return;
+    traceCalled.current = true;
+
     recordTraceAction(userId).then((r) => {
       if (r?.data?.revealed) setRevealed(true);
     });
@@ -137,7 +142,6 @@ export default function FriendProfile({ profile, userId, myLabels }: FriendProfi
                 ) : (
                   <p className="text-xs font-bold text-gray-900 break-all leading-tight">{profile.friendNickname}</p>
                 )}
-                {revealed && <p className="text-xs text-amber-600 mt-1">👀</p>}
               </div>
             </div>
 
@@ -294,6 +298,41 @@ export default function FriendProfile({ profile, userId, myLabels }: FriendProfi
 
         </div>
       </div>
+
+      {/* Reveal 팝업 */}
+      {revealed && !revealDismissed && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-6">
+          <div className="w-full max-w-sm bg-white rounded-2xl shadow-xl overflow-hidden">
+            <div className="px-6 pt-8 pb-6 flex flex-col items-center text-center">
+              <p className="text-xs font-medium text-indigo-500 mb-4">최근 서로 간 방문이 잦았어요</p>
+              <div className="w-16 h-16 rounded-full bg-indigo-100 flex items-center justify-center overflow-hidden mb-3">
+                {profile.friendProfileImageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={profile.friendProfileImageUrl} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-2xl font-bold text-indigo-700">{initial}</span>
+                )}
+              </div>
+              {profile.friendAlias ? (
+                <>
+                  <p className="text-base font-bold text-gray-900">{profile.friendAlias}</p>
+                  <p className="text-sm text-gray-400 mt-0.5">{profile.friendNickname}</p>
+                </>
+              ) : (
+                <p className="text-base font-bold text-gray-900">{profile.friendNickname}</p>
+              )}
+            </div>
+            <div className="px-6 py-4">
+              <button
+                onClick={() => setRevealDismissed(true)}
+                className="w-full bg-indigo-600 text-white text-sm font-semibold py-3 rounded-xl hover:bg-indigo-700 transition"
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 라벨 바텀시트 */}
       {selectedLabel && (

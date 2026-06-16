@@ -23,7 +23,7 @@ export default function NotificationBell({ initialUnreadCount }: NotificationBel
       if (currentToken === null) {
         // getToken 실패 = 브라우저 권한 취소됨
         if (cachedToken) {
-          await removeDeviceTokenAction(cachedToken);
+          await removeDeviceTokenAction();
           localStorage.removeItem("fcmToken");
         }
         return;

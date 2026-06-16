@@ -7,6 +7,7 @@
  */
 import type {
   LoginRequestDto,
+  LogoutRequest,
   PresignProfileImageParams,
   PresignedUploadResult,
   SignupRequestDto,
@@ -211,14 +212,14 @@ export const getLogoutUrl = () => {
   return `/api/auth/tokens`
 }
 
-export const logout = async ( options?: RequestInit): Promise<logoutResponse> => {
+export const logout = async (logoutRequest?: LogoutRequest, options?: RequestInit): Promise<logoutResponse> => {
 
   return customFetch<logoutResponse>(getLogoutUrl(),
   {
     ...options,
-    method: 'DELETE'
-
-
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(logoutRequest)
   }
 );}
 

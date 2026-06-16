@@ -1,11 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import type { SocialProfileResult } from "@/api/model/socialProfileResult";
+import type { FlagResult } from "@/api/model/flagResult";
+import type { IntermediaryResult } from "@/api/model/intermediaryResult";
 import { recordTraceAction } from "@/app/actions/social";
 import { getConnectionPathAction } from "@/app/actions/friendship";
 import { sendFriendRequestAction } from "@/app/actions/friendRequest";
+import { getUserRecentFlagsAction } from "@/app/actions/flag";
 
 interface PublicProfileProps {
   profile: SocialProfileResult;
@@ -18,16 +22,25 @@ type PathStatus = "idle" | "loading" | "done";
 export default function PublicProfile({ profile, userId }: PublicProfileProps) {
   const router = useRouter();
   const [revealed, setRevealed] = useState(false);
+  const [revealDismissed, setRevealDismissed] = useState(false);
   const [requestStatus, setRequestStatus] = useState<RequestStatus>("idle");
   const [pathStatus, setPathStatus] = useState<PathStatus>("idle");
-  const [connectionLabel, setConnectionLabel] = useState<string | null>(null);
+  const [connectionIntermediary, setConnectionIntermediary] = useState<IntermediaryResult | null | undefined>(undefined);
+  const [recentFlags, setRecentFlags] = useState<FlagResult[] | null>(null);
+  const traceCalled = useRef(false);
 
   const displayName = profile.nickname ?? "알 수 없는 사용자";
   const initial = displayName.charAt(0);
 
   useEffect(() => {
+    if (traceCalled.current) return;
+    traceCalled.current = true;
+
     recordTraceAction(userId).then((r) => {
       if (r?.data?.revealed) setRevealed(true);
+    });
+    getUserRecentFlagsAction(userId).then((r) => {
+      setRecentFlags(r.data ?? []);
     });
   }, [userId]);
 
@@ -36,13 +49,9 @@ export default function PublicProfile({ profile, userId }: PublicProfileProps) {
     const result = await getConnectionPathAction(userId);
     if (result?.success && result.data) {
       const intermediary = result.data.intermediaries?.[0];
-      if (intermediary?.nickname) {
-        setConnectionLabel(`${intermediary.nickname}님을 통한 연결이 자연스러워 보입니다.`);
-      } else {
-        setConnectionLabel("공통 연결 고리를 찾을 수 없습니다.");
-      }
+      setConnectionIntermediary(intermediary ?? null);
     } else {
-      setConnectionLabel("공통 연결 고리를 찾을 수 없습니다.");
+      setConnectionIntermediary(null);
     }
     setPathStatus("done");
   }
@@ -68,84 +77,139 @@ export default function PublicProfile({ profile, userId }: PublicProfileProps) {
         <h1 className="text-base font-bold text-gray-900">프로필</h1>
       </header>
 
-      <div className="flex-1 overflow-y-auto">
-        {/* 프로필 헤더 */}
-        <div className="pt-6 pb-4 flex flex-col items-center px-4">
-          <div className="w-14 h-14 rounded-full bg-indigo-100 flex items-center justify-center overflow-hidden shrink-0">
-            {profile.profileImageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={profile.profileImageUrl} alt="" className="w-full h-full object-cover" />
-            ) : (
-              <span className="text-indigo-700 font-bold text-xl">{initial}</span>
-            )}
-          </div>
-          <p className="mt-3 text-base font-bold text-gray-900">{displayName}</p>
-          {revealed && (
-            <span className="mt-2 inline-flex items-center gap-1 text-xs text-amber-600 font-medium">
-              <span>👀</span> 최근 서로 자주 방문
-            </span>
-          )}
-        </div>
+      <div className="flex-1 overflow-y-auto pb-8">
+        <div className="flex gap-3 px-4 mt-5 items-start">
 
-        {/* 액션 버튼 */}
-        <div className="px-4 py-4 space-y-3">
-          <div className="grid grid-cols-2 gap-3">
+          {/* 좌측 (1/4) — 명함 */}
+          <div className="w-1/4 shrink-0 flex flex-col gap-3">
+            <div className="bg-white rounded-xl border border-gray-200 p-3 flex flex-col items-center text-center gap-2">
+              <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center overflow-hidden shrink-0">
+                {profile.profileImageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={profile.profileImageUrl} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-indigo-700 font-bold text-sm">{initial}</span>
+                )}
+              </div>
+              <p className="text-xs font-bold text-gray-900 break-all leading-tight">{displayName}</p>
+            </div>
+
+          </div>
+
+          {/* 우측 (3/4) — 액션 섹션 */}
+          <div className="flex-1 min-w-0 flex flex-col gap-2">
             {/* 친구 요청 */}
             {requestStatus === "sent" ? (
-              <div className="flex flex-col items-center justify-center gap-2 py-5 bg-emerald-50 border border-emerald-200 rounded-2xl">
-                <span className="text-2xl">✓</span>
-                <span className="text-xs font-semibold text-emerald-600">요청 완료</span>
+              <div className="w-full text-sm py-2.5 px-4 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center gap-2 font-medium text-emerald-600">
+                <span>✓</span> 요청 완료
               </div>
             ) : (
               <button
                 onClick={handleFriendRequest}
                 disabled={requestStatus === "loading"}
-                className="flex flex-col items-center justify-center gap-2 py-5 bg-white border border-gray-200 rounded-2xl hover:bg-gray-50 active:bg-gray-100 transition disabled:opacity-50"
+                className="w-full text-sm py-2.5 px-4 bg-white border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 active:bg-gray-100 transition font-medium flex items-center justify-between disabled:opacity-50"
               >
-                <span className="text-2xl">👋</span>
-                <span className="text-xs font-semibold text-gray-700">
+                <span className="flex items-center gap-2">
+                  <span>👋</span>
                   {requestStatus === "loading" ? "전송 중..." : "친구 요청"}
                 </span>
+                <span className="text-gray-500 text-base">›</span>
               </button>
             )}
+            {requestStatus === "error" && (
+              <p className="text-xs text-red-500 px-1">친구 요청에 실패했습니다.</p>
+            )}
+
+            {/* 최근 Flag */}
+            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+              {recentFlags === null && (
+                <p className="text-xs text-gray-400 px-3 py-3">불러오는 중...</p>
+              )}
+              {recentFlags?.length === 0 && (
+                <p className="text-xs text-gray-400 px-3 py-3">참여한 Flag가 없습니다.</p>
+              )}
+              {recentFlags?.map((flag, idx) => (
+                <Link
+                  key={flag.id}
+                  href={`/flags/${flag.id}`}
+                  className={`flex items-center gap-2 px-3 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition ${idx !== 0 ? "border-t border-gray-100" : ""}`}
+                >
+                  <span className="text-xs text-indigo-400 shrink-0">🚩</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium text-gray-800 truncate">{flag.title}</p>
+                    {flag.host?.nickname && (
+                      <p className="text-xs text-gray-400 truncate">{flag.host.nickname}</p>
+                    )}
+                  </div>
+                  <span className="text-gray-500 text-base shrink-0">›</span>
+                </Link>
+              ))}
+            </div>
 
             {/* 연결 고리 찾기 */}
-            {pathStatus === "idle" && (
-              <button
-                onClick={handleFindPath}
-                className="flex flex-col items-center justify-center gap-2 py-5 bg-white border border-gray-200 rounded-2xl hover:bg-gray-50 active:bg-gray-100 transition"
-              >
-                <span className="text-2xl">🔗</span>
-                <span className="text-xs font-semibold text-gray-700">연결 고리 찾기</span>
-              </button>
-            )}
-            {pathStatus === "loading" && (
-              <div className="flex flex-col items-center justify-center gap-2 py-5 bg-white border border-gray-200 rounded-2xl opacity-60">
-                <span className="text-2xl">🔗</span>
-                <span className="text-xs font-semibold text-gray-400">분석 중...</span>
-              </div>
-            )}
+            <button
+              onClick={handleFindPath}
+              disabled={pathStatus !== "idle"}
+              className="w-full text-sm py-2.5 px-4 bg-white border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 active:bg-gray-100 transition font-medium flex items-center justify-between disabled:opacity-50"
+            >
+              <span className="flex items-center gap-2">
+                <span>🔗</span>
+                {pathStatus === "loading" ? "분석 중..." : "연결 고리 찾기"}
+              </span>
+            </button>
+
             {pathStatus === "done" && (
-              <div className="flex flex-col items-center justify-center gap-2 py-5 bg-indigo-50 border border-indigo-100 rounded-2xl">
-                <span className="text-2xl">🔗</span>
-                <span className="text-xs font-semibold text-indigo-500">분석 완료</span>
-              </div>
+              connectionIntermediary ? (
+                <Link
+                  href={`/users/${connectionIntermediary.userId}`}
+                  className="bg-white border border-indigo-100 rounded-xl p-3 flex items-center gap-3 hover:bg-indigo-50 transition"
+                >
+                  <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
+                    <span className="text-sm font-bold text-indigo-700">
+                      {connectionIntermediary.nickname?.charAt(0) ?? "?"}
+                    </span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-gray-900 truncate">{connectionIntermediary.nickname}</p>
+                    <p className="text-xs text-gray-500">님을 통한 연결이 자연스러워 보입니다.</p>
+                  </div>
+                  <span className="text-gray-500 text-base shrink-0">›</span>
+                </Link>
+              ) : (
+                <p className="px-1 text-xs text-gray-400">공통 연결 고리를 찾을 수 없습니다.</p>
+              )
             )}
           </div>
-
-          {requestStatus === "error" && (
-            <p className="text-xs text-red-500 text-center">친구 요청에 실패했습니다.</p>
-          )}
-
-          {/* 연결 경로 결과 */}
-          {pathStatus === "done" && connectionLabel && (
-            <div className="px-4 py-4 bg-white border border-gray-200 rounded-2xl">
-              <p className="text-xs font-bold text-gray-400 mb-1.5">연결 경로</p>
-              <p className="text-sm text-gray-700">{connectionLabel}</p>
-            </div>
-          )}
         </div>
       </div>
+
+      {/* Reveal 팝업 */}
+      {revealed && !revealDismissed && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-6">
+          <div className="w-full max-w-sm bg-white rounded-2xl shadow-xl overflow-hidden">
+            <div className="px-6 pt-8 pb-6 flex flex-col items-center text-center">
+              <p className="text-xs font-medium text-indigo-500 mb-4">최근 서로 간 방문이 잦았어요</p>
+              <div className="w-16 h-16 rounded-full bg-indigo-100 flex items-center justify-center overflow-hidden mb-3">
+                {profile.profileImageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={profile.profileImageUrl} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-2xl font-bold text-indigo-700">{initial}</span>
+                )}
+              </div>
+              <p className="text-base font-bold text-gray-900">{displayName}</p>
+            </div>
+            <div className="px-6 py-4">
+              <button
+                onClick={() => setRevealDismissed(true)}
+                className="w-full bg-indigo-600 text-white text-sm font-semibold py-3 rounded-xl hover:bg-indigo-700 transition"
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
