@@ -1,35 +1,33 @@
 import FlagInvitationList from "@/components/Flag/FlagInvitationList";
 import NotificationList from "@/components/Notifications/NotificationList";
 import type { NotificationResponse } from "@/api/model/notificationResponse";
+import type { ReceivedFlagInvitationResult } from "@/api/model/receivedFlagInvitationResult";
 import { NotificationResponseType } from "@/api/model/notificationResponseType";
 import Link from "next/link";
 
-const MOCK_INVITATIONS: NotificationResponse[] = [
+const MOCK_INVITATIONS: ReceivedFlagInvitationResult[] = [
   {
-    id: "1",
-    type: NotificationResponseType.FLAG_INVITATION,
-    title: "수환님이 Flag에 초대했습니다",
-    content: "한강 치맥 파티 🍗 · 6. 21. 17:00",
-    metadata: { invitationId: 101, flagId: 1 } as unknown as NotificationResponse["metadata"],
-    isRead: false,
+    id: 1,
+    flagId: 1,
+    flagTitle: "한강 치맥 파티 🍗",
+    flagDescription: "6. 21. 17:00",
+    inviterNickname: "수환",
     createdAt: new Date(Date.now() - 5 * 60000).toISOString(),
   },
   {
-    id: "2",
-    type: NotificationResponseType.FLAG_INVITATION,
-    title: "지민님이 Flag에 초대했습니다",
-    content: "북한산 트레킹 🏔️ · 6. 28. 07:00",
-    metadata: { invitationId: 102, flagId: 4 } as unknown as NotificationResponse["metadata"],
-    isRead: false,
+    id: 2,
+    flagId: 4,
+    flagTitle: "북한산 트레킹 🏔️",
+    flagDescription: "6. 28. 07:00",
+    inviterNickname: "지민",
     createdAt: new Date(Date.now() - 2 * 3600000).toISOString(),
   },
   {
-    id: "3",
-    type: NotificationResponseType.FLAG_INVITATION,
-    title: "현우님이 Flag에 초대했습니다",
-    content: "홍대 보드게임 카페 🎲 · 7. 5. 14:00",
-    metadata: { invitationId: 103, flagId: 5 } as unknown as NotificationResponse["metadata"],
-    isRead: true,
+    id: 3,
+    flagId: 5,
+    flagTitle: "홍대 보드게임 카페 🎲",
+    flagDescription: "7. 5. 14:00",
+    inviterNickname: "현우",
     createdAt: new Date(Date.now() - 86400000).toISOString(),
   },
 ];

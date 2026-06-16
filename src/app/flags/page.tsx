@@ -37,12 +37,20 @@ export default async function FlagsPage() {
           </Link>
           <h1 className="text-lg font-bold text-gray-900">Flag</h1>
         </div>
-        <Link
-          href="/flags/new"
-          className="text-sm font-medium text-indigo-600 hover:text-indigo-700 px-3 py-1.5 rounded-lg hover:bg-indigo-50 transition-colors"
-        >
-          + 만들기
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/flags/invitations"
+            className="text-sm font-medium text-gray-600 hover:text-gray-800 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+          >
+            초대
+          </Link>
+          <Link
+            href="/flags/new"
+            className="text-sm font-medium text-indigo-600 hover:text-indigo-700 px-3 py-1.5 rounded-lg hover:bg-indigo-50 transition-colors"
+          >
+            + 만들기
+          </Link>
+        </div>
       </header>
 
       <main className="max-w-lg mx-auto">
