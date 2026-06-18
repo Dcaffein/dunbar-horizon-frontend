@@ -111,55 +111,46 @@ export default function SocialGraph({
     null,
   );
 
+  const memoizedLayout = useMemo(
+    () => getLayoutOptions(layoutType, false, circleSize),
+    [layoutType, circleSize],
+  );
+
   const cyRef = useRef<cytoscape.Core | null>(null);
   const { zoomFit, zoomToNode } = useGraphZoom(cyRef);
 
+  // 스테일 클로저 없이 최신 layout 옵션을 콜백에서 읽기 위한 ref
+  const memoizedLayoutRef = useRef(memoizedLayout);
+  useEffect(() => {
+    memoizedLayoutRef.current = memoizedLayout;
+  }, [memoizedLayout]);
+
+
   const handleLayoutStop = useCallback(() => {
     zoomFit();
+    // 초기 레이아웃 완료 후 1회 정제 패스 — 연결 없는 클러스터 분리
+    const cy = cyRef.current;
+    if (!cy || cy.elements().length === 0) return;
+    const layout = memoizedLayoutRef.current;
+    const refinementOptions = {
+      ...layout,
+      numIter: Math.min(layout.numIter ?? 2500, 800),
+      quality: "default" as const,
+      animate: true,
+      animationDuration: 400,
+      fit: false,
+    };
     setTimeout(() => {
-      const cy = cyRef.current;
-      if (!cy || cy.nodes().length === 0) return;
-
-      let bestNodeId: string | null = null;
-
-      if (layoutType === "connectivity") {
-        let maxDegree = -1;
-        cy.nodes().forEach((node: any) => {
-          if (node.data("type") === "suggestion") return;
-          const deg = node.degree(false);
-          if (deg > maxDegree) {
-            maxDegree = deg;
-            bestNodeId = node.id();
-          }
-        });
-      } else if (layoutType === "intimacy") {
-        let maxIntimacy = -1;
-        for (const f of friendsList) {
-          if (f.intimacy > maxIntimacy && cy.getElementById(String(f.friendId)).length > 0) {
-            maxIntimacy = f.intimacy;
-            bestNodeId = String(f.friendId);
-          }
-        }
-      } else if (layoutType === "interest") {
-        let maxDelta = -Infinity;
-        for (const f of friendsList) {
-          const delta = (f.myInterestScore ?? 0) - (f.intimacy ?? 0);
-          if (delta > maxDelta && cy.getElementById(String(f.friendId)).length > 0) {
-            maxDelta = delta;
-            bestNodeId = String(f.friendId);
-          }
-        }
-      }
-
-      if (bestNodeId) setSelectedNodeId(bestNodeId);
+      if (cy.elements().length === 0) return;
+      cy.layout(refinementOptions).run();
     }, ZOOM_FIT_DURATION);
-  }, [zoomFit, layoutType, friendsList, cyRef]);
+  }, [zoomFit]);
+
 
   const elements = useGraphData({
     friends: friendsList,
     edges,
     circleNodeIds,
-    layoutType,
     suggestionNodes,
     suggestionAnchorId,
     suggestionAnchorPos,
@@ -209,11 +200,6 @@ export default function SocialGraph({
 
   const CY_STYLE = useMemo(() => ({ width: "100%", height: "100%" }), []);
 
-  const memoizedLayout = useMemo(
-    () => getLayoutOptions(layoutType, false, circleSize),
-    [layoutType, circleSize],
-  );
-
   const memoizedStylesheet = useMemo(
     () => getGraphStylesheet(layoutType),
     [layoutType],
@@ -232,6 +218,7 @@ export default function SocialGraph({
   async function handleAddToGraph(friendId: number) {
     if (manuallyHiddenIds.has(friendId)) {
       // 숨김 해제: circleSize 노드 복원 — 엣지는 이미 edges state에 존재
+      setSelectedNodeId(String(friendId));
       setManuallyHiddenIds((prev) => {
         const next = new Set(prev);
         next.delete(friendId);
@@ -272,6 +259,9 @@ export default function SocialGraph({
   }
 
   function handleRemoveFromGraph(friendId: number) {
+    if (selectedNodeId === String(friendId)) {
+      setSelectedNodeId(null);
+    }
     if (manuallyAddedIds.has(friendId)) {
       setManuallyAddedIds((prev) => {
         const next = new Set(prev);
@@ -357,13 +347,34 @@ export default function SocialGraph({
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // 노드 클릭 시 경량 레이아웃 정제 — 겹친 클러스터를 점진적으로 분리
+  useEffect(() => {
+    const cy = cyRef.current;
+    if (!cy || !selectedNodeId || cy.elements().length === 0) return;
+    const layout = memoizedLayoutRef.current;
+    const lightOptions = {
+      ...layout,
+      numIter: Math.min(layout.numIter ?? 2500, 300),
+      quality: "default" as const,
+      animate: true,
+      animationDuration: 250,
+      fit: false,
+    };
+    const layoutInstance = cy.layout(lightOptions);
+    layoutInstance.run();
+    return () => { layoutInstance.stop(); };
+  }, [selectedNodeId]);
+
   // 노드 하이라이트 효과
   useEffect(() => {
     const cy = cyRef.current;
     if (!cy) return;
 
     if (!selectedNodeId) {
-      cy.elements().removeClass("highlighted faded visible");
+      cy.batch(() => {
+        cy.elements().removeClass("highlighted faded visible");
+        cy.elements().removeStyle("opacity");
+      });
       return;
     }
 
@@ -371,19 +382,27 @@ export default function SocialGraph({
       const node = cy.getElementById(selectedNodeId);
       if (node.length === 0) return;
 
-      cy.elements().removeClass("highlighted faded visible");
-      cy.elements()
-        .difference(node.neighborhood().union(node))
-        .addClass("faded");
-      node.addClass("highlighted");
-      node.neighborhood("node").addClass("highlighted");
-      node.connectedEdges().addClass("visible");
+      cy.batch(() => {
+        const all = cy.elements();
+        all.removeClass("highlighted faded visible");
+        all.removeStyle("opacity");
+
+        const neighborhood = node.closedNeighborhood();
+        const faded = all.not(neighborhood);
+        // 클래스 대신 bypass 스타일 직접 주입 → 셀렉터 매칭 비용 제거
+        faded.filter("node").style("opacity", 0.4);
+        faded.filter("edge").style("opacity", 0.2);
+
+        node.addClass("highlighted");
+        node.neighborhood("node").addClass("highlighted");
+        node.connectedEdges().addClass("visible");
+      });
 
       zoomToNode(selectedNodeId);
     }, 100);
 
     return () => clearTimeout(timer);
-  }, [selectedNodeId, edges, layoutType, zoomToNode]);
+  }, [selectedNodeId, edges, zoomToNode]);
 
 
   async function handleSuggestionSendRequest(receiverId: number) {

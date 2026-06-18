@@ -61,6 +61,8 @@ export default function CytoscapeWrapper({
 
     // 단순 엣지 추가 여부를 판별할 변수
     let isLazyLoadUpdate = false;
+    let addedCount = 0;
+    let removedCount = 0;
     const hadElementsBefore = cy.elements().length > 0;
 
     cy.batch(() => {
@@ -69,11 +71,13 @@ export default function CytoscapeWrapper({
       const elementsToRemove = cy
         .elements()
         .filter((el: any) => !newElementIds.has(el.id()));
+      removedCount = elementsToRemove.length;
       if (elementsToRemove.length > 0) cy.remove(elementsToRemove);
 
       const elementsToAdd = elements.filter(
         (el: any) => cy.getElementById(el.data.id).length === 0,
       );
+      addedCount = elementsToAdd.length;
       if (elementsToAdd.length > 0) {
         // 기존 노드가 남아있을 때만 그래프 중심 기준으로 position 없는 새 노드 배치
         // 초기 로드/전체 교체 시에는 cy가 비어있어 cy.extent()가 유효하지 않으므로 적용 안 함
@@ -105,9 +109,25 @@ export default function CytoscapeWrapper({
         (elementsToRemove.length === 0 || removedAreSuggestionOnly);
     });
 
-    // 최초 렌더링/전체 교체: layoutstop 후 onLayoutStop 콜백으로 zoom 재조정
-    // lazy-load: 현재 줌/팬 유지
-    const layoutInstance = cy.layout({ ...layout, fit: false });
+    // clearSuggestions() 등으로 elements 참조만 바뀌고 실제 추가/삭제가 없으면 layout 재실행 불필요
+    if (hadElementsBefore && addedCount === 0 && removedCount === 0) return;
+
+    // 최초 렌더링/전체 교체: 원본 파라미터 사용, layoutstop 후 onLayoutStop 콜백
+    // lazy-load(요소 추가/삭제): 가벼운 파라미터, onLazyLayoutStop 콜백
+    const LAZY_MAX_ITER = 1000;
+    const layoutParams = isLazyLoadUpdate
+      ? {
+          ...layout,
+          fit: false,
+          numIter: Math.min(layout.numIter ?? LAZY_MAX_ITER, LAZY_MAX_ITER),
+          quality: "default" as const,
+        }
+      : {
+          ...layout,
+          fit: false,
+          ...(!hadElementsBefore ? { randomize: true } : {}),
+        };
+    const layoutInstance = cy.layout(layoutParams);
     if (!isLazyLoadUpdate && onLayoutStop) {
       layoutInstance.one("layoutstop", onLayoutStop);
     }
@@ -122,12 +142,19 @@ export default function CytoscapeWrapper({
   }, [stylesheet]); // 테마가 바뀔 때 실행됨
 
   // 테마(레이아웃) 변경 시 기존 위치에서 물리 엔진 재가동 — 카메라 위치는 유지
+  // 이미 노드 위치가 있으므로(randomize: false) 초기 배치보다 적은 iteration으로 수렴
   useEffect(() => {
     const cy = cyRef.current;
     if (!cy || cy.elements().length === 0) return;
-    const layoutInstance = cy.layout({ ...layout, fit: false });
-    layoutInstance.run();
-  }, [layout]); // eslint-disable-line react-hooks/exhaustive-deps
+    const THEME_CHANGE_MAX_ITER = 2500;
+    const themeLayout = {
+      ...layout,
+      fit: false,
+      numIter: Math.min(layout.numIter ?? THEME_CHANGE_MAX_ITER, THEME_CHANGE_MAX_ITER),
+      quality: "default" as const,
+    };
+    cy.layout(themeLayout).run();
+  }, [layout]);
 
   return <div ref={containerRef} style={{ width: "100%", height: "100%" }} />;
 }

@@ -2,14 +2,13 @@
 
 import { useMemo } from "react";
 import type { ElementDefinition } from "cytoscape";
-import type { FriendshipDetail, NetworkFriendEdge, LayoutType } from "./types";
+import type { FriendshipDetail, NetworkFriendEdge } from "./types";
 import type { AnchorExpansionResult } from "@/api/model/anchorExpansionResult";
 
 interface UseGraphDataProps {
   friends: FriendshipDetail[];
   edges: NetworkFriendEdge[];
   circleNodeIds: number[];
-  layoutType: LayoutType;
   suggestionNodes: AnchorExpansionResult[];
   suggestionAnchorId: number | null;
   suggestionAnchorPos: { x: number; y: number } | null;
@@ -37,7 +36,6 @@ export function useGraphData({
   friends,
   edges,
   circleNodeIds,
-  layoutType,
   suggestionNodes,
   suggestionAnchorId,
   suggestionAnchorPos,
@@ -82,7 +80,6 @@ export function useGraphData({
 
     const nodes: ElementDefinition[] = dedupById(
       allDisplayFriends.map((f) => {
-        const isManual = manuallyAddedIds.has(f.friendId);
         return {
           data: {
             id: String(f.friendId),
@@ -94,13 +91,9 @@ export function useGraphData({
             delta: Math.max(0, f.myInterestScore - f.intimacy),
             mutualCount: connectionMap.get(f.friendId) || 0,
             isMuted: f.isMuted,
-            type: isManual ? "manual" : "friend",
+            type: "friend",
           },
-          classes: buzzUnreadSet.has(f.friendId)
-            ? "buzz-unread"
-            : isManual
-              ? "manual"
-              : undefined,
+          classes: buzzUnreadSet.has(f.friendId) ? "buzz-unread" : undefined,
         };
       }),
       "node",

@@ -86,16 +86,6 @@ export const getGraphStylesheet = (
       },
     },
     {
-      selector: "node.manual",
-      style: {
-        "background-color": "#e0f2fe",
-        "background-opacity": 0.7,
-        "border-color": "#0ea5e9",
-        "border-style": "dashed",
-        "border-width": 2.5,
-      },
-    },
-    {
       selector: "node.suggestion",
       style: {
         "background-color": "#ccfbf1",
