@@ -38,8 +38,12 @@ function formatScheduleRange(start?: string, end?: string): string {
     return `${d.getMonth() + 1}. ${d.getDate()}. ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
   };
   if (!end) return fmt(start);
-  const endDate = new Date(end);
-  return `${fmt(start)} ~ ${String(endDate.getHours()).padStart(2, "0")}:${String(endDate.getMinutes()).padStart(2, "0")}`;
+  const s = new Date(start);
+  const e = new Date(end);
+  const endStr = s.toDateString() === e.toDateString()
+    ? `${String(e.getHours()).padStart(2, "0")}:${String(e.getMinutes()).padStart(2, "0")}`
+    : fmt(end);
+  return `${fmt(start)} ~ ${endStr}`;
 }
 
 function remainingLabel(target?: string): { text: string; urgent: boolean } {

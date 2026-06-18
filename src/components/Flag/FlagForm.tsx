@@ -138,16 +138,7 @@ export default function FlagForm({ parentFlagId, flagId, initialValues }: FlagFo
     return "Flag 만들기";
   }
 
-  function splitDt(dt: string): [string, string] {
-    const [d = "", t = ""] = dt.split("T");
-    return [d, t];
-  }
-
-  const [startDate, startTime] = splitDt(startDateTime);
-  const [endDate, endTime] = splitDt(endDateTime);
-  const [deadlineDate, deadlineTime] = splitDt(deadline);
-
-  const dtInputCls = "text-sm text-gray-800 bg-gray-50 border border-gray-100 rounded-xl px-3 py-2.5 focus:outline-none focus:border-indigo-300 transition-colors";
+  const dtInputCls = "w-full text-sm text-gray-800 bg-gray-50 border border-gray-100 rounded-xl px-3 py-2.5 focus:outline-none focus:border-indigo-300 transition-colors";
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -203,47 +194,29 @@ export default function FlagForm({ parentFlagId, flagId, initialValues }: FlagFo
           <div className="bg-white rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.06)] px-4 py-4">
             <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3">일정</p>
 
-            {/* 컬럼 헤더 */}
-            <div className="flex items-center gap-2 mb-1.5 pl-10">
-              <span className="flex-1 text-[11px] text-gray-400">날짜</span>
-              <span className="w-24 text-[11px] text-gray-400">시간</span>
-            </div>
-
             {/* 시작 */}
             <div className="flex items-center gap-2 mb-2">
               <span className="w-10 text-xs font-medium text-gray-500 shrink-0">시작</span>
               <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDateTime(`${e.target.value}T${startTime || "00:00"}`)}
-                className={`flex-1 ${dtInputCls}`}
-              />
-              <input
-                type="time"
-                value={startTime}
-                onChange={(e) => setStartDateTime(`${startDate}T${e.target.value}`)}
-                className={`w-24 ${dtInputCls}`}
+                type="datetime-local"
+                value={startDateTime}
+                onChange={(e) => setStartDateTime(e.target.value)}
+                className={dtInputCls}
               />
             </div>
-            {errors.startDateTime && <p className="text-xs text-red-400 mb-2 pl-10">{errors.startDateTime}</p>}
+            {errors.startDateTime && <p className="text-xs text-red-400 mb-2 pl-12">{errors.startDateTime}</p>}
 
             {/* 종료 */}
             <div className="flex items-center gap-2">
               <span className="w-10 text-xs font-medium text-gray-500 shrink-0">종료</span>
               <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDateTime(`${e.target.value}T${endTime || "00:00"}`)}
-                className={`flex-1 ${dtInputCls}`}
-              />
-              <input
-                type="time"
-                value={endTime}
-                onChange={(e) => setEndDateTime(`${endDate}T${e.target.value}`)}
-                className={`w-24 ${dtInputCls}`}
+                type="datetime-local"
+                value={endDateTime}
+                onChange={(e) => setEndDateTime(e.target.value)}
+                className={dtInputCls}
               />
             </div>
-            {errors.endDateTime && <p className="text-xs text-red-400 mt-1 pl-10">{errors.endDateTime}</p>}
+            {errors.endDateTime && <p className="text-xs text-red-400 mt-1 pl-12">{errors.endDateTime}</p>}
 
             <div className="border-t border-gray-100 mt-4 pt-4">
               <div className="flex items-center gap-1.5 mb-2">
@@ -253,16 +226,10 @@ export default function FlagForm({ parentFlagId, flagId, initialValues }: FlagFo
               <div className="flex items-center gap-2">
                 <span className="w-10 shrink-0" />
                 <input
-                  type="date"
-                  value={deadlineDate}
-                  onChange={(e) => setDeadline(`${e.target.value}T${deadlineTime || "00:00"}`)}
-                  className={`flex-1 ${dtInputCls}`}
-                />
-                <input
-                  type="time"
-                  value={deadlineTime}
-                  onChange={(e) => setDeadline(`${deadlineDate}T${e.target.value}`)}
-                  className={`w-24 ${dtInputCls}`}
+                  type="datetime-local"
+                  value={deadline}
+                  onChange={(e) => setDeadline(e.target.value)}
+                  className={dtInputCls}
                 />
               </div>
             </div>

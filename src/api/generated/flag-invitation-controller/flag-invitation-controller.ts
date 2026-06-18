@@ -5,6 +5,11 @@
  * DunbarHorizon 백엔드 API
  * OpenAPI spec version: 1.0.0
  */
+import type {
+  ReceivedFlagInvitationResult,
+  SentFlagInvitationResult
+} from '../../model';
+
 import { customFetch } from '../../apiClient';
 
 export type rejectResponse200 = {
@@ -65,6 +70,70 @@ export const accept = async (invitationId: number, options?: RequestInit): Promi
   {
     ...options,
     method: 'POST'
+
+
+  }
+);}
+
+
+export type getSentResponse200 = {
+  data: SentFlagInvitationResult[]
+  status: 200
+}
+
+export type getSentResponseSuccess = (getSentResponse200) & {
+  headers: Headers;
+};
+;
+
+export type getSentResponse = (getSentResponseSuccess)
+
+export const getGetSentUrl = () => {
+
+
+
+
+  return `/api/v1/flag-invitations/sent`
+}
+
+export const getSent = async ( options?: RequestInit): Promise<getSentResponse> => {
+
+  return customFetch<getSentResponse>(getGetSentUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+export type getReceivedResponse200 = {
+  data: ReceivedFlagInvitationResult[]
+  status: 200
+}
+
+export type getReceivedResponseSuccess = (getReceivedResponse200) & {
+  headers: Headers;
+};
+;
+
+export type getReceivedResponse = (getReceivedResponseSuccess)
+
+export const getGetReceivedUrl = () => {
+
+
+
+
+  return `/api/v1/flag-invitations/received`
+}
+
+export const getReceived = async ( options?: RequestInit): Promise<getReceivedResponse> => {
+
+  return customFetch<getReceivedResponse>(getGetReceivedUrl(),
+  {
+    ...options,
+    method: 'GET'
 
 
   }

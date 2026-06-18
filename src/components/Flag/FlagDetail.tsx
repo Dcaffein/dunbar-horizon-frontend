@@ -15,6 +15,7 @@ import {
   leaveAction,
   inviteFriendAction,
   updateInvitePermissionAction,
+  getFlagDetailAction,
 } from "@/app/actions/flag";
 
 function fmt(dt: string): string {
@@ -65,6 +66,10 @@ export default function FlagDetail({ flag, myUserId, friends, memorialCount, com
   const [isLoading, setIsLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [participants, setParticipants] = useState<ParticipantResult[]>(flag.participants ?? []);
+
+  useEffect(() => {
+    setParticipants(flag.participants ?? []);
+  }, [flag.participants]);
   const [toast, setToast] = useState<Toast | null>(null);
   const [selectedFriendId, setSelectedFriendId] = useState<number | "">("");
   const [isInviting, setIsInviting] = useState(false);
@@ -108,6 +113,33 @@ export default function FlagDetail({ flag, myUserId, friends, memorialCount, com
     } else {
       setActionError(result.message ?? "오류가 발생했습니다.");
     }
+  }
+
+  async function handleLeave() {
+    if (!flag.id || !myUserId) return;
+    setIsLoading(true);
+    const result = await leaveAction(flag.id);
+    setIsLoading(false);
+    if (result.success) {
+      setParticipants((prev) => prev.filter((p) => p.id !== myUserId));
+    } else {
+      setActionError(result.message ?? "참여 취소에 실패했습니다.");
+    }
+  }
+
+  async function handleParticipate() {
+    if (!flag.id) return;
+    setIsLoading(true);
+    const result = await participateAction(flag.id);
+    if (result.success) {
+      const updated = await getFlagDetailAction(flag.id);
+      if (updated.success && updated.data?.participants) {
+        setParticipants(updated.data.participants);
+      }
+    } else {
+      setActionError(result.message ?? "참여에 실패했습니다.");
+    }
+    setIsLoading(false);
   }
 
   async function handleToggleCanInvite(participant: ParticipantResult) {
@@ -375,7 +407,7 @@ export default function FlagDetail({ flag, myUserId, friends, memorialCount, com
           {isParticipating && !isHost && (
             <button
               disabled={isLoading}
-              onClick={() => handle(() => leaveAction(flag.id!))}
+              onClick={handleLeave}
               className="flex-1 py-2.5 text-sm font-medium border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 disabled:opacity-50"
             >
               참여 취소
@@ -384,7 +416,7 @@ export default function FlagDetail({ flag, myUserId, friends, memorialCount, com
           {!isHost && !isParticipating && (
             <button
               disabled={isLoading || isClosed}
-              onClick={() => handle(() => participateAction(flag.id!))}
+              onClick={handleParticipate}
               className="flex-1 py-2.5 text-sm font-bold bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isClosed ? "모집 마감됨" : "참여하기"}

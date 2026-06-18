@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { isRedirectError, apiClient } from "@/api/apiClient";
 import { getFlagDetailAction, getMemorialsAction } from "@/app/actions/flag";
 import FlagMemorial from "@/components/Flag/FlagMemorial";
@@ -64,11 +65,11 @@ export default async function FlagMemorialPage({
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <header className="bg-white border-b border-gray-100 px-4 py-4 flex items-center gap-3 shrink-0">
-        <a href={`/flags/${id}`} className="text-gray-400 hover:text-gray-600">
+        <Link href={`/flags/${id}`} replace className="text-gray-400 hover:text-gray-600">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="m15 18-6-6 6-6" />
           </svg>
-        </a>
+        </Link>
         <div>
           <h1 className="text-base font-bold text-gray-900">Memorial</h1>
           <p className="text-xs text-gray-400">{flagData.title}</p>
