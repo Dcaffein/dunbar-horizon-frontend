@@ -19,6 +19,7 @@ export default function MyProfile({ profile }: MyProfileProps) {
   const [nicknameSuccess, setNicknameSuccess] = useState(false);
 
   const [imageUploading, setImageUploading] = useState(false);
+  const [imageRemoving, setImageRemoving] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
 
   async function handleNicknameSave() {
@@ -36,6 +37,18 @@ export default function MyProfile({ profile }: MyProfileProps) {
       router.refresh();
     } else {
       setNicknameError(result.message ?? "저장에 실패했습니다.");
+    }
+  }
+
+  async function handleImageRemove() {
+    setImageError(null);
+    setImageRemoving(true);
+    const result = await updateProfileAction({ nickname: profile.nickname ?? nickname, profileImageKey: "" });
+    setImageRemoving(false);
+    if (result.success) {
+      router.refresh();
+    } else {
+      setImageError("이미지 삭제에 실패했습니다.");
     }
   }
 
@@ -78,7 +91,18 @@ export default function MyProfile({ profile }: MyProfileProps) {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center py-12 px-4">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-sm border border-gray-200 p-8 space-y-8">
-        <h1 className="text-xl font-bold text-gray-900">내 프로필</h1>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => router.back()}
+            className="text-gray-400 hover:text-gray-700 transition-colors"
+            aria-label="뒤로가기"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <h1 className="text-xl font-bold text-gray-900">내 프로필</h1>
+        </div>
 
         {/* 프로필 이미지 */}
         <div className="flex flex-col items-center gap-4">
@@ -94,13 +118,24 @@ export default function MyProfile({ profile }: MyProfileProps) {
               {initial}
             </div>
           )}
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={imageUploading}
-            className="text-sm text-indigo-600 font-medium hover:underline disabled:opacity-50"
-          >
-            {imageUploading ? "업로드 중..." : "이미지 변경"}
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={imageUploading || imageRemoving}
+              className="text-sm text-indigo-600 font-medium hover:underline disabled:opacity-50"
+            >
+              {imageUploading ? "업로드 중..." : "이미지 변경"}
+            </button>
+            {profile.profileImageUrl && (
+              <button
+                onClick={handleImageRemove}
+                disabled={imageUploading || imageRemoving}
+                className="text-sm text-red-400 font-medium hover:underline disabled:opacity-50"
+              >
+                {imageRemoving ? "삭제 중..." : "이미지 삭제"}
+              </button>
+            )}
+          </div>
           <input
             ref={fileInputRef}
             type="file"

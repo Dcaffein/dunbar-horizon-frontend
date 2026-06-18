@@ -33,6 +33,7 @@ export async function deleteFriendAction(friendId: number) {
 export async function getFriendProfileAction(friendId: number) {
   try {
     const data = await apiClient.get<FriendshipDetailResult>(`/api/v1/friends/${friendId}`, { silent: true });
+    console.log("[getFriendProfileAction] friendProfileImageUrl:", data.friendProfileImageUrl);
     return { success: true as const, data };
   } catch (error) {
     if (isRedirectError(error)) throw error;

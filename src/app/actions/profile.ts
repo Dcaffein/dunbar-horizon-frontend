@@ -8,6 +8,7 @@ import type { PresignedUploadResult } from "@/api/model/presignedUploadResult";
 export async function getMyProfileAction() {
   try {
     const data = await apiClient.get<MyProfileResult>("/api/v1/users/me");
+    console.log("[getMyProfileAction] profileImageUrl:", data.profileImageUrl);
     return { success: true as const, data };
   } catch (error) {
     if (isRedirectError(error)) throw error;

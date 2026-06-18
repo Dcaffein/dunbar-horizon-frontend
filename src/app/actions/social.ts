@@ -119,6 +119,7 @@ export async function recordTraceAction(targetId: number) {
 export async function getSocialProfileAction(userId: number) {
   try {
     const data = await apiClient.get<SocialProfileResult>(`/api/v1/social/users/${userId}`);
+    console.log("[getSocialProfileAction] profileImageUrl:", data.profileImageUrl);
     return { success: true as const, data };
   } catch (error) {
     if (isRedirectError(error)) throw error;
