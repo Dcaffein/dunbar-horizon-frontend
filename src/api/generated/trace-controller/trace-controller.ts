@@ -6,13 +6,14 @@
  * OpenAPI spec version: 1.0.0
  */
 import type {
+  TraceResult,
   VisitRequestDto
 } from '../../model';
 
 import { customFetch } from '../../apiClient';
 
 export type recordTraceResponse200 = {
-  data: void
+  data: TraceResult
   status: 200
 }
 

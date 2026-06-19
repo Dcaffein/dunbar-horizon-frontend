@@ -7,5 +7,5 @@
  */
 
 export interface VisitRequestDto {
-  targetId?: number;
+  targetId: number;
 }

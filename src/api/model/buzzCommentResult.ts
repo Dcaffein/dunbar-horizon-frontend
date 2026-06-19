@@ -13,4 +13,5 @@ export interface BuzzCommentResult {
   text?: string;
   imageUrls?: string[];
   createdAt?: string;
+  isMine?: boolean;
 }

@@ -10,6 +10,5 @@ import type { LabelMemberResult } from './labelMemberResult';
 export interface LabelResult {
   id?: string;
   labelName?: string;
-  exposure?: boolean;
   members?: LabelMemberResult[];
 }

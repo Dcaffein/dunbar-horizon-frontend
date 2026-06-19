@@ -7,56 +7,18 @@
  */
 import type {
   AnchorExpansionResult,
+  ConnectionPathResult,
+  GetConnectionPathParams,
   GetFriendsNetworkParams,
   GetOneHopMutualFriendEdgesParams,
   GetTwoHopMutualFriendsParams,
   GetTwoHopRecommendationParams,
-  GetTwoHopSuggestionsByPivotParams,
   MutualFriendEdgeResult,
-  NetworkFriendEdgeResult,
+  NetworkGraphResult,
   NetworkOneHopsByTwoHopResult
 } from '../../model';
 
 import { customFetch } from '../../apiClient';
-
-export type getTwoHopSuggestionsByPivotResponse200 = {
-  data: AnchorExpansionResult[]
-  status: 200
-}
-
-export type getTwoHopSuggestionsByPivotResponseSuccess = (getTwoHopSuggestionsByPivotResponse200) & {
-  headers: Headers;
-};
-;
-
-export type getTwoHopSuggestionsByPivotResponse = (getTwoHopSuggestionsByPivotResponseSuccess)
-
-export const getGetTwoHopSuggestionsByPivotUrl = (params: GetTwoHopSuggestionsByPivotParams,) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : String(value))
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
-
-  return stringifiedParams.length > 0 ? `/api/v1/networks/suggestions/pivot?${stringifiedParams}` : `/api/v1/networks/suggestions/pivot`
-}
-
-export const getTwoHopSuggestionsByPivot = async (params: GetTwoHopSuggestionsByPivotParams, options?: RequestInit): Promise<getTwoHopSuggestionsByPivotResponse> => {
-
-  return customFetch<getTwoHopSuggestionsByPivotResponse>(getGetTwoHopSuggestionsByPivotUrl(params),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
 
 export type getTwoHopRecommendationResponse200 = {
   data: AnchorExpansionResult[]
@@ -88,6 +50,45 @@ export const getGetTwoHopRecommendationUrl = (params: GetTwoHopRecommendationPar
 export const getTwoHopRecommendation = async (params: GetTwoHopRecommendationParams, options?: RequestInit): Promise<getTwoHopRecommendationResponse> => {
 
   return customFetch<getTwoHopRecommendationResponse>(getGetTwoHopRecommendationUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+export type getConnectionPathResponse200 = {
+  data: ConnectionPathResult
+  status: 200
+}
+
+export type getConnectionPathResponseSuccess = (getConnectionPathResponse200) & {
+  headers: Headers;
+};
+;
+
+export type getConnectionPathResponse = (getConnectionPathResponseSuccess)
+
+export const getGetConnectionPathUrl = (params: GetConnectionPathParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/networks/path?${stringifiedParams}` : `/api/v1/networks/path`
+}
+
+export const getConnectionPath = async (params: GetConnectionPathParams, options?: RequestInit): Promise<getConnectionPathResponse> => {
+
+  return customFetch<getConnectionPathResponse>(getGetConnectionPathUrl(params),
   {
     ...options,
     method: 'GET'
@@ -176,7 +177,7 @@ export const getOneHopMutualFriendEdges = async (params: GetOneHopMutualFriendEd
 
 
 export type getFriendsNetworkResponse200 = {
-  data: NetworkFriendEdgeResult[]
+  data: NetworkGraphResult
   status: 200
 }
 
@@ -215,7 +216,7 @@ export const getFriendsNetwork = async (params?: GetFriendsNetworkParams, option
 
 
 export type getLabelNetworkResponse200 = {
-  data: NetworkFriendEdgeResult[]
+  data: NetworkGraphResult
   status: 200
 }
 

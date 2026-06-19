@@ -6,11 +6,118 @@
  * OpenAPI spec version: 1.0.0
  */
 import type {
+  FlagDetailResult,
   FlagResult,
-  GetMyFlagsByRoleParams
+  GetMyFlagsByRoleParams,
+  GetUserFlagsByRoleParams
 } from '../../model';
 
 import { customFetch } from '../../apiClient';
+
+export type getFlagDetailResponse200 = {
+  data: FlagDetailResult
+  status: 200
+}
+
+export type getFlagDetailResponseSuccess = (getFlagDetailResponse200) & {
+  headers: Headers;
+};
+;
+
+export type getFlagDetailResponse = (getFlagDetailResponseSuccess)
+
+export const getGetFlagDetailUrl = (id: number,) => {
+
+
+
+
+  return `/api/v1/flags/${id}`
+}
+
+export const getFlagDetail = async (id: number, options?: RequestInit): Promise<getFlagDetailResponse> => {
+
+  return customFetch<getFlagDetailResponse>(getGetFlagDetailUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+export type getUserFlagsByRoleResponse200 = {
+  data: FlagResult[]
+  status: 200
+}
+
+export type getUserFlagsByRoleResponseSuccess = (getUserFlagsByRoleResponse200) & {
+  headers: Headers;
+};
+;
+
+export type getUserFlagsByRoleResponse = (getUserFlagsByRoleResponseSuccess)
+
+export const getGetUserFlagsByRoleUrl = (userId: number,
+    params: GetUserFlagsByRoleParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/flags/users/${userId}?${stringifiedParams}` : `/api/v1/flags/users/${userId}`
+}
+
+export const getUserFlagsByRole = async (userId: number,
+    params: GetUserFlagsByRoleParams, options?: RequestInit): Promise<getUserFlagsByRoleResponse> => {
+
+  return customFetch<getUserFlagsByRoleResponse>(getGetUserFlagsByRoleUrl(userId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+export type getRecentFlagsResponse200 = {
+  data: FlagResult[]
+  status: 200
+}
+
+export type getRecentFlagsResponseSuccess = (getRecentFlagsResponse200) & {
+  headers: Headers;
+};
+;
+
+export type getRecentFlagsResponse = (getRecentFlagsResponseSuccess)
+
+export const getGetRecentFlagsUrl = (userId: number,) => {
+
+
+
+
+  return `/api/v1/flags/users/${userId}/recent`
+}
+
+export const getRecentFlags = async (userId: number, options?: RequestInit): Promise<getRecentFlagsResponse> => {
+
+  return customFetch<getRecentFlagsResponse>(getGetRecentFlagsUrl(userId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
 
 export type getMyFlagsByRoleResponse200 = {
   data: FlagResult[]
@@ -51,61 +158,29 @@ export const getMyFlagsByRole = async (params: GetMyFlagsByRoleParams, options?:
 );}
 
 
-export type getMyParticipatingFlagsResponse200 = {
+export type getFriendFlagsResponse200 = {
   data: FlagResult[]
   status: 200
 }
 
-export type getMyParticipatingFlagsResponseSuccess = (getMyParticipatingFlagsResponse200) & {
+export type getFriendFlagsResponseSuccess = (getFriendFlagsResponse200) & {
   headers: Headers;
 };
 ;
 
-export type getMyParticipatingFlagsResponse = (getMyParticipatingFlagsResponseSuccess)
+export type getFriendFlagsResponse = (getFriendFlagsResponseSuccess)
 
-export const getGetMyParticipatingFlagsUrl = () => {
-
-
+export const getGetFriendFlagsUrl = () => {
 
 
-  return `/api/v1/flags/me/participating`
+
+
+  return `/api/v1/flags/friends`
 }
 
-export const getMyParticipatingFlags = async ( options?: RequestInit): Promise<getMyParticipatingFlagsResponse> => {
+export const getFriendFlags = async ( options?: RequestInit): Promise<getFriendFlagsResponse> => {
 
-  return customFetch<getMyParticipatingFlagsResponse>(getGetMyParticipatingFlagsUrl(),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-export type getMyHostingFlagsResponse200 = {
-  data: FlagResult[]
-  status: 200
-}
-
-export type getMyHostingFlagsResponseSuccess = (getMyHostingFlagsResponse200) & {
-  headers: Headers;
-};
-;
-
-export type getMyHostingFlagsResponse = (getMyHostingFlagsResponseSuccess)
-
-export const getGetMyHostingFlagsUrl = () => {
-
-
-
-
-  return `/api/v1/flags/me/hosting`
-}
-
-export const getMyHostingFlags = async ( options?: RequestInit): Promise<getMyHostingFlagsResponse> => {
-
-  return customFetch<getMyHostingFlagsResponse>(getGetMyHostingFlagsUrl(),
+  return customFetch<getFriendFlagsResponse>(getGetFriendFlagsUrl(),
   {
     ...options,
     method: 'GET'

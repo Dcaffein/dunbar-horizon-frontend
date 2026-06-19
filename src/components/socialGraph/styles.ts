@@ -12,22 +12,20 @@ export const getGraphStylesheet = (
       style: {
         width: 45,
         height: 45,
-        "background-image": "data(image)",
-        "background-fit": "cover",
-        "background-color": "#f3f4f6", // 이미지가 없을 때의 기본 색상
-
-        // 내부 투명도 설정 (0.0 ~ 1.0)
-        "background-opacity": 0.75,
+        "background-color": "#e0f2fe",
+        "background-opacity": 0.85,
 
         //  외곽선 설정
         "border-width": 2,
-        "border-color": "#9ca3af",
-        "border-opacity": 1, // 내부는 투명해도 테두리는 100% 진하게 유지
+        "border-color": "#0ea5e9",
+        "border-opacity": 1,
 
         label: "data(label)",
         "font-size": "11px",
         "text-valign": "bottom",
         "text-margin-y": 4,
+        "text-wrap": "wrap" as any,
+        "text-max-width": "80px" as any,
 
         "text-background-color": "#ffffff",
         "text-background-opacity": 0.7,
@@ -51,16 +49,6 @@ export const getGraphStylesheet = (
       },
     },
     {
-      selector: "node.isolated",
-      style: {
-        opacity: 0.65,
-        "border-width": 1.5,
-        "border-color": "#9ca3af",
-        "border-style": "dashed",
-        "text-opacity": 0.9,
-      },
-    },
-    {
       // 하이라이트 시 투명도를 다시 1로 올려서 돋보이게 만듦
       selector: "node.highlighted",
       style: {
@@ -72,11 +60,57 @@ export const getGraphStylesheet = (
     },
     {
       selector: "edge.visible",
-      style: { opacity: 0.6 },
+      style: { opacity: 1.0 },
     },
     {
-      selector: ".faded",
-      style: { opacity: 0.1 }, // fade 될 때는 전체 투명도를 확 낮춤
+      // 비연결 노드: 테두리는 어두운 색으로 유지, 전체 opacity만 낮춤
+      selector: "node.faded",
+      style: {
+        opacity: 0.4,
+        "border-color": "#6b7280",
+      },
+    },
+    {
+      selector: "edge.faded",
+      style: {
+        opacity: 0.2,
+      },
+    },
+    {
+      selector: "node.buzz-unread",
+      style: {
+        "border-color": "#f97316",
+        "border-width": 3,
+        "background-color": "#fff7ed",
+        "background-opacity": 0.95,
+      },
+    },
+    {
+      selector: "node.suggestion",
+      style: {
+        "background-color": "#ccfbf1",
+        "background-opacity": 0.85,
+        "border-color": "#14b8a6",
+        "border-style": "dashed",
+        "border-width": 2,
+      },
+    },
+    {
+      selector: "edge.suggestion-edge",
+      style: {
+        "line-color": "#f59e0b",
+        "line-style": "dashed",
+        opacity: 0.55,
+        width: "mapData(intimacy, 0, 1, 1, 4)" as any,
+      },
+    },
+    {
+      selector: "edge.mutual-edge",
+      style: {
+        "line-color": "#10b981",
+        opacity: 0.65,
+        width: 2,
+      },
     },
   ];
 
@@ -84,21 +118,16 @@ export const getGraphStylesheet = (
     styles.push({
       selector: "node",
       style: {
-        width: "mapData(interest, 0, 1, 20, 70)",
-        height: "mapData(interest, 0, 1, 20, 70)",
+        width: "mapData(delta, 0, 1, 30, 70)" as any,
+        height: "mapData(delta, 0, 1, 30, 70)" as any,
       },
     });
   } else if (layoutType === "intimacy") {
     styles.push({
-      selector: "edge",
-      style: {
-        width: "mapData(intimacy, 0, 1, 1, 6)",
-      },
-    });
-    styles.push({
       selector: "edge.visible",
       style: {
-        opacity: "mapData(intimacy, 0, 1, 0.2, 0.9)" as any,
+        width: "mapData(intimacy, 0, 1, 2, 6)" as any,
+        opacity: 1.0,
       },
     });
   }

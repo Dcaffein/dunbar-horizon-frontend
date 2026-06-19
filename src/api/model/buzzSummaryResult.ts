@@ -15,4 +15,5 @@ export interface BuzzSummaryResult {
   commentCount?: number;
   remainingMinutes?: number;
   isUnread?: boolean;
+  isCreator?: boolean;
 }

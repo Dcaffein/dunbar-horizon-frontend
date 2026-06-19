@@ -16,4 +16,6 @@ export interface BuzzDetailResult {
   comments?: BuzzCommentResult[];
   remainingMinutes?: number;
   isUnread?: boolean;
+  isCreator?: boolean;
+  recipients?: BuzzProfileResult[];
 }

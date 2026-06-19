@@ -8,7 +8,7 @@
 
 export interface FriendUpdateRequest {
   /**
-     * @minLength 1
+     * @minLength 0
      * @maxLength 20
      */
   friendAlias?: string;

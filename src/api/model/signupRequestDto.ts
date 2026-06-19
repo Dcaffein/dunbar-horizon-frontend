@@ -9,7 +9,7 @@
 export interface SignupRequestDto {
   email: string;
   /**
-     * @minLength 2
+     * @minLength 1
      * @maxLength 20
      */
   nickname: string;

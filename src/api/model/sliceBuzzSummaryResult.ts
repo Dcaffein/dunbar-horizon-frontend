@@ -14,9 +14,9 @@ export interface SliceBuzzSummaryResult {
   content?: BuzzSummaryResult[];
   number?: number;
   sort?: SortObject;
-  numberOfElements?: number;
   first?: boolean;
   last?: boolean;
+  numberOfElements?: number;
   pageable?: PageableObject;
   empty?: boolean;
 }

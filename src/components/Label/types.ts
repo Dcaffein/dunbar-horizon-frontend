@@ -8,13 +8,11 @@ export interface LabelMember {
 export interface Label {
   id: string;
   labelName: string;
-  exposure: boolean;
   members: LabelMember[];
 }
 
 export interface LabelCreateRequest {
   labelName: string;
-  exposure: boolean;
 }
 
 export interface LabelMemberAddRequest {

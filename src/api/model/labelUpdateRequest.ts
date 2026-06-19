@@ -12,5 +12,4 @@ export interface LabelUpdateRequest {
      * @maxLength 20
      */
   labelName?: string;
-  exposure?: boolean;
 }

@@ -7,6 +7,8 @@
  */
 import type {
   DeviceTokenRequest,
+  DeviceTokenStatusResponse,
+  GetDeviceTokenStatusParams,
   GetMyNotificationsParams,
   NotificationResponse,
   SliceNotificationResponse
@@ -42,6 +44,38 @@ export const registerDeviceToken = async (deviceTokenRequest: DeviceTokenRequest
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(deviceTokenRequest)
+  }
+);}
+
+
+export type removeDeviceTokenResponse200 = {
+  data: void
+  status: 200
+}
+
+export type removeDeviceTokenResponseSuccess = (removeDeviceTokenResponse200) & {
+  headers: Headers;
+};
+;
+
+export type removeDeviceTokenResponse = (removeDeviceTokenResponseSuccess)
+
+export const getRemoveDeviceTokenUrl = () => {
+
+
+
+
+  return `/api/v1/notifications/device-token`
+}
+
+export const removeDeviceToken = async ( options?: RequestInit): Promise<removeDeviceTokenResponse> => {
+
+  return customFetch<removeDeviceTokenResponse>(getRemoveDeviceTokenUrl(),
+  {
+    ...options,
+    method: 'DELETE'
+
+
   }
 );}
 
@@ -143,6 +177,77 @@ export const getUnreadCount = async ( options?: RequestInit): Promise<getUnreadC
   {
     ...options,
     method: 'GET'
+
+
+  }
+);}
+
+
+export type getDeviceTokenStatusResponse200 = {
+  data: DeviceTokenStatusResponse
+  status: 200
+}
+
+export type getDeviceTokenStatusResponseSuccess = (getDeviceTokenStatusResponse200) & {
+  headers: Headers;
+};
+;
+
+export type getDeviceTokenStatusResponse = (getDeviceTokenStatusResponseSuccess)
+
+export const getGetDeviceTokenStatusUrl = (params: GetDeviceTokenStatusParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/notifications/device-token/status?${stringifiedParams}` : `/api/v1/notifications/device-token/status`
+}
+
+export const getDeviceTokenStatus = async (params: GetDeviceTokenStatusParams, options?: RequestInit): Promise<getDeviceTokenStatusResponse> => {
+
+  return customFetch<getDeviceTokenStatusResponse>(getGetDeviceTokenStatusUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+export type deleteNotificationResponse200 = {
+  data: void
+  status: 200
+}
+
+export type deleteNotificationResponseSuccess = (deleteNotificationResponse200) & {
+  headers: Headers;
+};
+;
+
+export type deleteNotificationResponse = (deleteNotificationResponseSuccess)
+
+export const getDeleteNotificationUrl = (notificationId: string,) => {
+
+
+
+
+  return `/api/v1/notifications/${notificationId}`
+}
+
+export const deleteNotification = async (notificationId: string, options?: RequestInit): Promise<deleteNotificationResponse> => {
+
+  return customFetch<deleteNotificationResponse>(getDeleteNotificationUrl(notificationId),
+  {
+    ...options,
+    method: 'DELETE'
 
 
   }

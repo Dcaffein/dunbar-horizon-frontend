@@ -9,7 +9,8 @@ import type {
   FlagCapacityUpdateRequest,
   FlagCreateRequest,
   FlagDetailsUpdateRequest,
-  FlagResult,
+  FlagInvitePermissionRequest,
+  FlagInviteRequest,
   FlagScheduleUpdateRequest
 } from '../../model';
 
@@ -144,6 +145,39 @@ export const leave = async (id: number, options?: RequestInit): Promise<leaveRes
 );}
 
 
+export type inviteResponse200 = {
+  data: number
+  status: 200
+}
+
+export type inviteResponseSuccess = (inviteResponse200) & {
+  headers: Headers;
+};
+;
+
+export type inviteResponse = (inviteResponseSuccess)
+
+export const getInviteUrl = (flagId: number,) => {
+
+
+
+
+  return `/api/v1/flags/${flagId}/invitations`
+}
+
+export const invite = async (flagId: number,
+    flagInviteRequest: FlagInviteRequest, options?: RequestInit): Promise<inviteResponse> => {
+
+  return customFetch<inviteResponse>(getInviteUrl(flagId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(flagInviteRequest)
+  }
+);}
+
+
 export type closeRecruitmentResponse200 = {
   data: void
   status: 200
@@ -242,34 +276,37 @@ export const modifyCapacity = async (id: number,
 );}
 
 
-export type getFriendFlagsResponse200 = {
-  data: FlagResult[]
+export type updateInvitePermissionResponse200 = {
+  data: void
   status: 200
 }
 
-export type getFriendFlagsResponseSuccess = (getFriendFlagsResponse200) & {
+export type updateInvitePermissionResponseSuccess = (updateInvitePermissionResponse200) & {
   headers: Headers;
 };
 ;
 
-export type getFriendFlagsResponse = (getFriendFlagsResponseSuccess)
+export type updateInvitePermissionResponse = (updateInvitePermissionResponseSuccess)
 
-export const getGetFriendFlagsUrl = () => {
+export const getUpdateInvitePermissionUrl = (flagId: number,
+    participantId: number,) => {
 
 
 
 
-  return `/api/v1/flags/friends`
+  return `/api/v1/flags/${flagId}/participants/${participantId}/invite-permission`
 }
 
-export const getFriendFlags = async ( options?: RequestInit): Promise<getFriendFlagsResponse> => {
+export const updateInvitePermission = async (flagId: number,
+    participantId: number,
+    flagInvitePermissionRequest: FlagInvitePermissionRequest, options?: RequestInit): Promise<updateInvitePermissionResponse> => {
 
-  return customFetch<getFriendFlagsResponse>(getGetFriendFlagsUrl(),
+  return customFetch<updateInvitePermissionResponse>(getUpdateInvitePermissionUrl(flagId,participantId),
   {
     ...options,
-    method: 'GET'
-
-
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(flagInvitePermissionRequest)
   }
 );}
 

@@ -210,7 +210,7 @@ export async function signupAction(
   }
 }
 
-export async function logoutAction() {
+export async function logoutAction(fcmToken?: string) {
   const cookieStore = await cookies();
   const accessToken = cookieStore.get("access_token")?.value;
   const refreshToken = cookieStore.get("refresh_token")?.value;
@@ -221,7 +221,9 @@ export async function logoutAction() {
         method: "DELETE",
         headers: {
           Cookie: `access_token=${accessToken}; refresh_token=${refreshToken}`,
+          "Content-Type": "application/json",
         },
+        body: JSON.stringify({ fcmToken }),
       });
     }
   } catch (e) {

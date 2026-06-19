@@ -7,6 +7,7 @@ type HttpMethod = "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
 interface RequestOptions extends RequestInit {
   headers?: Record<string, string>;
   params?: Record<string, string | number | boolean>;
+  silent?: boolean;
 }
 
 async function fetchInternal<TResult, TBody = unknown>(
@@ -93,7 +94,9 @@ async function fetchInternal<TResult, TBody = unknown>(
       throw error;
     }
 
-    console.error(`[SpringClient Error] ${method} ${endpoint}:`, error);
+    if (!options.silent) {
+      console.error(`[SpringClient Error] ${method} ${endpoint}:`, error);
+    }
     throw error;
   }
 }
@@ -127,8 +130,12 @@ export const apiClient = {
   ) =>
     fetchInternal<TResult, TBody | undefined>(endpoint, "PUT", body, options),
 
-  delete: <TResult>(endpoint: string, options?: RequestOptions) =>
-    fetchInternal<TResult, undefined>(endpoint, "DELETE", undefined, options),
+  delete: <TResult, TBody = undefined>(
+    endpoint: string,
+    body?: TBody,
+    options?: RequestOptions,
+  ) =>
+    fetchInternal<TResult, TBody | undefined>(endpoint, "DELETE", body, options),
 
   patch: <TResult, TBody = undefined>(
     endpoint: string,

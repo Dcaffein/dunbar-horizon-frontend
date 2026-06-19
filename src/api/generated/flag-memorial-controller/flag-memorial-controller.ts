@@ -7,14 +7,14 @@
  */
 import type {
   MemorialCreateRequest,
-  MemorialResult,
+  MemorialListResult,
   MemorialUpdateRequest
 } from '../../model';
 
 import { customFetch } from '../../apiClient';
 
 export type getMemorialsResponse200 = {
-  data: MemorialResult[]
+  data: MemorialListResult
   status: 200
 }
 
@@ -139,6 +139,38 @@ export const updateMemorial = async (id: number,
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(memorialUpdateRequest)
+  }
+);}
+
+
+export type getMemorialCountResponse200 = {
+  data: number
+  status: 200
+}
+
+export type getMemorialCountResponseSuccess = (getMemorialCountResponse200) & {
+  headers: Headers;
+};
+;
+
+export type getMemorialCountResponse = (getMemorialCountResponseSuccess)
+
+export const getGetMemorialCountUrl = (flagId: number,) => {
+
+
+
+
+  return `/api/v1/flags/${flagId}/memorials/count`
+}
+
+export const getMemorialCount = async (flagId: number, options?: RequestInit): Promise<getMemorialCountResponse> => {
+
+  return customFetch<getMemorialCountResponse>(getGetMemorialCountUrl(flagId),
+  {
+    ...options,
+    method: 'GET'
+
+
   }
 );}
 

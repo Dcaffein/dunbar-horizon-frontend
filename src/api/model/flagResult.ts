@@ -13,6 +13,8 @@ export interface FlagResult {
   title?: string;
   description?: string;
   capacity?: number;
+  participantCount?: number;
+  parentFlagId?: number;
   status?: string;
   schedule?: FlagScheduleResult;
   host?: FlagHostResult;
