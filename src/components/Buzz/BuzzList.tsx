@@ -5,15 +5,6 @@ import { useRouter } from "next/navigation";
 import type { BuzzSummaryResult } from "@/api/model/buzzSummaryResult";
 import { getReceivedBuzzesAction, getSentBuzzesAction } from "@/app/actions/buzz";
 
-function remainingLabel(min?: number): { text: string; urgent: boolean } {
-  if (min === undefined || min === null) return { text: "", urgent: false };
-  if (min <= 0) return { text: "만료", urgent: true };
-  if (min < 10) return { text: `${min}분 남음`, urgent: true };
-  if (min < 60) return { text: `${min}분 남음`, urgent: false };
-  const h = Math.floor(min / 60);
-  return { text: `${h}시간 남음`, urgent: false };
-}
-
 interface BuzzListProps {
   initialBuzzes: BuzzSummaryResult[];
   initialHasMore: boolean;
@@ -56,7 +47,6 @@ export default function BuzzList({ initialBuzzes, initialHasMore, mode = "receiv
     <div className="max-w-2xl mx-auto">
       <ul className="divide-y divide-gray-100">
         {buzzes.map((buzz) => {
-          const { text: remText, urgent } = remainingLabel(buzz.remainingMinutes);
           return (
             <li key={buzz.buzzId}>
               <button
@@ -97,13 +87,10 @@ export default function BuzzList({ initialBuzzes, initialHasMore, mode = "receiv
                 <div className="flex-1 min-w-0">
                   {mode === "sent" ? (
                     <>
-                      <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-start gap-2">
                         <p className="text-sm text-gray-800 leading-snug line-clamp-2">
                           {buzz.text ?? "(내용 없음)"}
                         </p>
-                        <span className={`text-xs shrink-0 mt-0.5 ${urgent ? "text-red-500 font-bold" : "text-gray-400"}`}>
-                          {remText}
-                        </span>
                       </div>
                       <div className="flex gap-3 mt-1.5">
                         {(buzz.imageUrls?.length ?? 0) > 0 && (
@@ -116,13 +103,10 @@ export default function BuzzList({ initialBuzzes, initialHasMore, mode = "receiv
                     </>
                   ) : (
                     <>
-                      <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
                         <p className={`text-sm font-semibold truncate ${buzz.isUnread ? "text-gray-900" : "text-gray-700"}`}>
                           {buzz.author?.nickname ?? "알 수 없음"}
                         </p>
-                        <span className={`text-xs shrink-0 ${urgent ? "text-red-500 font-bold" : "text-gray-400"}`}>
-                          {remText}
-                        </span>
                       </div>
                       {buzz.text && (
                         <p className="text-xs text-gray-500 mt-0.5 truncate">{buzz.text}</p>

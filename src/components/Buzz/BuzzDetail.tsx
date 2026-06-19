@@ -15,13 +15,6 @@ interface BuzzDetailProps {
   buzz: BuzzDetailResult;
 }
 
-function remainingLabel(min?: number): string {
-  if (min === undefined || min === null) return "";
-  if (min <= 0) return "만료됨";
-  if (min < 60) return `${min}분 남음`;
-  return `${Math.floor(min / 60)}시간 남음`;
-}
-
 function timeAgo(createdAt?: string): string {
   if (!createdAt) return "";
   const diff = Date.now() - new Date(createdAt).getTime();
@@ -41,6 +34,7 @@ export default function BuzzDetail({ buzz }: BuzzDetailProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
   const [actionError, setActionError] = useState<string | null>(null);
+  const [showRecipients, setShowRecipients] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   async function handleAddComment() {
@@ -86,8 +80,6 @@ export default function BuzzDetail({ buzz }: BuzzDetailProps) {
   }
 
   const isMyBuzz = buzz.isCreator ?? false;
-  const rem = remainingLabel(buzz.remainingMinutes);
-  const urgent = (buzz.remainingMinutes ?? 999) < 10;
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -111,7 +103,6 @@ export default function BuzzDetail({ buzz }: BuzzDetailProps) {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <span className={`text-xs font-medium ${urgent ? "text-red-500" : "text-gray-400"}`}>{rem}</span>
           {isMyBuzz && (
             <button onClick={handleDeleteBuzz} className="text-xs text-red-400 hover:text-red-600">삭제</button>
           )}
@@ -132,26 +123,39 @@ export default function BuzzDetail({ buzz }: BuzzDetailProps) {
           )}
         </div>
 
-        {/* 수신자 목록 (작성자만 조회 가능) */}
-        {isMyBuzz && (buzz.recipients?.length ?? 0) > 0 && (
+        {/* 수신자 목록 */}
+        {(buzz.recipients?.length ?? 0) > 0 && (
           <div className="bg-white px-4 py-4 border-b">
-            <p className="text-xs font-bold text-gray-500 mb-3">수신자 {buzz.recipients!.length}명</p>
-            <div className="flex flex-wrap gap-3">
-              {buzz.recipients!.map((r) => (
-                <div key={r.userId} className="flex items-center gap-1.5">
-                  <div className="w-7 h-7 rounded-full bg-orange-100 overflow-hidden shrink-0 flex items-center justify-center">
-                    {r.profileImageUrl ? (
-                      <img src={r.profileImageUrl} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-orange-700 font-bold text-xs">
-                        {r.nickname?.charAt(0) ?? "?"}
-                      </span>
-                    )}
+            <button
+              onClick={() => setShowRecipients((prev) => !prev)}
+              className="flex items-center gap-1 text-xs font-bold text-gray-500 hover:text-gray-700"
+            >
+              <span>수신자 {buzz.recipients!.length}명</span>
+              <svg
+                className={`w-3.5 h-3.5 transition-transform ${showRecipients ? "rotate-180" : ""}`}
+                fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="m6 9 6 6 6-6" />
+              </svg>
+            </button>
+            {showRecipients && (
+              <div className="mt-2 divide-y divide-gray-50">
+                {buzz.recipients!.map((r) => (
+                  <div key={r.userId} className="flex items-center gap-2.5 py-2">
+                    <div className="w-7 h-7 rounded-full bg-orange-100 overflow-hidden shrink-0 flex items-center justify-center">
+                      {r.profileImageUrl ? (
+                        <img src={r.profileImageUrl} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-orange-700 font-bold text-xs">
+                          {r.nickname?.charAt(0) ?? "?"}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-xs text-gray-700">{r.nickname}</span>
                   </div>
-                  <span className="text-xs text-gray-700">{r.nickname}</span>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
