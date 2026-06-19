@@ -132,6 +132,29 @@ export default function BuzzDetail({ buzz }: BuzzDetailProps) {
           )}
         </div>
 
+        {/* 수신자 목록 (작성자만 조회 가능) */}
+        {isMyBuzz && (buzz.recipients?.length ?? 0) > 0 && (
+          <div className="bg-white px-4 py-4 border-b">
+            <p className="text-xs font-bold text-gray-500 mb-3">수신자 {buzz.recipients!.length}명</p>
+            <div className="flex flex-wrap gap-3">
+              {buzz.recipients!.map((r) => (
+                <div key={r.userId} className="flex items-center gap-1.5">
+                  <div className="w-7 h-7 rounded-full bg-orange-100 overflow-hidden shrink-0 flex items-center justify-center">
+                    {r.profileImageUrl ? (
+                      <img src={r.profileImageUrl} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-orange-700 font-bold text-xs">
+                        {r.nickname?.charAt(0) ?? "?"}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-xs text-gray-700">{r.nickname}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* 댓글 목록 */}
         <div className="px-4 py-3 space-y-3">
           <p className="text-xs font-bold text-gray-500">댓글 {comments.length}개</p>

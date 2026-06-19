@@ -135,7 +135,14 @@ export async function getLabelsAction() {
   }
 }
 
-export async function getMyBuzzSummariesAction(): Promise<BuzzSummaryResult[]> {
-  // 발신 목록 API 없음 — 빈 배열 반환
-  return [];
+export async function getSentBuzzesAction(page = 0, size = 20) {
+  try {
+    const data = await apiClient.get<SliceBuzzSummaryResult>(
+      `/api/v1/buzzes/sent?page=${page}&size=${size}`,
+    );
+    return { success: true as const, data };
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    return { success: false as const, message: "보낸 Buzz 목록을 불러오는 데 실패했습니다." };
+  }
 }

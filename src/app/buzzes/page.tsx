@@ -1,18 +1,27 @@
 import Link from "next/link";
-import { getReceivedBuzzesAction } from "@/app/actions/buzz";
-import BuzzList from "@/components/Buzz/BuzzList";
+import { getReceivedBuzzesAction, getSentBuzzesAction } from "@/app/actions/buzz";
+import BuzzTabs from "@/components/Buzz/BuzzTabs";
 import { isRedirectError } from "@/api/apiClient";
 import type { BuzzSummaryResult } from "@/api/model/buzzSummaryResult";
 
 export default async function BuzzesPage() {
-  let buzzes: BuzzSummaryResult[] = [];
-  let hasMore = false;
+  let receivedBuzzes: BuzzSummaryResult[] = [];
+  let receivedHasMore = false;
+  let sentBuzzes: BuzzSummaryResult[] = [];
+  let sentHasMore = false;
 
   try {
-    const result = await getReceivedBuzzesAction(0);
-    if (result.success && result.data) {
-      buzzes = result.data.content ?? [];
-      hasMore = !result.data.last;
+    const [receivedResult, sentResult] = await Promise.all([
+      getReceivedBuzzesAction(0),
+      getSentBuzzesAction(0),
+    ]);
+    if (receivedResult.success && receivedResult.data) {
+      receivedBuzzes = receivedResult.data.content ?? [];
+      receivedHasMore = !receivedResult.data.last;
+    }
+    if (sentResult.success && sentResult.data) {
+      sentBuzzes = sentResult.data.content ?? [];
+      sentHasMore = !sentResult.data.last;
     }
   } catch (error) {
     if (isRedirectError(error)) throw error;
@@ -31,7 +40,7 @@ export default async function BuzzesPage() {
               <path d="m15 18-6-6 6-6" />
             </svg>
           </Link>
-          <h1 className="text-lg font-bold text-gray-900">받은 Buzz</h1>
+          <h1 className="text-lg font-bold text-gray-900">Buzz</h1>
         </div>
         <Link
           href="/buzzes/new"
@@ -42,7 +51,12 @@ export default async function BuzzesPage() {
       </header>
 
       <main className="max-w-lg mx-auto">
-        <BuzzList initialBuzzes={buzzes} initialHasMore={hasMore} />
+        <BuzzTabs
+          receivedBuzzes={receivedBuzzes}
+          receivedHasMore={receivedHasMore}
+          sentBuzzes={sentBuzzes}
+          sentHasMore={sentHasMore}
+        />
       </main>
     </div>
   );

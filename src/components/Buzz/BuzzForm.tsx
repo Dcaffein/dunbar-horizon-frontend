@@ -110,7 +110,7 @@ export default function BuzzForm({ friends, labels, initialMemberId }: BuzzFormP
                     recipientType === t ? "bg-white shadow text-orange-600" : "text-gray-500 hover:text-gray-700"
                   }`}
                 >
-                  {t === "ANCHOR" ? "수신자 추천" : t === "LABEL" ? "라벨" : "직접 선택"}
+                  {t === "ANCHOR" ? "자동 지정" : t === "LABEL" ? "라벨" : "직접 선택"}
                 </button>
               ))}
             </div>
@@ -163,8 +163,8 @@ export default function BuzzForm({ friends, labels, initialMemberId }: BuzzFormP
                 <p className="text-xs text-gray-400">라벨이 없습니다.</p>
               ) : (
                 <div className="space-y-1.5">
-                  {labels.map((l) => (
-                    <label key={l.id} className="flex items-center gap-2 cursor-pointer">
+                  {labels.map((l, i) => (
+                    <label key={l.id ?? i} className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={selectedLabelIds.includes(l.id!)}

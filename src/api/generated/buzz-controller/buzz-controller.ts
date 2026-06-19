@@ -10,6 +10,7 @@ import type {
   BuzzCreateRequest,
   BuzzDetailResult,
   GetReceivedBuzzesParams,
+  GetSentBuzzesParams,
   PresignRequest,
   PresignedUploadResult,
   SliceBuzzSummaryResult
@@ -241,6 +242,45 @@ export const deleteBuzz = async (buzzId: string, options?: RequestInit): Promise
   {
     ...options,
     method: 'DELETE'
+
+
+  }
+);}
+
+
+export type getSentBuzzesResponse200 = {
+  data: SliceBuzzSummaryResult
+  status: 200
+}
+
+export type getSentBuzzesResponseSuccess = (getSentBuzzesResponse200) & {
+  headers: Headers;
+};
+;
+
+export type getSentBuzzesResponse = (getSentBuzzesResponseSuccess)
+
+export const getGetSentBuzzesUrl = (params: GetSentBuzzesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/buzzes/sent?${stringifiedParams}` : `/api/v1/buzzes/sent`
+}
+
+export const getSentBuzzes = async (params: GetSentBuzzesParams, options?: RequestInit): Promise<getSentBuzzesResponse> => {
+
+  return customFetch<getSentBuzzesResponse>(getGetSentBuzzesUrl(params),
+  {
+    ...options,
+    method: 'GET'
 
 
   }

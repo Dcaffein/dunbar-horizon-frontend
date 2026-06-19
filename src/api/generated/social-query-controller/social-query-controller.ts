@@ -13,52 +13,12 @@ import type {
   GetOneHopMutualFriendEdgesParams,
   GetTwoHopMutualFriendsParams,
   GetTwoHopRecommendationParams,
-  GetTwoHopSuggestionsByAnchorParams,
   MutualFriendEdgeResult,
   NetworkGraphResult,
   NetworkOneHopsByTwoHopResult
 } from '../../model';
 
 import { customFetch } from '../../apiClient';
-
-export type getTwoHopSuggestionsByAnchorResponse200 = {
-  data: AnchorExpansionResult[]
-  status: 200
-}
-
-export type getTwoHopSuggestionsByAnchorResponseSuccess = (getTwoHopSuggestionsByAnchorResponse200) & {
-  headers: Headers;
-};
-;
-
-export type getTwoHopSuggestionsByAnchorResponse = (getTwoHopSuggestionsByAnchorResponseSuccess)
-
-export const getGetTwoHopSuggestionsByAnchorUrl = (params: GetTwoHopSuggestionsByAnchorParams,) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : String(value))
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
-
-  return stringifiedParams.length > 0 ? `/api/v1/networks/suggestions/anchor?${stringifiedParams}` : `/api/v1/networks/suggestions/anchor`
-}
-
-export const getTwoHopSuggestionsByAnchor = async (params: GetTwoHopSuggestionsByAnchorParams, options?: RequestInit): Promise<getTwoHopSuggestionsByAnchorResponse> => {
-
-  return customFetch<getTwoHopSuggestionsByAnchorResponse>(getGetTwoHopSuggestionsByAnchorUrl(params),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
 
 export type getTwoHopRecommendationResponse200 = {
   data: AnchorExpansionResult[]
