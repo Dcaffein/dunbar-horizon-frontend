@@ -125,7 +125,7 @@ export default function BuzzForm({ friends, labels, initialMemberId }: BuzzFormP
                 <select
                   value={anchorFriendId ?? ""}
                   onChange={(e) => setAnchorFriendId(Number(e.target.value))}
-                  className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-orange-400"
+                  className="w-full text-sm text-gray-900 bg-white border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-orange-400"
                 >
                   {friends.map((f) => (
                     <option key={f.friendId} value={f.friendId}>
@@ -163,8 +163,8 @@ export default function BuzzForm({ friends, labels, initialMemberId }: BuzzFormP
                 <p className="text-xs text-gray-400">라벨이 없습니다.</p>
               ) : (
                 <div className="space-y-1.5">
-                  {labels.map((l, i) => (
-                    <label key={l.id ?? i} className="flex items-center gap-2 cursor-pointer">
+                  {labels.filter((l) => l.id).map((l) => (
+                    <label key={l.id} className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={selectedLabelIds.includes(l.id!)}
@@ -207,7 +207,7 @@ export default function BuzzForm({ friends, labels, initialMemberId }: BuzzFormP
               onChange={(e) => setText(e.target.value)}
               placeholder="내용을 입력하세요..."
               rows={5}
-              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 resize-none focus:outline-none focus:border-orange-400"
+              className="w-full text-sm text-gray-900 border border-gray-200 rounded-lg px-3 py-2 resize-none focus:outline-none focus:border-orange-400"
             />
           </div>
 

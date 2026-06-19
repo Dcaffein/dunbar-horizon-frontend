@@ -68,11 +68,38 @@ A 방식이 간단하고 기존 패턴과 일관성이 높음.
 
 ---
 
+---
+
+## 추가 요구사항 1: 탭 텍스트 변경
+
+`src/components/socialGraph/index.tsx` 482줄
+
+```
+"라벨" → "Label"
+```
+
+---
+
+## 추가 요구사항 2: 라벨 패널 멤버 클릭 → 노드 하이라이트
+
+라벨 패널의 멤버 칩(`label.members`)을 클릭하면 해당 멤버의 그래프 노드가 하이라이트되어야 한다.
+
+### 구현 방향
+
+- `LabelManager`에 `onMemberClick?: (memberId: number) => void` prop 추가
+- 멤버 칩 `<span>` 영역에 `onClick={() => onMemberClick?.(m.id)}` 추가
+  - 단, 칩 안의 `×` 삭제 버튼 클릭은 `e.stopPropagation()`으로 멤버 클릭과 분리
+- `socialGraph/index.tsx`에서 `onMemberClick={(memberId) => setSelectedNodeId(String(memberId))}` 전달
+  - `setSelectedNodeId` 변경 → 기존 하이라이트 로직(`useEffect[selectedNodeId]`)이 자동으로 작동
+
+---
+
 ## 변경 파일
 
 | 파일 | 변경 내용 |
 |---|---|
-| `src/components/socialGraph/index.tsx` | `handleAnchorTap` — 앵커 미포함 시 `handleAddToGraph` 선행 호출 + 렌더 대기 |
+| `src/components/socialGraph/index.tsx` | `handleAnchorTap` 수정, 탭 텍스트 "라벨" → "Label", `onMemberClick` 핸들러 추가 |
+| `src/components/Label/LabelManager.tsx` | `onMemberClick` prop 추가, 멤버 칩 클릭 이벤트 연결 |
 
 ---
 
@@ -88,7 +115,11 @@ A 방식이 간단하고 기존 패턴과 일관성이 높음.
   → 앵커 친구가 manual 노드로 그래프에 추가됨
   → suggestion 노드들이 앵커 주위에 배치됨
   → SuggestionPanel 표시 (기존 흐름 동일)
+- 사이드바 탭 텍스트: "라벨" → "Label" 로 표시
+- 라벨 패널 활성화 → 멤버 칩 클릭 → 해당 노드 하이라이트
+- 멤버 칩의 `×` 버튼은 여전히 삭제만 동작 (하이라이트 미발생)
 
 ### Phase 3
 - 추천 결과가 0건인 경우 → 앵커 노드는 그래프에 남고, suggestion 노드 없음
 - Cytoscape 렌더 전에 결과가 오는 극단 케이스 → polling 타임아웃 내에 처리
+- 멤버 클릭 시 해당 노드가 그래프에 없는 경우 → 하이라이트 없음 (선택 무시)
