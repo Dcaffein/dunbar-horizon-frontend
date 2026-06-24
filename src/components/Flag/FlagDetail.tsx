@@ -16,6 +16,8 @@ import {
   inviteFriendAction,
   updateInvitePermissionAction,
   getFlagDetailAction,
+  getCommentsAction,
+  getMemorialCountAction,
 } from "@/app/actions/flag";
 
 function fmt(dt: string): string {
@@ -57,15 +59,26 @@ interface FlagDetailProps {
   flag: FlagDetailResult;
   myUserId?: number;
   friends: FriendshipDetail[];
-  memorialCount: number;
-  comments: CommentResult[];
 }
 
-export default function FlagDetail({ flag, myUserId, friends, memorialCount, comments }: FlagDetailProps) {
+export default function FlagDetail({ flag, myUserId, friends }: FlagDetailProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [participants, setParticipants] = useState<ParticipantResult[]>(flag.participants ?? []);
+  const [comments, setComments] = useState<CommentResult[]>([]);
+  const [memorialCount, setMemorialCount] = useState(0);
+
+  useEffect(() => {
+    if (!flag.id) return;
+    Promise.all([
+      getCommentsAction(flag.id),
+      getMemorialCountAction(flag.id),
+    ]).then(([commentsResult, memorialResult]) => {
+      if (commentsResult.success) setComments(commentsResult.data);
+      if (memorialResult.success) setMemorialCount(memorialResult.count);
+    });
+  }, [flag.id]);
 
   useEffect(() => {
     setParticipants(flag.participants ?? []);
