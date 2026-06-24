@@ -12,43 +12,34 @@ import type { Label } from "@/components/Label/types";
 import { isRedirectError } from "@/api/apiClient";
 
 export default async function MainPage() {
-  let friends: FriendshipDetail[] = [];
-  let initialLabels: Label[] = [];
-  let unreadCount = 0;
-  let unreadBuzzSenderIds: number[] = [];
+  const [friendsData, labelsResult, unreadResult, buzzSendersResult] = await Promise.all([
+    apiClient.get<FriendshipDetail[]>("/api/v1/friends").catch((error) => {
+      if (isRedirectError(error)) throw error;
+      console.error("친구 목록을 불러오는 데 실패했습니다.", error);
+      return [] as FriendshipDetail[];
+    }),
+    getLabelsAction().catch((error) => {
+      if (isRedirectError(error)) throw error;
+      return { success: false as const, data: [] as Label[] };
+    }),
+    getUnreadCountAction().catch(() => ({ success: false as const, data: 0 })),
+    getUnreadSendersAction().catch(() => ({ success: false as const, data: [] as number[] })),
+  ]);
 
-  try {
-    friends = await apiClient.get<FriendshipDetail[]>("/api/v1/friends");
-  } catch (error) {
-    if (isRedirectError(error)) throw error;
-    console.error("친구 목록을 불러오는 데 실패했습니다.", error);
-  }
+  const friends = friendsData;
 
-  try {
-    const labelsResult = await getLabelsAction();
-    if (labelsResult.success) {
-      initialLabels = labelsResult.data
+  const initialLabels: Label[] = labelsResult.success
+    ? labelsResult.data
         .filter((r) => r.id != null)
         .map((r) => ({
           id: r.id!,
           labelName: r.labelName ?? "",
           members: (r.members ?? []).filter((m) => m.id != null).map((m) => ({ id: m.id!, nickname: m.nickname ?? "" })),
-        }));
-    }
-  } catch (error) {
-    if (isRedirectError(error)) throw error;
-  }
+        }))
+    : [];
 
-  try {
-    const [unreadResult, buzzSendersResult] = await Promise.all([
-      getUnreadCountAction(),
-      getUnreadSendersAction(),
-    ]);
-    if (unreadResult.success) unreadCount = unreadResult.data;
-    if (buzzSendersResult.success) unreadBuzzSenderIds = buzzSendersResult.data;
-  } catch {
-    // 무시
-  }
+  const unreadCount = unreadResult.success ? unreadResult.data : 0;
+  const unreadBuzzSenderIds = buzzSendersResult.success ? buzzSendersResult.data : [];
 
   return (
     <main className="h-dvh bg-gray-50 flex flex-col p-6 overflow-hidden">
