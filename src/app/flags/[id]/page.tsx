@@ -19,19 +19,16 @@ export default async function FlagDetailPage({
   let memorialCount = 0;
   let comments: CommentResult[] = [];
 
-  // 1단계: 내 ID + 플래그 상세를 병렬로 먼저 조회
-  try {
-    const profile = await apiClient.get<{ id: number }>("/api/v1/users/me");
-    myUserId = profile.id;
-  } catch (error) {
-    if (isRedirectError(error)) throw error;
-  }
-
+  // 1단계: 내 ID + 플래그 상세 병렬 조회
   let flagData;
   try {
-    const result = await getFlagDetailAction(id);
-    if (!result.success || !result.data) redirect("/flags");
-    flagData = result.data;
+    const [profile, flagResult] = await Promise.all([
+      apiClient.get<{ id: number }>("/api/v1/users/me").catch(() => null),
+      getFlagDetailAction(id),
+    ]);
+    if (profile) myUserId = profile.id;
+    if (!flagResult.success || !flagResult.data) redirect("/flags");
+    flagData = flagResult.data;
   } catch (error) {
     if (isRedirectError(error)) throw error;
     redirect("/flags");
