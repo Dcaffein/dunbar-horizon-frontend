@@ -5,14 +5,13 @@ import SocialGraph from "@/components/socialGraph";
 import NotificationBell from "@/components/Notifications/NotificationBell";
 import { apiClient } from "@/api/apiClient";
 import { getUnreadCountAction } from "@/app/actions/notification";
-import { getUnreadSendersAction } from "@/app/actions/buzz";
 import { getLabelsAction } from "@/app/actions/label";
 import type { FriendshipDetail } from "@/components/socialGraph/types";
 import type { Label } from "@/components/Label/types";
 import { isRedirectError } from "@/api/apiClient";
 
 export default async function MainPage() {
-  const [friendsData, labelsResult, unreadResult, buzzSendersResult] = await Promise.all([
+  const [friendsData, labelsResult, unreadResult] = await Promise.all([
     apiClient.get<FriendshipDetail[]>("/api/v1/friends").catch((error) => {
       if (isRedirectError(error)) throw error;
       console.error("친구 목록을 불러오는 데 실패했습니다.", error);
@@ -23,7 +22,6 @@ export default async function MainPage() {
       return { success: false as const, data: [] as Label[] };
     }),
     getUnreadCountAction().catch(() => ({ success: false as const, data: 0 })),
-    getUnreadSendersAction().catch(() => ({ success: false as const, data: [] as number[] })),
   ]);
 
   const friends = friendsData;
@@ -39,7 +37,7 @@ export default async function MainPage() {
     : [];
 
   const unreadCount = unreadResult.success ? unreadResult.data : 0;
-  const unreadBuzzSenderIds = buzzSendersResult.success ? buzzSendersResult.data : [];
+  const unreadBuzzSenderIds: number[] = [];
 
   return (
     <main className="h-dvh bg-gray-50 flex flex-col p-6 overflow-hidden">
