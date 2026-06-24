@@ -3,12 +3,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { FlagResult } from "@/api/model/flagResult";
-import {
-  closeRecruitmentAction,
-  deleteFlagAction,
-  participateAction,
-  leaveAction,
-} from "@/app/actions/flag";
 
 type Tab = "browse" | "hosting" | "participating";
 type StatusFilter = "active" | "deadline" | "ended";
@@ -72,14 +66,10 @@ const STATUS_PILL: Record<StatusFilter, string> = {
 
 interface FlagCardProps {
   flag: FlagResult;
-  tab: Tab;
-  onAction: () => void;
 }
 
-function FlagCard({ flag, tab, onAction }: FlagCardProps) {
+function FlagCard({ flag }: FlagCardProps) {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const status = flagStatus(flag);
   const countdownTarget =
@@ -87,18 +77,6 @@ function FlagCard({ flag, tab, onAction }: FlagCardProps) {
       ? flag.schedule.deadline
       : flag.schedule?.endDateTime;
   const { text: remText, urgent } = remainingLabel(countdownTarget);
-
-  async function handle(action: () => Promise<{ success: boolean; message?: string }>) {
-    setIsLoading(true);
-    setError(null);
-    const result = await action();
-    setIsLoading(false);
-    if (result.success) {
-      onAction();
-    } else {
-      setError(result.message ?? "오류가 발생했습니다.");
-    }
-  }
 
   return (
     <div className="mx-4 my-3 rounded-2xl bg-white shadow-[0_2px_12px_rgba(0,0,0,0.07)] overflow-hidden">
@@ -144,51 +122,6 @@ function FlagCard({ flag, tab, onAction }: FlagCardProps) {
         </p>
       </button>
 
-      {error && <p className="text-xs text-red-500 px-4 pb-1">{error}</p>}
-
-      {/* 액션 버튼 */}
-      {(tab === "hosting" || tab === "participating" || tab === "browse") && (
-        <div className="flex gap-2 px-4 pb-3 pt-1 border-t border-gray-50">
-          {tab === "hosting" && (
-            <>
-              {status === "active" && (
-                <button
-                  disabled={isLoading}
-                  onClick={() => handle(() => closeRecruitmentAction(flag.id!))}
-                  className="text-xs px-3 py-1.5 rounded-full border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-50 transition-colors"
-                >
-                  모집 마감
-                </button>
-              )}
-              <button
-                disabled={isLoading}
-                onClick={() => handle(() => deleteFlagAction(flag.id!))}
-                className="text-xs px-3 py-1.5 rounded-full border border-red-200 text-red-400 hover:bg-red-50 disabled:opacity-50 transition-colors"
-              >
-                삭제
-              </button>
-            </>
-          )}
-          {tab === "participating" && (
-            <button
-              disabled={isLoading}
-              onClick={() => handle(() => leaveAction(flag.id!))}
-              className="text-xs px-3 py-1.5 rounded-full border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-50 transition-colors"
-            >
-              참여 취소
-            </button>
-          )}
-          {tab === "browse" && status === "active" && (
-            <button
-              disabled={isLoading}
-              onClick={() => handle(() => participateAction(flag.id!))}
-              className="text-xs px-3 py-1.5 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors"
-            >
-              참여하기
-            </button>
-          )}
-        </div>
-      )}
     </div>
   );
 }
@@ -275,7 +208,7 @@ export default function FlagList({ initialHosting, initialParticipating, initial
         <ul className="py-2">
           {flags.map((flag) => (
             <li key={flag.id}>
-              <FlagCard flag={flag} tab={activeTab} onAction={() => router.refresh()} />
+              <FlagCard flag={flag} />
             </li>
           ))}
         </ul>
