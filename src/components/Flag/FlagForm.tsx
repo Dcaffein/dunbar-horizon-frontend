@@ -172,7 +172,7 @@ export default function FlagForm({ parentFlagId, flagId, initialValues }: FlagFo
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Flag 제목을 입력하세요"
-                className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400"
+                className="w-full text-sm text-gray-900 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400"
               />
               {errors.title && <p className="text-xs text-red-500 mt-0.5">{errors.title}</p>}
             </div>
@@ -184,7 +184,7 @@ export default function FlagForm({ parentFlagId, flagId, initialValues }: FlagFo
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Flag를 설명해주세요"
                 rows={3}
-                className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 resize-none focus:outline-none focus:border-indigo-400"
+                className="w-full text-sm text-gray-900 border border-gray-200 rounded-lg px-3 py-2 resize-none focus:outline-none focus:border-indigo-400"
               />
               {errors.description && <p className="text-xs text-red-500 mt-0.5">{errors.description}</p>}
             </div>
@@ -251,7 +251,7 @@ export default function FlagForm({ parentFlagId, flagId, initialValues }: FlagFo
                   value={capacity}
                   onChange={(e) => setCapacity(e.target.value)}
                   placeholder="제한 없음"
-                  className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400"
+                  className="flex-1 text-sm text-gray-900 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400"
                 />
                 <span className="text-sm text-gray-400 shrink-0">명</span>
               </div>
