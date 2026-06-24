@@ -163,7 +163,7 @@ export default function FlagList({ initialHosting, initialParticipating }: FlagL
     <div className="min-h-screen bg-gray-50">
       {/* 탭 바 */}
       <div className="flex border-b border-gray-200 bg-white">
-        {(["browse", "hosting", "participating"] as Tab[]).map((tab) => (
+        {(["participating", "hosting", "browse"] as Tab[]).map((tab) => (
           <button
             key={tab}
             onClick={() => handleTabChange(tab)}
