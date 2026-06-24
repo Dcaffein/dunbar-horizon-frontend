@@ -3,7 +3,6 @@ import { isRedirectError } from "@/api/apiClient";
 import {
   getHostingFlagsAction,
   getParticipatingFlagsAction,
-  getFriendFlagsAction,
 } from "@/app/actions/flag";
 import FlagList from "@/components/Flag/FlagList";
 import type { FlagResult } from "@/api/model/flagResult";
@@ -11,17 +10,14 @@ import type { FlagResult } from "@/api/model/flagResult";
 export default async function FlagsPage() {
   let hosting: FlagResult[] = [];
   let participating: FlagResult[] = [];
-  let friends: FlagResult[] = [];
 
   try {
-    const [h, p, f] = await Promise.all([
+    const [h, p] = await Promise.all([
       getHostingFlagsAction(),
       getParticipatingFlagsAction(),
-      getFriendFlagsAction(),
     ]);
     hosting = h.data;
     participating = p.data;
-    friends = f.data;
   } catch (error) {
     if (isRedirectError(error)) throw error;
   }
@@ -57,7 +53,6 @@ export default async function FlagsPage() {
         <FlagList
           initialHosting={hosting}
           initialParticipating={participating}
-          initialBrowse={friends}
         />
       </main>
     </div>
