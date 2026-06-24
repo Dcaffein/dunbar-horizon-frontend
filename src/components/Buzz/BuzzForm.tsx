@@ -56,7 +56,7 @@ export default function BuzzForm({ friends, labels, initialMemberId }: BuzzFormP
   async function handleSubmit() {
     if (!text.trim()) { setError("내용을 입력해주세요."); return; }
     if (recipientType === "ANCHOR" && !anchorFriendId) { setError("anchor 친구를 선택해주세요."); return; }
-    if (recipientType === "LABEL" && selectedLabelIds.length === 0) { setError("라벨을 하나 이상 선택해주세요."); return; }
+    if (recipientType === "LABEL" && selectedLabelIds.length === 0) { setError("레이블을 하나 이상 선택해주세요."); return; }
     if (recipientType === "MANUAL" && selectedMemberIds.length === 0) { setError("수신자를 한 명 이상 선택해주세요."); return; }
 
     setIsSubmitting(true);
@@ -110,7 +110,7 @@ export default function BuzzForm({ friends, labels, initialMemberId }: BuzzFormP
                     recipientType === t ? "bg-white shadow text-orange-600" : "text-gray-500 hover:text-gray-700"
                   }`}
                 >
-                  {t === "ANCHOR" ? "자동 지정" : t === "LABEL" ? "라벨" : "직접 선택"}
+                  {t === "ANCHOR" ? "자동 지정" : t === "LABEL" ? "레이블" : "직접 선택"}
                 </button>
               ))}
             </div>
@@ -158,9 +158,9 @@ export default function BuzzForm({ friends, labels, initialMemberId }: BuzzFormP
           {/* LABEL 옵션 */}
           {recipientType === "LABEL" && (
             <div>
-              <label className="text-xs font-bold text-gray-500 mb-1.5 block">라벨 선택</label>
+              <label className="text-xs font-bold text-gray-500 mb-1.5 block">레이블 선택</label>
               {labels.length === 0 ? (
-                <p className="text-xs text-gray-400">라벨이 없습니다.</p>
+                <p className="text-xs text-gray-400">레이블이 없습니다.</p>
               ) : (
                 <div className="space-y-1.5">
                   {labels.filter((l) => l.id).map((l) => (

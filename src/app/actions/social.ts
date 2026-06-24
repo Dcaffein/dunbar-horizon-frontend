@@ -138,7 +138,7 @@ export async function getLabelNetworkAction(labelId: string) {
     console.error("getLabelNetworkAction error:", error);
     return {
       success: false as const,
-      message: "라벨 네트워크를 불러오는 데 실패했습니다.",
+      message: "레이블 네트워크를 불러오는 데 실패했습니다.",
     };
   }
 }
