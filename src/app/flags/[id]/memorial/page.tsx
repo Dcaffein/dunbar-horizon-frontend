@@ -14,53 +14,37 @@ export default async function FlagMemorialPage({
   const id = Number(idStr);
   if (isNaN(id)) redirect("/flags");
 
-  let myUserId: number | undefined;
-  let memorials: MemorialResult[] = [];
-  let isParticipant = false;
-  let locked = false;
+  const [profile, flagResult, memorialsResult] = await Promise.all([
+    apiClient.get<{ id: number }>("/api/v1/users/me").catch((error) => {
+      if (isRedirectError(error)) throw error;
+      return null;
+    }),
+    getFlagDetailAction(id).catch((error) => {
+      if (isRedirectError(error)) throw error;
+      return null;
+    }),
+    getMemorialsAction(id).catch((error) => {
+      if (isRedirectError(error)) throw error;
+      return null;
+    }),
+  ]);
 
-  try {
-    const profile = await apiClient.get<{ id: number }>("/api/v1/users/me");
-    myUserId = profile.id;
-  } catch (error) {
-    if (isRedirectError(error)) throw error;
-  }
-
-  let flagData;
-  try {
-    const result = await getFlagDetailAction(id);
-    if (!result.success || !result.data) redirect("/flags");
-    flagData = result.data;
-  } catch (error) {
-    if (isRedirectError(error)) throw error;
-    redirect("/flags");
-  }
-
-  if (!flagData) redirect("/flags");
+  if (!flagResult || !flagResult.success || !flagResult.data) redirect("/flags");
+  const flagData = flagResult.data;
 
   const isEnded = flagData.status === "ENDED" || (!!flagData.schedule?.endDateTime && new Date(flagData.schedule.endDateTime) < new Date());
   if (!isEnded) redirect(`/flags/${id}`);
 
+  const myUserId = profile?.id;
   const isHost = flagData.isHost ?? (!!myUserId && flagData.host?.id === myUserId);
   const myParticipant = flagData.participants?.find((p) => p.id === myUserId);
-  const isParticipantInFlag = !!myParticipant;
-  isParticipant = isHost || isParticipantInFlag;
+  const isParticipant = isHost || !!myParticipant;
 
   const myNickname = isHost ? flagData.host?.nickname : myParticipant?.nickname;
   const myProfileImageUrl = isHost ? flagData.host?.profileImageUrl : myParticipant?.profileImageUrl;
 
-  try {
-    const result = await getMemorialsAction(id);
-    if (result.success) {
-      memorials = result.data;
-      locked = result.locked;
-    } else {
-      locked = true;
-    }
-  } catch (error) {
-    if (isRedirectError(error)) throw error;
-    locked = true;
-  }
+  const memorials: MemorialResult[] = memorialsResult?.success ? memorialsResult.data : [];
+  const locked = memorialsResult ? (memorialsResult.success ? memorialsResult.locked : true) : true;
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">

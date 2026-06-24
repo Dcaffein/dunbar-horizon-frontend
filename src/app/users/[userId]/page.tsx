@@ -5,8 +5,6 @@ import { getSocialProfileAction } from "@/app/actions/social";
 import { getLabelsAction } from "@/app/actions/label";
 import FriendProfile from "@/components/FriendProfile/FriendProfile";
 import PublicProfile from "@/components/UserProfile/PublicProfile";
-import type { FriendshipDetailResult } from "@/api/model/friendshipDetailResult";
-import type { SocialProfileResult } from "@/api/model/socialProfileResult";
 
 export default async function UserProfilePage({
   params,
@@ -17,36 +15,30 @@ export default async function UserProfilePage({
   const userId = Number(userIdStr);
   if (isNaN(userId)) redirect("/");
 
-  let friendProfile: FriendshipDetailResult | null = null;
-  let socialProfile: SocialProfileResult | null = null;
+  const [friendResult, labelsResult] = await Promise.all([
+    getFriendProfileAction(userId).catch((error) => {
+      if (isRedirectError(error)) throw error;
+      return null;
+    }),
+    getLabelsAction().catch((error) => {
+      if (isRedirectError(error)) throw error;
+      return { success: false as const, data: [] };
+    }),
+  ]);
 
-  try {
-    const friendResult = await getFriendProfileAction(userId);
-    if (friendResult.success && friendResult.data) {
-      friendProfile = friendResult.data;
-    }
-  } catch (error) {
-    if (isRedirectError(error)) throw error;
-  }
-
-  if (friendProfile) {
-    const labelsResult = await getLabelsAction();
+  if (friendResult?.success && friendResult.data) {
     const myLabels = (labelsResult.data ?? [])
       .filter((l) => l.members?.some((m) => m.id === userId));
-    return <FriendProfile profile={friendProfile} userId={userId} myLabels={myLabels} />;
+    return <FriendProfile profile={friendResult.data} userId={userId} myLabels={myLabels} />;
   }
 
-  try {
-    const socialResult = await getSocialProfileAction(userId);
-    if (socialResult.success && socialResult.data) {
-      socialProfile = socialResult.data;
-    }
-  } catch (error) {
+  const socialResult = await getSocialProfileAction(userId).catch((error) => {
     if (isRedirectError(error)) throw error;
-  }
+    return null;
+  });
 
-  if (socialProfile) {
-    return <PublicProfile profile={socialProfile} userId={userId} />;
+  if (socialResult?.success && socialResult.data) {
+    return <PublicProfile profile={socialResult.data} userId={userId} />;
   }
 
   redirect("/");

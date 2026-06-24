@@ -1,16 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import type { FlagResult } from "@/api/model/flagResult";
+import { getFriendFlagsAction } from "@/app/actions/flag";
 
-type Tab = "browse" | "hosting" | "participating";
+type Tab = "participating" | "hosting" | "browse";
 type StatusFilter = "active" | "deadline" | "ended";
 
 const TAB_LABELS: Record<Tab, string> = {
-  browse: "둘러보기",
-  hosting: "호스팅",
   participating: "참여 중",
+  hosting: "호스팅",
+  browse: "둘러보기",
 };
 
 const FILTER_LABELS: Record<StatusFilter, string> = {
@@ -129,18 +130,26 @@ function FlagCard({ flag }: FlagCardProps) {
 interface FlagListProps {
   initialHosting: FlagResult[];
   initialParticipating: FlagResult[];
-  initialBrowse: FlagResult[];
 }
 
-export default function FlagList({ initialHosting, initialParticipating, initialBrowse }: FlagListProps) {
+export default function FlagList({ initialHosting, initialParticipating }: FlagListProps) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<Tab>("browse");
+  const [activeTab, setActiveTab] = useState<Tab>("participating");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("active");
+  const [browseFlags, setBrowseFlags] = useState<FlagResult[]>([]);
+  const [browseFetched, setBrowseFetched] = useState(false);
+
+  useEffect(() => {
+    getFriendFlagsAction().then((result) => {
+      if (result.success) setBrowseFlags(result.data);
+      setBrowseFetched(true);
+    });
+  }, []);
 
   const tabData: Record<Tab, FlagResult[]> = {
-    browse: initialBrowse,
-    hosting: initialHosting,
     participating: initialParticipating,
+    hosting: initialHosting,
+    browse: browseFlags,
   };
 
   const flags = tabData[activeTab].filter((f) => flagStatus(f) === statusFilter);
@@ -194,7 +203,15 @@ export default function FlagList({ initialHosting, initialParticipating, initial
       )}
 
       {/* 목록 */}
-      {flags.length === 0 ? (
+      {activeTab === "browse" && !browseFetched ? (
+        <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+          <svg className="w-8 h-8 mb-3 animate-spin text-indigo-300" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+          </svg>
+          <p className="text-sm text-gray-400">친구들의 Flag를 불러오는 중...</p>
+        </div>
+      ) : flags.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-gray-400">
           <svg className="w-12 h-12 mb-3 text-gray-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
