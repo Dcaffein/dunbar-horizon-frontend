@@ -94,7 +94,7 @@ export default function LabelManager({
 
   return (
     <div className="flex flex-col gap-3 p-4 bg-white min-h-full">
-      {/* 새 라벨 만들기 */}
+      {/* 새 레이블 만들기 */}
       <button
         onClick={() => {
           setIsCreateFormOpen((prev) => !prev);
@@ -103,14 +103,14 @@ export default function LabelManager({
         }}
         className="w-full flex items-center justify-center gap-2 py-2 rounded-lg border border-dashed border-indigo-400 text-indigo-600 text-sm font-semibold hover:bg-indigo-50 transition"
       >
-        {isCreateFormOpen ? "닫기" : "+ 새 라벨 만들기"}
+        {isCreateFormOpen ? "닫기" : "+ 새 레이블 만들기"}
       </button>
 
       {isCreateFormOpen && (
         <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
           <div className="mb-2">
             <div className="flex items-center justify-between mb-1">
-              <label className="text-xs text-gray-600">라벨 이름</label>
+              <label className="text-xs text-gray-600">레이블 이름</label>
               <span className={`text-xs ${labelNameInput.length > LABEL_NAME_MAX_LENGTH ? "text-red-500 font-bold" : "text-gray-400"}`}>
                 {labelNameInput.length}/{LABEL_NAME_MAX_LENGTH}
               </span>
@@ -119,7 +119,7 @@ export default function LabelManager({
               type="text"
               value={labelNameInput}
               onChange={(e) => { setLabelNameInput(e.target.value); setFormError(null); }}
-              placeholder="라벨 이름 입력"
+              placeholder="레이블 이름 입력"
               className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-300"
             />
             {formError && <p className="text-xs text-red-500 mt-1">{formError}</p>}
@@ -129,14 +129,14 @@ export default function LabelManager({
             disabled={isCreating}
             className="w-full bg-indigo-600 text-white text-sm font-semibold py-2 rounded-lg hover:bg-indigo-700 transition disabled:opacity-50"
           >
-            {isCreating ? "만드는 중..." : "라벨 만들기"}
+            {isCreating ? "만드는 중..." : "레이블 만들기"}
           </button>
         </div>
       )}
 
-      {/* 라벨 목록 */}
+      {/* 레이블 목록 */}
       <div>
-        <p className="text-xs font-bold text-gray-600 mb-2 px-1">내 라벨 ({labels.length})</p>
+        <p className="text-xs font-bold text-gray-600 mb-2 px-1">내 레이블 ({labels.length})</p>
         <div className="flex flex-col gap-2">
           {labels.map((label) => {
             const nonMembers = friends.filter(

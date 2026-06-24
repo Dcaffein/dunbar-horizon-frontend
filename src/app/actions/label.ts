@@ -12,7 +12,7 @@ export async function getLabelsAction() {
   } catch (error) {
     if (isRedirectError(error)) throw error;
     console.error("getLabelsAction error:", error);
-    return { success: false as const, data: [] as LabelResult[], message: "라벨 목록을 불러오는 데 실패했습니다." };
+    return { success: false as const, data: [] as LabelResult[], message: "레이블 목록을 불러오는 데 실패했습니다." };
   }
 }
 
@@ -24,7 +24,7 @@ export async function createLabelAction(labelName: string) {
   } catch (error) {
     if (isRedirectError(error)) throw error;
     console.error("createLabelAction error:", error);
-    return { success: false as const, data: null, message: "라벨 생성에 실패했습니다." };
+    return { success: false as const, data: null, message: "레이블 생성에 실패했습니다." };
   }
 }
 
@@ -35,7 +35,7 @@ export async function deleteLabelAction(labelId: string) {
   } catch (error) {
     if (isRedirectError(error)) throw error;
     console.error("deleteLabelAction error:", error);
-    return { success: false as const, message: "라벨 삭제에 실패했습니다." };
+    return { success: false as const, message: "레이블 삭제에 실패했습니다." };
   }
 }
 

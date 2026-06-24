@@ -33,11 +33,11 @@ export function useLabelManager(initialLabels: Label[]): UseLabelManagerResult {
     const trimmedName = request.labelName.trim();
 
     if (trimmedName.length === 0) {
-      return { labelName: "라벨 이름을 입력해주세요." };
+      return { labelName: "레이블 이름을 입력해주세요." };
     }
 
     if (trimmedName.length > LABEL_NAME_MAX_LENGTH) {
-      return { labelName: `라벨 이름은 ${LABEL_NAME_MAX_LENGTH}자 이하여야 합니다.` };
+      return { labelName: `레이블 이름은 ${LABEL_NAME_MAX_LENGTH}자 이하여야 합니다.` };
     }
 
     const result = await createLabelAction(trimmedName);

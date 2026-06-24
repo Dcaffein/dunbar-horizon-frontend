@@ -538,7 +538,7 @@ export default function SocialGraph({
                   : "border-transparent text-gray-400 hover:text-gray-600"
               }`}
             >
-              라벨
+              Label
             </button>
           </div>
 
