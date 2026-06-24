@@ -25,7 +25,7 @@
 | `harness/fixtures/users.md` | 전체 유저 목록 (id, email, nickname) |
 | `harness/fixtures/friendships.md` | 친구 관계 전체 + 이수환(id=4) 친구 목록 + 2-hop 시나리오 |
 
-- **기본 테스트 계정**: 이수환 / lsh@test.com / String123! (user_id=4, 친구 56명)
+- **기본 테스트 계정**: 이수환 / leesuhwan@test.com / String123! (user_id=4, 친구 56명)
 - Mock 데이터를 새로 만들지 말고 fixtures의 실제 유저 정보를 사용한다.
 
 ---
