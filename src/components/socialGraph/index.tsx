@@ -303,9 +303,7 @@ export default function SocialGraph({
       skeletonIds,
     );
     if (result.success && result.data) {
-      setMutualFriendIds(
-        result.data.map((r) => r.friendId ?? 0).filter(Boolean),
-      );
+      setMutualFriendIds(result.data);
     }
   }
 
