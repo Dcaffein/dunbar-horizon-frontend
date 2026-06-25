@@ -2,16 +2,14 @@
 
 import { apiClient, isRedirectError } from "@/api/apiClient";
 import type { NetworkFriendEdge } from "@/components/socialGraph/types";
-import type { NetworkGraphResult } from "@/api/model/networkGraphResult";
+import type { NodeGraphResult } from "@/api/model/nodeGraphResult";
 import { GetFriendsNetworkCircleSize } from "@/api/model/getFriendsNetworkCircleSize";
 import type { AnchorExpansionResult } from "@/api/model/anchorExpansionResult";
-import type { NetworkOneHopsByTwoHopResult } from "@/api/model/networkOneHopsByTwoHopResult";
 import type { TraceResult } from "@/api/model/traceResult";
 import type { MutualFriendEdgeResult } from "@/api/model/mutualFriendEdgeResult";
 import type { SocialProfileResult } from "@/api/model/socialProfileResult";
 
-function parseNetworkGraph(result: NetworkGraphResult): { nodeIds: number[]; edges: NetworkFriendEdge[] } {
-  const nodes = result.nodes ?? [];
+function parseNetworkGraph(nodes: NodeGraphResult[]): { nodeIds: number[]; edges: NetworkFriendEdge[] } {
   const nodeIds = nodes.map((n) => n.nodeId ?? 0).filter(Boolean);
 
   const interestMap = new Map<number, number>();
@@ -49,7 +47,7 @@ export async function getFriendsNetworkAction(
   circleSize: GetFriendsNetworkCircleSize,
 ) {
   try {
-    const data = await apiClient.get<NetworkGraphResult>(
+    const data = await apiClient.get<NodeGraphResult[]>(
       `/api/v1/networks/me?circleSize=${circleSize}`,
     );
     return { success: true, data: parseNetworkGraph(data) };
@@ -79,7 +77,7 @@ export async function getTwoHopSuggestionsByAnchorAction(anchorId: number) {
 export async function getTwoHopMutualFriendsAction(targetId: number, skeletonIds: number[]) {
   try {
     const skeletonQuery = skeletonIds.map((id) => `skeletonIds=${id}`).join("&");
-    const data = await apiClient.get<NetworkOneHopsByTwoHopResult[]>(
+    const data = await apiClient.get<number[]>(
       `/api/v1/networks/mutual/two-hop?targetId=${targetId}&${skeletonQuery}`,
     );
     return { success: true as const, data };
@@ -129,7 +127,7 @@ export async function getSocialProfileAction(userId: number) {
 
 export async function getLabelNetworkAction(labelId: string) {
   try {
-    const data = await apiClient.get<NetworkGraphResult>(
+    const data = await apiClient.get<NodeGraphResult[]>(
       `/api/v1/networks/labels/${labelId}`,
     );
     return { success: true as const, data: parseNetworkGraph(data) };
