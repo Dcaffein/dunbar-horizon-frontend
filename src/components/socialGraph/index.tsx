@@ -110,6 +110,13 @@ export default function SocialGraph({
   const [suggestionSendError, setSuggestionSendError] = useState<string | null>(
     null,
   );
+  const [graphToast, setGraphToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!graphToast) return;
+    const t = setTimeout(() => setGraphToast(null), 2500);
+    return () => clearTimeout(t);
+  }, [graphToast]);
 
   const memoizedLayout = useMemo(
     () => getLayoutOptions(layoutType, false, circleSize),
@@ -292,6 +299,8 @@ export default function SocialGraph({
       }
       setSuggestionNodes(result.data);
       setSuggestionAnchorId(anchorId);
+    } else {
+      setGraphToast("추천할 친구가 없습니다");
     }
   }
 
@@ -836,6 +845,12 @@ export default function SocialGraph({
       </div>
 
       <main className="flex-1 h-full relative">
+        {graphToast && (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 bg-gray-800/90 text-white text-sm px-4 py-2 rounded-full shadow-lg pointer-events-none">
+            {graphToast}
+          </div>
+        )}
+
         {isGraphActive && (
           <div className="absolute bottom-4 right-4 z-10 flex flex-col gap-1">
             <button
