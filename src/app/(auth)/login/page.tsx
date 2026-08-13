@@ -1,13 +1,21 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { Suspense, useActionState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useSearchParams } from "next/navigation";
 import { useFormStatus } from "react-dom";
-import { loginAction, sendVerificationEmail } from "@/app/actions/auth";
+import { loginAction } from "@/app/actions/auth";
 import { BASE_URL } from "@/lib/constants";
 
 const initialState = { message: "" };
+
+// 백엔드가 OAuth 실패 시 /login?error=... 로 리다이렉트한다.
+// 쿼리가 없으면 사용자가 동의 화면에서 취소한 것이므로 오류로 취급하지 않는다.
+const OAUTH_ERROR_MESSAGES: Record<string, string> = {
+  email_not_verified: "구글에서 이메일 인증이 완료되지 않은 계정입니다",
+  failed: "로그인에 실패했습니다. 잠시 후 다시 시도해주세요",
+};
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -27,21 +35,14 @@ function SubmitButton() {
   );
 }
 
-export default function LoginPage() {
+function LoginContent() {
   const [state, formAction] = useActionState(loginAction, initialState);
-  const [email, setEmail] = useState("");
-  const [isResending, setIsResending] = useState(false);
+  const searchParams = useSearchParams();
 
-  const handleResend = async () => {
-    if (!email || isResending) return;
-    setIsResending(true);
-    const result = await sendVerificationEmail(email);
-    alert(result.message);
-    setIsResending(false);
-  };
-
-  const showResendButton =
-    state.code === "UNVERIFIED" || state.message?.includes("인증");
+  const errorParam = searchParams.get("error");
+  const oauthErrorMessage = errorParam
+    ? (OAUTH_ERROR_MESSAGES[errorParam] ?? OAUTH_ERROR_MESSAGES.failed)
+    : null;
 
   return (
     <main className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
@@ -51,6 +52,12 @@ export default function LoginPage() {
             Dunbar Horizon
           </h1>
         </div>
+
+        {oauthErrorMessage && (
+          <div className="p-4 bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-lg text-center font-medium">
+            {oauthErrorMessage}
+          </div>
+        )}
 
         <form action={formAction} className="space-y-6">
           <div className="space-y-4">
@@ -67,8 +74,6 @@ export default function LoginPage() {
                 type="email"
                 required
                 autoComplete="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all bg-gray-50 focus:bg-white"
                 placeholder="user@example.com"
               />
@@ -103,18 +108,8 @@ export default function LoginPage() {
           </div>
 
           {state.message && (
-            <div className="p-4 bg-red-50 border border-red-100 text-red-600 text-sm rounded-lg text-center flex flex-col gap-2">
+            <div className="p-4 bg-red-50 border border-red-100 text-red-600 text-sm rounded-lg text-center">
               <span className="font-medium">{state.message}</span>
-              {showResendButton && (
-                <button
-                  type="button"
-                  onClick={handleResend}
-                  disabled={isResending}
-                  className="text-indigo-600 underline hover:text-indigo-800 font-semibold text-xs"
-                >
-                  {isResending ? "전송 중..." : "인증 메일 재발송하기"}
-                </button>
-              )}
             </div>
           )}
 
@@ -157,5 +152,13 @@ export default function LoginPage() {
         </p>
       </div>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginContent />
+    </Suspense>
   );
 }

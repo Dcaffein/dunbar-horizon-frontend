@@ -76,6 +76,30 @@ function getCookieValue(cookieString: string, key: string): string | undefined {
 export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // 인증 메일 링크는 origin + 쿼리로만 도착한다(예: /?verifyToken=xxx).
+  // 목적지 경로는 백엔드가 아니라 여기서 정한다.
+  // 아래 인증 검사보다 먼저 처리해야 한다. "/" 는 보호 경로라서
+  // 순서가 밀리면 계정이 없는 신규 가입자가 /login 으로 튕긴다.
+  const verifyToken = request.nextUrl.searchParams.get("verifyToken");
+  const isVerifyEmailPath = pathname.startsWith("/verify-email");
+
+  // 가입을 마치면 자동 로그인 상태가 된다. 뒤로 가기나 메일 링크 재클릭으로
+  // 돌아온 경우 소비된 토큰의 만료 안내 대신 메인으로 되돌린다.
+  // 페이지에서 처리하면 loading.tsx 스트리밍이 먼저 시작되어 307 대신
+  // meta refresh 로 밀려나므로(스피너가 1초 노출) 여기서 판단한다.
+  if (
+    (verifyToken || isVerifyEmailPath) &&
+    request.cookies.get("access_token")
+  ) {
+    return NextResponse.redirect(new URL("/", request.url));
+  }
+
+  if (verifyToken) {
+    const verifyUrl = new URL("/verify-email", request.url);
+    verifyUrl.searchParams.set("token", verifyToken);
+    return NextResponse.redirect(verifyUrl);
+  }
+
   if (
     pathname.startsWith("/login") ||
     pathname.startsWith("/signup") ||

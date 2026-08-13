@@ -14,8 +14,7 @@ import type {
   GetTwoHopMutualFriendsParams,
   GetTwoHopRecommendationParams,
   MutualFriendEdgeResult,
-  NetworkGraphResult,
-  NetworkOneHopsByTwoHopResult
+  NodeGraphResult
 } from '../../model';
 
 import { customFetch } from '../../apiClient';
@@ -99,7 +98,7 @@ export const getConnectionPath = async (params: GetConnectionPathParams, options
 
 
 export type getTwoHopMutualFriendsResponse200 = {
-  data: NetworkOneHopsByTwoHopResult[]
+  data: number[]
   status: 200
 }
 
@@ -177,7 +176,7 @@ export const getOneHopMutualFriendEdges = async (params: GetOneHopMutualFriendEd
 
 
 export type getFriendsNetworkResponse200 = {
-  data: NetworkGraphResult
+  data: NodeGraphResult[]
   status: 200
 }
 
@@ -216,7 +215,7 @@ export const getFriendsNetwork = async (params?: GetFriendsNetworkParams, option
 
 
 export type getLabelNetworkResponse200 = {
-  data: NetworkGraphResult
+  data: NodeGraphResult[]
   status: 200
 }
 

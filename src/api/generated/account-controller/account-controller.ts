@@ -13,24 +13,24 @@ import type {
   SignupRequestDto,
   UserProfileUpdateRequest,
   VerificationEmailRequestDto,
-  VerifyEmailParams
+  VerificationTokenResponse
 } from '../../model';
 
 import { customFetch } from '../../apiClient';
 
-export type sendVerificationEmailResponse200 = {
+export type requestVerificationResponse200 = {
   data: void
   status: 200
 }
 
-export type sendVerificationEmailResponseSuccess = (sendVerificationEmailResponse200) & {
+export type requestVerificationResponseSuccess = (requestVerificationResponse200) & {
   headers: Headers;
 };
 ;
 
-export type sendVerificationEmailResponse = (sendVerificationEmailResponseSuccess)
+export type requestVerificationResponse = (requestVerificationResponseSuccess)
 
-export const getSendVerificationEmailUrl = () => {
+export const getRequestVerificationUrl = () => {
 
 
 
@@ -38,53 +38,14 @@ export const getSendVerificationEmailUrl = () => {
   return `/api/auth/verifications`
 }
 
-export const sendVerificationEmail = async (verificationEmailRequestDto: VerificationEmailRequestDto, options?: RequestInit): Promise<sendVerificationEmailResponse> => {
+export const requestVerification = async (verificationEmailRequestDto: VerificationEmailRequestDto, options?: RequestInit): Promise<requestVerificationResponse> => {
 
-  return customFetch<sendVerificationEmailResponse>(getSendVerificationEmailUrl(),
+  return customFetch<requestVerificationResponse>(getRequestVerificationUrl(),
   {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(verificationEmailRequestDto)
-  }
-);}
-
-
-export type verifyEmailResponse200 = {
-  data: void
-  status: 200
-}
-
-export type verifyEmailResponseSuccess = (verifyEmailResponse200) & {
-  headers: Headers;
-};
-;
-
-export type verifyEmailResponse = (verifyEmailResponseSuccess)
-
-export const getVerifyEmailUrl = (params: VerifyEmailParams,) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : String(value))
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
-
-  return stringifiedParams.length > 0 ? `/api/auth/verifications?${stringifiedParams}` : `/api/auth/verifications`
-}
-
-export const verifyEmail = async (params: VerifyEmailParams, options?: RequestInit): Promise<verifyEmailResponse> => {
-
-  return customFetch<verifyEmailResponse>(getVerifyEmailUrl(params),
-  {
-    ...options,
-    method: 'PATCH'
-
-
   }
 );}
 
@@ -284,6 +245,38 @@ export const updateProfile = async (userProfileUpdateRequest: UserProfileUpdateR
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(userProfileUpdateRequest)
+  }
+);}
+
+
+export type resolveVerificationResponse200 = {
+  data: VerificationTokenResponse
+  status: 200
+}
+
+export type resolveVerificationResponseSuccess = (resolveVerificationResponse200) & {
+  headers: Headers;
+};
+;
+
+export type resolveVerificationResponse = (resolveVerificationResponseSuccess)
+
+export const getResolveVerificationUrl = (token: string,) => {
+
+
+
+
+  return `/api/auth/verifications/${token}`
+}
+
+export const resolveVerification = async (token: string, options?: RequestInit): Promise<resolveVerificationResponse> => {
+
+  return customFetch<resolveVerificationResponse>(getResolveVerificationUrl(token),
+  {
+    ...options,
+    method: 'GET'
+
+
   }
 );}
 

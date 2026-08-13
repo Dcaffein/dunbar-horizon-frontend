@@ -7,7 +7,7 @@
  */
 
 export interface SignupRequestDto {
-  email: string;
+  token: string;
   /**
      * @minLength 1
      * @maxLength 20
