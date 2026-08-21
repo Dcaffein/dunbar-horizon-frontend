@@ -61,7 +61,8 @@ export async function getFlagDetailAction(id: number) {
     return { success: true as const, data };
   } catch (error) {
     if (isRedirectError(error)) throw error;
-    return { success: false as const, message: "Flag를 불러오는 데 실패했습니다." };
+    const message = error instanceof Error ? error.message : "Flag를 불러오는 데 실패했습니다.";
+    return { success: false as const, message };
   }
 }
 
@@ -82,7 +83,8 @@ export async function deleteFlagAction(id: number) {
     return { success: true as const };
   } catch (error) {
     if (isRedirectError(error)) throw error;
-    return { success: false as const, message: "Flag 삭제에 실패했습니다." };
+    const message = error instanceof Error ? error.message : "Flag 삭제에 실패했습니다.";
+    return { success: false as const, message };
   }
 }
 
@@ -92,7 +94,8 @@ export async function closeRecruitmentAction(id: number) {
     return { success: true as const };
   } catch (error) {
     if (isRedirectError(error)) throw error;
-    return { success: false as const, message: "모집 마감에 실패했습니다." };
+    const message = error instanceof Error ? error.message : "모집 마감에 실패했습니다.";
+    return { success: false as const, message };
   }
 }
 
@@ -146,7 +149,8 @@ export async function rejectInvitationAction(invitationId: number) {
     return { success: true as const };
   } catch (error) {
     if (isRedirectError(error)) throw error;
-    return { success: false as const, message: "초대 거절에 실패했습니다." };
+    const message = error instanceof Error ? error.message : "초대 거절에 실패했습니다.";
+    return { success: false as const, message };
   }
 }
 
@@ -176,7 +180,8 @@ export async function cancelInvitationAction(invitationId: number) {
     return { success: true as const };
   } catch (error) {
     if (isRedirectError(error)) throw error;
-    return { success: false as const, message: "초대 취소에 실패했습니다." };
+    const message = error instanceof Error ? error.message : "초대 취소에 실패했습니다.";
+    return { success: false as const, message };
   }
 }
 
@@ -223,7 +228,8 @@ export async function updateInvitePermissionAction(
     return { success: true as const };
   } catch (error) {
     if (isRedirectError(error)) throw error;
-    return { success: false as const, message: "초대 권한 변경에 실패했습니다." };
+    const message = error instanceof Error ? error.message : "초대 권한 변경에 실패했습니다.";
+    return { success: false as const, message };
   }
 }
 
@@ -277,7 +283,8 @@ export async function deleteMemorialAction(flagId: number, id: number) {
     return { success: true as const };
   } catch (error) {
     if (isRedirectError(error)) throw error;
-    return { success: false as const, message: "Memorial 삭제에 실패했습니다." };
+    const message = error instanceof Error ? error.message : "Memorial 삭제에 실패했습니다.";
+    return { success: false as const, message };
   }
 }
 
@@ -336,6 +343,7 @@ export async function deleteCommentAction(flagId: number, commentId: number) {
     return { success: true as const };
   } catch (error) {
     if (isRedirectError(error)) throw error;
-    return { success: false as const, message: "댓글 삭제에 실패했습니다." };
+    const message = error instanceof Error ? error.message : "댓글 삭제에 실패했습니다.";
+    return { success: false as const, message };
   }
 }

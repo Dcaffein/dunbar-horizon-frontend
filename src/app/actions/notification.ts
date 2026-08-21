@@ -25,7 +25,8 @@ export async function getNotificationsAction(page = 0, size = 20) {
   } catch (error) {
     if (isRedirectError(error)) throw error;
     console.error("getNotificationsAction error:", error);
-    return { success: false as const, message: "알림을 불러오는 데 실패했습니다." };
+    const message = error instanceof Error ? error.message : "알림을 불러오는 데 실패했습니다.";
+    return { success: false as const, message };
   }
 }
 
@@ -38,7 +39,8 @@ export async function readNotificationAction(notificationId: string) {
   } catch (error) {
     if (isRedirectError(error)) throw error;
     console.error("readNotificationAction error:", error);
-    return { success: false as const, message: "읽음 처리에 실패했습니다." };
+    const message = error instanceof Error ? error.message : "읽음 처리에 실패했습니다.";
+    return { success: false as const, message };
   }
 }
 

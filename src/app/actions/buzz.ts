@@ -31,7 +31,8 @@ export async function getReceivedBuzzesAction(page = 0, size = 20) {
   } catch (error) {
     if (isRedirectError(error)) throw error;
     console.error("getReceivedBuzzesAction error:", error);
-    return { success: false as const, message: "Buzz 목록을 불러오는 데 실패했습니다." };
+    const message = error instanceof Error ? error.message : "Buzz 목록을 불러오는 데 실패했습니다.";
+    return { success: false as const, message };
   }
 }
 
@@ -42,7 +43,8 @@ export async function getBuzzDetailAction(buzzId: string) {
   } catch (error) {
     if (isRedirectError(error)) throw error;
     console.error("getBuzzDetailAction error:", error);
-    return { success: false as const, message: "Buzz를 불러오는 데 실패했습니다." };
+    const message = error instanceof Error ? error.message : "Buzz를 불러오는 데 실패했습니다.";
+    return { success: false as const, message };
   }
 }
 
@@ -66,7 +68,8 @@ export async function deleteBuzzAction(buzzId: string) {
     return { success: true as const };
   } catch (error) {
     if (isRedirectError(error)) throw error;
-    return { success: false as const, message: "Buzz 삭제에 실패했습니다." };
+    const message = error instanceof Error ? error.message : "Buzz 삭제에 실패했습니다.";
+    return { success: false as const, message };
   }
 }
 
@@ -97,7 +100,8 @@ export async function updateCommentAction(
     return { success: true as const, data };
   } catch (error) {
     if (isRedirectError(error)) throw error;
-    return { success: false as const, message: "댓글 수정에 실패했습니다." };
+    const message = error instanceof Error ? error.message : "댓글 수정에 실패했습니다.";
+    return { success: false as const, message };
   }
 }
 
@@ -107,7 +111,8 @@ export async function deleteCommentAction(buzzId: string, commentId: string) {
     return { success: true as const };
   } catch (error) {
     if (isRedirectError(error)) throw error;
-    return { success: false as const, message: "댓글 삭제에 실패했습니다." };
+    const message = error instanceof Error ? error.message : "댓글 삭제에 실패했습니다.";
+    return { success: false as const, message };
   }
 }
 
@@ -120,7 +125,8 @@ export async function presignImagesAction(reqs: PresignRequest[]) {
     return { success: true as const, data };
   } catch (error) {
     if (isRedirectError(error)) throw error;
-    return { success: false as const, message: "이미지 업로드 준비에 실패했습니다." };
+    const message = error instanceof Error ? error.message : "이미지 업로드 준비에 실패했습니다.";
+    return { success: false as const, message };
   }
 }
 
@@ -143,6 +149,7 @@ export async function getSentBuzzesAction(page = 0, size = 20) {
     return { success: true as const, data };
   } catch (error) {
     if (isRedirectError(error)) throw error;
-    return { success: false as const, message: "보낸 Buzz 목록을 불러오는 데 실패했습니다." };
+    const message = error instanceof Error ? error.message : "보낸 Buzz 목록을 불러오는 데 실패했습니다.";
+    return { success: false as const, message };
   }
 }

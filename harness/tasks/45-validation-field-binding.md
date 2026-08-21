@@ -1,4 +1,4 @@
-# Task 46: validation 응답을 폼 필드에 바인딩
+# Task 45: validation 응답을 폼 필드에 바인딩
 
 > 미착수. Task 42(실패 정규화) 완료가 전제다.
 

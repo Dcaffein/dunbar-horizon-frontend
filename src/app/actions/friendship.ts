@@ -37,7 +37,8 @@ export async function getFriendProfileAction(friendId: number) {
     return { success: true as const, data };
   } catch (error) {
     if (isRedirectError(error)) throw error;
-    return { success: false as const, message: "친구 프로필을 불러오는 데 실패했습니다." };
+    const message = error instanceof Error ? error.message : "친구 프로필을 불러오는 데 실패했습니다.";
+    return { success: false as const, message };
   }
 }
 
@@ -47,6 +48,7 @@ export async function getConnectionPathAction(targetId: number) {
     return { success: true as const, data };
   } catch (error) {
     if (isRedirectError(error)) throw error;
-    return { success: false as const, message: "연결 경로를 불러오는 데 실패했습니다." };
+    const message = error instanceof Error ? error.message : "연결 경로를 불러오는 데 실패했습니다.";
+    return { success: false as const, message };
   }
 }
