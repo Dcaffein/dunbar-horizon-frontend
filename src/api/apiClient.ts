@@ -31,6 +31,11 @@ const SERVER_ERROR = "일시적인 오류가 발생했습니다. 잠시 후 다�
 const NETWORK_ERROR = "네트워크 연결을 확인해 주세요.";
 const TIMEOUT_ERROR = "요청 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.";
 const CLIENT_ERROR = "요청을 처리할 수 없습니다.";
+// 404 본문도 신뢰하지 않는다. 실측 결과 백엔드의 404 문구는 사용자용이 아니라
+// 내부 식별자를 담고 있다 — "존재하지 않는 flagMemorial : 99999999",
+// "User(4)와 User(99999999) 사이의...", "요청하신 경로를 찾을 수 없습니다: api/v1/...".
+// 라우팅 미스와 도메인 예외가 같은 404 를 쓰므로 호출부 단위로는 가릴 수 없다.
+const NOT_FOUND_ERROR = "요청하신 대상을 찾을 수 없습니다.";
 
 interface ApiErrorInit {
   kind: FailureKind;
@@ -143,9 +148,14 @@ async function fetchInternal<TResult, TBody = unknown>(
         // JSON 이 아닌 응답(게이트웨이 HTML 등). 본문은 detail 로만 남긴다.
       }
 
-      // 5xx 본문은 신뢰하지 않는다. 처리되지 않은 예외의 문자열일 수 있다.
+      // 서버 문구를 그대로 쓸 수 있는 것은 사용자용으로 쓰인 4xx 뿐이다.
+      // 5xx 는 처리되지 않은 예외 문자열일 수 있고, 404 는 내부 식별자를 담는다.
       const message =
-        response.status >= 500 ? SERVER_ERROR : errorBody.message ?? CLIENT_ERROR;
+        response.status >= 500
+          ? SERVER_ERROR
+          : response.status === 404
+            ? NOT_FOUND_ERROR
+            : errorBody.message ?? CLIENT_ERROR;
 
       throw new ApiError(message, {
         kind: "http",
