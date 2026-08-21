@@ -131,4 +131,56 @@ Flag 409 재조회, 고정 문구 29곳 정리, 폼의 `validation` 바인딩.
 
 ## Result
 
-_미착수_
+**완료** (2026-08-21) — `agent/task-42-api-failure-normalization`
+
+### Phase 1 — 정적 분석
+
+- `npx tsc --noEmit` 0 에러
+- `npm run lint` 총계 **15 problems (3 errors, 12 warnings)** — 작업 전과 **동일**.
+  변경 파일의 경고 2건은 모두 사전 존재(`customFetch`의 `catch (e)`, `auth.ts`의 `catch (_e)`)
+- 호출부 무변경: `instanceof Error` 20건, `apiClient` 호출 74건 — 작업 전후 동일
+
+### Phase 2 — 회귀 스모크 (실제 백엔드) 10/10
+
+메인 그래프 · Flag 목록 · Buzz · 알림 · 프로필 · 친구요청 정상 렌더, 댓글 작성 정상.
+
+회귀 판정 기준은 Task 41에서 기록해둔 정확한 문자열을 썼다.
+종료된 Flag 탈퇴 → **"모집 기간이 종료된 이후에는 참여를 취소할 수 없습니다."**
+글자 그대로 동일하게 표시되고 참여자 목록도 유지된다. **문구 하위 호환 확인.**
+
+### Phase 3 — 본체 (스텁 서버) 9/9 + 2/2
+
+`GET`은 실제 스프링으로 넘기고 변경 요청만 시나리오로 응답하는 스텁을 9911에 띄운 뒤,
+`NEXT_PUBLIC_API_URL`을 그쪽으로 돌린 dev 서버로 검증했다. 스프링 데이터는 건드리지 않았다.
+
+| 케이스 | 결과 |
+|---|---|
+| 5xx `{"message":"java.lang.NullPointerException..."}` | 예외 문자열 미노출, `SERVER_ERROR` 표시 |
+| 502 + nginx HTML | HTML 미노출, `SERVER_ERROR` 표시 |
+| 409 + 한국어 `message` | **서버 문구 그대로 통과** (기존 동작 유지) |
+| 400 `{"validation":{...}}` (`message` 없음) | JSON 원문 미노출, `CLIENT_ERROR` 표시 |
+| 2xx인데 본문이 HTML (`kind=parse`) | 파서 에러 미노출, `SERVER_ERROR` 표시 |
+| 연결 끊김 (`kind=network`) | **`fetch failed` 대신 "네트워크 연결을 확인해 주세요."** |
+| **401** | `/login?callbackUrl=%2Fflags` 리다이렉트 정상 — **최대 회귀 위험 해소** |
+
+로그와 화면이 분리된 것도 확인했다.
+
+```
+화면:  네트워크 연결을 확인해 주세요.
+로그:  [apiClient] POST /api/v1/flags/43/comments → network TypeError: fetch failed
+       [apiClient] POST /api/v1/flags/43/comments → http 409 FlagInvalidStatusException
+       [apiClient] POST /api/v1/flags/43/comments → parse 200 SyntaxError: Unexpected token '<'
+```
+
+`status`·`code`·`kind`가 로그에 남아 원인 분류가 가능해졌다. 기존에는
+`Error: 모집 기간이...`와 스택만 남아 4xx인지 5xx인지 알 수 없었다.
+
+### 기록해둘 것
+
+- **Next 16은 프로젝트당 dev 서버 하나만 허용한다.** 실서버와 스텁서버를 동시에 띄우려다
+  `Another next dev server is already running`으로 실패했고, 순차 실행으로 처리했다.
+  Task 41 검증 중 겪은 `Jest worker` 500도 같은 원인이었음이 확인됐다.
+- 네트워크 실패 재현은 스텁을 **죽이는** 대신 `socket.destroy()`로 연결을 끊는 방식이 낫다.
+  GET 프록시를 살려둔 채 실패만 주입할 수 있다.
+- 검증 중 생성한 데이터는 없다. 변경 요청이 전부 스텁에서 끝나 스프링에 도달하지 않았다
+  (flag 43 댓글 0개 확인). Phase 2용 Flag는 삭제했다.
