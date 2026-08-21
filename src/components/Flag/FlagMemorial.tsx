@@ -79,7 +79,7 @@ export default function FlagMemorial({
 
   async function handleUpdate(id: number) {
     if (!editText.trim()) return;
-    const result = await updateMemorialAction(id, editText.trim());
+    const result = await updateMemorialAction(flagId, id, editText.trim());
     if (result.success) {
       setMemorials((prev) =>
         prev.map((m) => m.id === id ? { ...m, content: editText.trim() } : m)
@@ -91,7 +91,7 @@ export default function FlagMemorial({
   }
 
   async function handleDelete(id: number) {
-    const result = await deleteMemorialAction(id);
+    const result = await deleteMemorialAction(flagId, id);
     if (result.success) {
       setMemorials((prev) => prev.filter((m) => m.id !== id));
     } else {
