@@ -4,6 +4,7 @@ import { z } from "zod";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { BASE_URL } from "@/lib/constants";
+import type { ApiErrorBody } from "@/api/apiClient";
 
 const loginSchema = z.object({
   email: z
@@ -116,12 +117,6 @@ async function applySetCookieHeaders(headers: string[]) {
       cookieStore.set(parsed.name, parsed.value, parsed.options);
     }
   });
-}
-
-interface ApiErrorBody {
-  error?: string;
-  message?: string;
-  validation?: Record<string, string>;
 }
 
 /**
