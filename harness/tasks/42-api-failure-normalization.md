@@ -132,8 +132,11 @@ const message = error instanceof Error ? error.message : "참여 취소에 실�
 
 ## 후속
 
-`kind`·`status`가 생기면 그 위에서 처리한다 — 조회 실패 14곳의 "실패 vs 데이터 없음" 구분,
-Flag 409 재조회, 고정 문구 29곳 정리, 폼의 `validation` 바인딩.
+`kind`·`status`가 생기면 그 위에서 처리한다.
+
+- **Task 43** 고정 문구 29곳 정리 (완료)
+- **Task 44** 화면 상태 정합성 — 조회 실패 15곳의 "실패 vs 데이터 없음" 구분, 409 재조회
+- **Task 45** 폼의 `validation` 필드 바인딩
 
 ## Result
 
