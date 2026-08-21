@@ -70,7 +70,8 @@ export async function getTwoHopSuggestionsByAnchorAction(anchorId: number) {
   } catch (error) {
     if (isRedirectError(error)) throw error;
     console.error("getTwoHopSuggestionsByAnchorAction error:", error);
-    return { success: false as const, message: "추천을 불러오는 데 실패했습니다." };
+    const message = error instanceof Error ? error.message : "추천을 불러오는 데 실패했습니다.";
+    return { success: false as const, message };
   }
 }
 
@@ -84,7 +85,8 @@ export async function getTwoHopMutualFriendsAction(targetId: number, skeletonIds
   } catch (error) {
     if (isRedirectError(error)) throw error;
     console.error("getTwoHopMutualFriendsAction error:", error);
-    return { success: false as const, message: "공통 친구를 불러오는 데 실패했습니다." };
+    const message = error instanceof Error ? error.message : "공통 친구를 불러오는 데 실패했습니다.";
+    return { success: false as const, message };
   }
 }
 

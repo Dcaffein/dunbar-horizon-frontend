@@ -39,7 +39,8 @@ export async function getReceivedRequestsAction() {
   } catch (error) {
     if (isRedirectError(error)) throw error;
     console.error("getReceivedRequestsAction error:", error);
-    return { success: false as const, message: "받은 요청을 불러오는 데 실패했습니다." };
+    const message = error instanceof Error ? error.message : "받은 요청을 불러오는 데 실패했습니다.";
+    return { success: false as const, message };
   }
 }
 
@@ -50,7 +51,8 @@ export async function getSentRequestsAction() {
   } catch (error) {
     if (isRedirectError(error)) throw error;
     console.error("getSentRequestsAction error:", error);
-    return { success: false as const, message: "보낸 요청을 불러오는 데 실패했습니다." };
+    const message = error instanceof Error ? error.message : "보낸 요청을 불러오는 데 실패했습니다.";
+    return { success: false as const, message };
   }
 }
 

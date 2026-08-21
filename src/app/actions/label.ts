@@ -35,7 +35,8 @@ export async function deleteLabelAction(labelId: string) {
   } catch (error) {
     if (isRedirectError(error)) throw error;
     console.error("deleteLabelAction error:", error);
-    return { success: false as const, message: "레이블 삭제에 실패했습니다." };
+    const message = error instanceof Error ? error.message : "레이블 삭제에 실패했습니다.";
+    return { success: false as const, message };
   }
 }
 
@@ -47,7 +48,8 @@ export async function addLabelMemberAction(labelId: string, memberId: number) {
   } catch (error) {
     if (isRedirectError(error)) throw error;
     console.error("addLabelMemberAction error:", error);
-    return { success: false as const, message: "멤버 추가에 실패했습니다." };
+    const message = error instanceof Error ? error.message : "멤버 추가에 실패했습니다.";
+    return { success: false as const, message };
   }
 }
 
@@ -58,6 +60,7 @@ export async function removeLabelMemberAction(labelId: string, memberId: number)
   } catch (error) {
     if (isRedirectError(error)) throw error;
     console.error("removeLabelMemberAction error:", error);
-    return { success: false as const, message: "멤버 삭제에 실패했습니다." };
+    const message = error instanceof Error ? error.message : "멤버 삭제에 실패했습니다.";
+    return { success: false as const, message };
   }
 }

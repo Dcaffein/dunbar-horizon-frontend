@@ -13,7 +13,8 @@ export async function getMyProfileAction() {
   } catch (error) {
     if (isRedirectError(error)) throw error;
     console.error("getMyProfileAction error:", error);
-    return { success: false as const, message: "프로필을 불러오는 데 실패했습니다." };
+    const message = error instanceof Error ? error.message : "프로필을 불러오는 데 실패했습니다.";
+    return { success: false as const, message };
   }
 }
 
@@ -26,7 +27,8 @@ export async function presignProfileImageAction(contentType: string) {
   } catch (error) {
     if (isRedirectError(error)) throw error;
     console.error("presignProfileImageAction error:", error);
-    return { success: false as const, message: "이미지 업로드 준비에 실패했습니다." };
+    const message = error instanceof Error ? error.message : "이미지 업로드 준비에 실패했습니다.";
+    return { success: false as const, message };
   }
 }
 
@@ -37,6 +39,7 @@ export async function updateProfileAction(body: UserProfileUpdateRequest) {
   } catch (error) {
     if (isRedirectError(error)) throw error;
     console.error("updateProfileAction error:", error);
-    return { success: false as const, message: "프로필 수정에 실패했습니다." };
+    const message = error instanceof Error ? error.message : "프로필 수정에 실패했습니다.";
+    return { success: false as const, message };
   }
 }
