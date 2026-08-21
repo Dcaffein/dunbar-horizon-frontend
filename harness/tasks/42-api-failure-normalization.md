@@ -43,10 +43,18 @@ const message = error instanceof Error ? error.message : "참여에 실패했습
 | `validation` | 파싱해놓고 버림 |
 | `message` | 유일한 생존자 — 그마저 31곳에서 고정 문구로 덮임 |
 
-status가 필요했던 도메인은 이미 한 번 있었고, 그때의 대응은 **`apiClient` 우회**였다.
-`auth.ts`는 `apiClient`를 import하지 않고 전부 raw `fetch`를 쓰며
-[mapSignupError(status, body)](src/app/actions/auth.ts#L131)로 400/409/410을 직접 나눈다.
-Task 41(Flag)이 두 번째 사례가 될 뻔했다. 세 번째에서 또 우회하지 않도록 공용 계층으로 끌어올린다.
+`apiClient`가 status를 **모르는 것은 아니다.** 401 판정([apiClient.ts:55](src/api/apiClient.ts#L55))과
+`API Error: ${status}` 문자열([apiClient.ts:66](src/api/apiClient.ts#L66))에서 이미 읽는다.
+다만 **동작이나 문자열로 소비해버리고 호출자에게 넘기지 않는다.** 그래서 결정을 내려야 하는
+Server Action에는 도달하지 않는다.
+
+참고로 `auth.ts`가 raw `fetch`를 쓰는 것은 **status 때문이 아니다.** 이유는 둘이다 —
+① 인증 엔드포인트에서 401은 "세션 만료"가 아니라 "자격증명·토큰 무효"라서
+전역 `redirect("/login")`이 오히려 틀린 동작을 하고([auth.ts:205](src/app/actions/auth.ts#L205)),
+② `fetchInternal`이 body만 반환하고 `response.headers`를 버려 로그인·가입의
+`Set-Cookie`를 심을 수 없다([auth.ts:304](src/app/actions/auth.ts#L304)).
+`mapSignupError`가 status로 분기하는 것은 우회의 **결과**지 원인이 아니다.
+따라서 auth는 "status가 필요해 우회한 선례"가 아니며, 그 두 사정은 다른 도메인에는 없다.
 
 ## 이 태스크가 하는 일 / 하지 않는 일
 
@@ -108,10 +116,10 @@ export class ApiError extends Error {
 ### 하위 호환이 이 설계의 전제
 
 `ApiError extends Error`이고 `message`는 지금과 **같은 자리에 같은 방식**으로 채운다.
-따라서 호출부 49곳은 한 글자도 바뀌지 않고 그대로 동작한다.
+따라서 호출부는 한 글자도 바뀌지 않고 그대로 동작한다.
 
-**안 고친 곳도 좋아진다** — `message` 통과 18곳에서 `fetch failed`가 뜨던 게 사라진다.
-고정 문구로 덮는 31곳은 지금과 동일하게 동작한다(개선은 각 도메인 태스크에서).
+**안 고친 곳도 좋아진다** — `message` 통과 20곳에서 `fetch failed`가 뜨던 게 사라진다.
+고정 문구로 덮는 29곳은 지금과 동일하게 동작한다(개선은 각 도메인 태스크에서).
 
 ## 작업 범위
 
@@ -126,7 +134,7 @@ export class ApiError extends Error {
 ### 제외
 
 - **각 도메인의 에러 분기** — 409 재조회, `validation` 필드 바인딩, 문구 세분화. 전부 소비 측 태스크 소관
-- **고정 문구로 덮는 31곳 정리** — 별도 태스크. 이번엔 동작을 바꾸지 않는다
+- **고정 문구로 덮는 29곳 정리** — 별도 태스크. 이번엔 동작을 바꾸지 않는다
 - **조회 실패 시 빈 배열 반환 14곳** — 화면에서 "실패"와 "데이터 없음"이 구분되지 않는 문제. 별도 태스크
 - **`code` 기반 문구 매핑 / i18n** — 지금은 서버가 문구를 소유한다. 필요해질 때 도입
 - **401 재발급 재시도** — Task 39 소관. `redirect("/login")` 분기는 손대지 않는다
@@ -134,7 +142,7 @@ export class ApiError extends Error {
 
 ## 리스크: 영향 범위가 앱 전체다
 
-`apiClient`는 `auth.ts`를 제외한 모든 Server Action이 쓴다. 호출부 49곳, 도메인 8개.
+`apiClient`는 `auth.ts`를 제외한 모든 Server Action과 페이지 12곳이 쓴다. 호출 74건, 도메인 8개.
 **동작을 바꾸지 않는 것이 이 태스크의 성공 조건이다** — `message` 하위 호환이 유일한 안전장치다.
 
 특히 주의할 회귀 지점 둘:
@@ -193,8 +201,8 @@ Mock 파일은 생성하지 않는다. 신규 UI가 없고 전송 계층 단독 
 
 ## 선행 조건
 
-없다. 다만 **Task 41(Flag URL 리팩토링)을 먼저 끝낸다** — Flag 흐름 9개가 현재 깨져 있어
-Phase 2의 Flag 항목을 검증할 수 없다. 41은 이 태스크에 의존하지 않는다.
+없다. Task 41(Flag URL 리팩토링)은 완료되어 main에 병합됐고, 거기서 확인된
+Flag 실패 문구를 Phase 2의 회귀 판정 기준으로 쓴다.
 
 ## 후속
 
