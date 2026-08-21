@@ -34,7 +34,10 @@ export async function getParticipatingFlagsAction() {
 
 export async function getUserRecentFlagsAction(userId: number) {
   try {
-    const data = await apiClient.get<FlagResult[]>(`/api/v1/flags/users/${userId}/recent`, { silent: true });
+    const data = await apiClient.get<FlagResult[]>("/api/v1/flags/recent", {
+      params: { userId },
+      silent: true,
+    });
     return { success: true as const, data };
   } catch (error) {
     if (isRedirectError(error)) throw error;
@@ -106,17 +109,18 @@ export async function participateAction(id: number) {
 
 export async function leaveAction(id: number) {
   try {
-    await apiClient.delete(`/api/v1/flags/${id}/participants`);
+    await apiClient.delete(`/api/v1/flags/${id}/participants/me`);
     return { success: true as const };
   } catch (error) {
     if (isRedirectError(error)) throw error;
-    return { success: false as const, message: "참여 취소에 실패했습니다." };
+    const message = error instanceof Error ? error.message : "참여 취소에 실패했습니다.";
+    return { success: false as const, message };
   }
 }
 
 export async function inviteFriendAction(flagId: number, inviteeId: number) {
   try {
-    await apiClient.post(`/api/v1/flags/${flagId}/invitations`, { inviteeId });
+    await apiClient.post("/api/v1/flag-invitations", { flagId, inviteeId });
     return { success: true as const };
   } catch (error) {
     if (isRedirectError(error)) throw error;
@@ -131,7 +135,8 @@ export async function acceptInvitationAction(invitationId: number) {
     return { success: true as const };
   } catch (error) {
     if (isRedirectError(error)) throw error;
-    return { success: false as const, message: "초대 수락에 실패했습니다." };
+    const message = error instanceof Error ? error.message : "초대 수락에 실패했습니다.";
+    return { success: false as const, message };
   }
 }
 
@@ -214,7 +219,7 @@ export async function updateInvitePermissionAction(
   canInvite: boolean,
 ) {
   try {
-    await apiClient.patch(`/api/v1/flags/${flagId}/participants/${participantId}/invite-permission`, { canInvite });
+    await apiClient.patch(`/api/v1/flags/${flagId}/participants/${participantId}`, { canInvite });
     return { success: true as const };
   } catch (error) {
     if (isRedirectError(error)) throw error;
@@ -255,9 +260,9 @@ export async function createMemorialAction(flagId: number, content: string) {
   }
 }
 
-export async function updateMemorialAction(id: number, content: string) {
+export async function updateMemorialAction(flagId: number, id: number, content: string) {
   try {
-    await apiClient.patch(`/api/v1/flags/memorials/${id}`, { content });
+    await apiClient.patch(`/api/v1/flags/${flagId}/memorials/${id}`, { content });
     return { success: true as const };
   } catch (error) {
     if (isRedirectError(error)) throw error;
@@ -266,9 +271,9 @@ export async function updateMemorialAction(id: number, content: string) {
   }
 }
 
-export async function deleteMemorialAction(id: number) {
+export async function deleteMemorialAction(flagId: number, id: number) {
   try {
-    await apiClient.delete(`/api/v1/flags/memorials/${id}`);
+    await apiClient.delete(`/api/v1/flags/${flagId}/memorials/${id}`);
     return { success: true as const };
   } catch (error) {
     if (isRedirectError(error)) throw error;
@@ -300,10 +305,10 @@ export async function createCommentAction(flagId: number, content: string, isPri
   }
 }
 
-export async function createReplyAction(parentId: number, content: string, isPrivate?: boolean) {
+export async function createReplyAction(flagId: number, parentId: number, content: string, isPrivate?: boolean) {
   try {
     const data = await apiClient.post<number, { content: string; isPrivate?: boolean }>(
-      `/api/v1/comments/${parentId}/replies`,
+      `/api/v1/flags/${flagId}/comments/${parentId}/replies`,
       { content, ...(isPrivate ? { isPrivate } : {}) },
     );
     return { success: true as const, data };
@@ -314,9 +319,9 @@ export async function createReplyAction(parentId: number, content: string, isPri
   }
 }
 
-export async function updateCommentAction(commentId: number, content: string) {
+export async function updateCommentAction(flagId: number, commentId: number, content: string) {
   try {
-    await apiClient.patch(`/api/v1/comments/${commentId}`, { content });
+    await apiClient.patch(`/api/v1/flags/${flagId}/comments/${commentId}`, { content });
     return { success: true as const };
   } catch (error) {
     if (isRedirectError(error)) throw error;
@@ -325,9 +330,9 @@ export async function updateCommentAction(commentId: number, content: string) {
   }
 }
 
-export async function deleteCommentAction(commentId: number) {
+export async function deleteCommentAction(flagId: number, commentId: number) {
   try {
-    await apiClient.delete(`/api/v1/comments/${commentId}`);
+    await apiClient.delete(`/api/v1/flags/${flagId}/comments/${commentId}`);
     return { success: true as const };
   } catch (error) {
     if (isRedirectError(error)) throw error;

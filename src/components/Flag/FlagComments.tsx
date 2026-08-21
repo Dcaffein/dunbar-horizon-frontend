@@ -13,6 +13,10 @@ import {
 // CommentResult 타입에 replies 필드가 런타임에 존재하지만 OpenAPI 스펙 순환참조로 누락됨
 type CommentTree = CommentResult & { replies?: CommentTree[] };
 
+// 백엔드 CommentCreateRequest/CommentUpdateRequest 의 @Size(max=500) 과 일치시킨다.
+const COMMENT_MAX_LENGTH = 500;
+const COMMENT_COUNTER_THRESHOLD = 450;
+
 interface FlagCommentsProps {
   flagId: number;
   initialComments: CommentResult[];
@@ -74,8 +78,14 @@ function CommentItem({
             <input
               value={editText}
               onChange={(e) => onEditTextChange(e.target.value)}
+              maxLength={COMMENT_MAX_LENGTH}
               className="w-full text-xs text-gray-900 border border-gray-200 rounded px-2 py-1 focus:outline-none focus:border-indigo-400"
             />
+            {editText.length >= COMMENT_COUNTER_THRESHOLD && (
+              <p className="text-[10px] text-gray-400 text-right">
+                {editText.length}/{COMMENT_MAX_LENGTH}
+              </p>
+            )}
             <div className="flex gap-2">
               <button onClick={() => onEditSubmit(comment.id!)} className="text-xs text-indigo-600 font-medium">저장</button>
               <button onClick={onEditCancel} className="text-xs text-gray-400">취소</button>
@@ -168,7 +178,7 @@ export default function FlagComments({ flagId, initialComments, myWriterInfo }: 
     setIsSubmitting(true);
     setError(null);
     const content = replyText.trim();
-    const result = await createReplyAction(parentId, content, replyPrivate || undefined);
+    const result = await createReplyAction(flagId, parentId, content, replyPrivate || undefined);
     setIsSubmitting(false);
     if (result.success) {
       const newReply: CommentTree = {
@@ -192,7 +202,7 @@ export default function FlagComments({ flagId, initialComments, myWriterInfo }: 
 
   async function handleUpdate(commentId: number) {
     if (!editText.trim()) return;
-    const result = await updateCommentAction(commentId, editText.trim());
+    const result = await updateCommentAction(flagId, commentId, editText.trim());
     if (result.success) {
       setComments((prev) => updateInTree(prev, commentId, { content: editText.trim() }));
       setEditingId(null);
@@ -202,7 +212,7 @@ export default function FlagComments({ flagId, initialComments, myWriterInfo }: 
   }
 
   async function handleDelete(commentId: number) {
-    const result = await deleteCommentAction(commentId);
+    const result = await deleteCommentAction(flagId, commentId);
     if (result.success) {
       setComments((prev) => removeFromTree(prev, commentId));
     } else {
@@ -255,6 +265,7 @@ export default function FlagComments({ flagId, initialComments, myWriterInfo }: 
                       value={replyText}
                       onChange={(e) => setReplyText(e.target.value)}
                       placeholder="대댓글을 입력하세요"
+                      maxLength={COMMENT_MAX_LENGTH}
                       className="flex-1 text-xs text-gray-900 border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:border-indigo-400"
                     />
                     <button
@@ -281,6 +292,11 @@ export default function FlagComments({ flagId, initialComments, myWriterInfo }: 
                       취소
                     </button>
                   </div>
+                  {replyText.length >= COMMENT_COUNTER_THRESHOLD && (
+                    <p className="text-[10px] text-gray-400 text-right">
+                      {replyText.length}/{COMMENT_MAX_LENGTH}
+                    </p>
+                  )}
                 </div>
               )}
             </div>
@@ -296,6 +312,7 @@ export default function FlagComments({ flagId, initialComments, myWriterInfo }: 
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleCreate()}
           placeholder="댓글을 입력하세요"
+          maxLength={COMMENT_MAX_LENGTH}
           className="flex-1 text-sm text-gray-900 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400"
         />
         <button
@@ -316,6 +333,11 @@ export default function FlagComments({ flagId, initialComments, myWriterInfo }: 
           전송
         </button>
       </div>
+      {text.length >= COMMENT_COUNTER_THRESHOLD && (
+        <p className="text-[10px] text-gray-400 text-right mt-1">
+          {text.length}/{COMMENT_MAX_LENGTH}
+        </p>
+      )}
     </div>
   );
 }
