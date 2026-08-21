@@ -3,6 +3,8 @@
 import { useState } from "react";
 import type { CommentResult } from "@/api/model/commentResult";
 import type { WriterInfo } from "@/api/model/writerInfo";
+import type { Failure } from "@/api/apiClient";
+import FailureState from "@/components/common/FailureState";
 import {
   createCommentAction,
   createReplyAction,
@@ -21,6 +23,9 @@ interface FlagCommentsProps {
   flagId: number;
   initialComments: CommentResult[];
   myWriterInfo?: WriterInfo;
+  /** 댓글 조회가 실패했을 때. "댓글이 없습니다"와 구분해서 보여준다. */
+  failure?: Failure;
+  onRetry?: () => void | Promise<void>;
 }
 
 function timeAgo(iso?: string): string {
@@ -142,7 +147,13 @@ function CommentItem({
   );
 }
 
-export default function FlagComments({ flagId, initialComments, myWriterInfo }: FlagCommentsProps) {
+export default function FlagComments({
+  flagId,
+  initialComments,
+  myWriterInfo,
+  failure,
+  onRetry,
+}: FlagCommentsProps) {
   const [comments, setComments] = useState<CommentTree[]>(initialComments as CommentTree[]);
   const [text, setText] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
@@ -240,7 +251,10 @@ export default function FlagComments({ flagId, initialComments, myWriterInfo }: 
     <div className="bg-white px-4 py-4 border-b">
       <p className="text-xs font-bold text-gray-500 mb-3">댓글 {totalCount}개</p>
 
-      {comments.length === 0 ? (
+      {failure ? (
+        // 조회 실패. 댓글이 있는지 없는지 모르는 상태다.
+        <FailureState failure={failure} inline onRetry={onRetry} />
+      ) : comments.length === 0 ? (
         <p className="text-xs text-gray-400 mb-3">아직 댓글이 없습니다.</p>
       ) : (
         <div className="divide-y divide-gray-50 mb-3">

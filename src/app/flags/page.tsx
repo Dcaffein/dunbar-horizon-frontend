@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { isRedirectError } from "@/api/apiClient";
+import { isRedirectError, toFailure } from "@/api/apiClient";
+import type { Failure } from "@/api/apiClient";
 import {
   getHostingFlagsAction,
   getParticipatingFlagsAction,
@@ -10,6 +11,8 @@ import type { FlagResult } from "@/api/model/flagResult";
 export default async function FlagsPage() {
   let hosting: FlagResult[] = [];
   let participating: FlagResult[] = [];
+  // 목록이 이 화면의 주 데이터다. 실패를 빈 배열로 삼키면 "Flag가 없습니다"가 뜬다.
+  let failure: Failure | undefined;
 
   try {
     const [h, p] = await Promise.all([
@@ -18,8 +21,10 @@ export default async function FlagsPage() {
     ]);
     hosting = h.data;
     participating = p.data;
+    failure = h.success ? (p.success ? undefined : p.failure) : h.failure;
   } catch (error) {
     if (isRedirectError(error)) throw error;
+    failure = toFailure(error);
   }
 
   return (
@@ -53,6 +58,7 @@ export default async function FlagsPage() {
         <FlagList
           initialHosting={hosting}
           initialParticipating={participating}
+          failure={failure}
         />
       </main>
     </div>

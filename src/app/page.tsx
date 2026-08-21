@@ -8,15 +8,26 @@ import { getUnreadCountAction } from "@/app/actions/notification";
 import { getLabelsAction } from "@/app/actions/label";
 import type { FriendshipDetail } from "@/components/socialGraph/types";
 import type { Label } from "@/components/Label/types";
-import { isRedirectError } from "@/api/apiClient";
+import { isRedirectError, toFailure } from "@/api/apiClient";
+import FailureState from "@/components/common/FailureState";
 
 export default async function MainPage() {
-  const [friendsData, labelsResult, unreadResult] = await Promise.all([
-    apiClient.get<FriendshipDetail[]>("/api/v1/friends").catch((error) => {
-      if (isRedirectError(error)) throw error;
-      console.error("친구 목록을 불러오는 데 실패했습니다.", error);
-      return [] as FriendshipDetail[];
-    }),
+  // 친구 목록은 이 화면의 주 데이터다. 실패를 빈 배열로 삼키면
+  // 친구가 있는 사용자에게 "아직 연결된 친구가 없습니다"가 뜬다.
+  // 라벨·안읽은 알림 수는 부수 데이터라 지금처럼 조용히 넘어간다.
+  const [friendsResult, labelsResult, unreadResult] = await Promise.all([
+    apiClient
+      .get<FriendshipDetail[]>("/api/v1/friends")
+      .then((data) => ({ success: true as const, data }))
+      .catch((error) => {
+        if (isRedirectError(error)) throw error;
+        console.error("친구 목록을 불러오는 데 실패했습니다.", error);
+        return {
+          success: false as const,
+          data: [] as FriendshipDetail[],
+          failure: toFailure(error),
+        };
+      }),
     getLabelsAction().catch((error) => {
       if (isRedirectError(error)) throw error;
       return { success: false as const, data: [] as Label[] };
@@ -24,7 +35,7 @@ export default async function MainPage() {
     getUnreadCountAction().catch(() => ({ success: false as const, data: 0 })),
   ]);
 
-  const friends = friendsData;
+  const friends = friendsResult.data;
 
   const initialLabels: Label[] = labelsResult.success
     ? labelsResult.data
@@ -97,8 +108,13 @@ export default async function MainPage() {
 
       {/* 메인 컨텐츠 영역: 소셜 그래프 컨테이너 */}
       <section className="flex-1 w-full bg-white rounded-3xl shadow-xl border border-gray-200 overflow-hidden relative">
-        {friends.length === 0 ? (
-          // 친구가 한 명도 없을 때 보여줄 빈 화면 (Empty State)
+        {!friendsResult.success ? (
+          // 조회 실패. 친구가 있는지 없는지 모르는 상태이므로 "없습니다"라고 하지 않는다.
+          <div className="h-full flex items-center justify-center">
+            <FailureState failure={friendsResult.failure} />
+          </div>
+        ) : friends.length === 0 ? (
+          // 조회는 성공했고 친구가 정말 한 명도 없을 때 (Empty State)
           <div className="h-full flex flex-col items-center justify-center text-gray-400">
             <svg
               className="w-20 h-20 mb-4 text-gray-300"

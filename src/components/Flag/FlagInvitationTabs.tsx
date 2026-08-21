@@ -4,6 +4,8 @@ import { useState } from "react";
 import type { ReceivedFlagInvitationResult } from "@/api/model/receivedFlagInvitationResult";
 import type { SentFlagInvitationResult } from "@/api/model/sentFlagInvitationResult";
 import FlagInvitationList from "@/components/Flag/FlagInvitationList";
+import FailureState from "@/components/common/FailureState";
+import type { Failure } from "@/api/apiClient";
 import { cancelInvitationAction } from "@/app/actions/flag";
 
 function relativeTime(createdAt?: string): string {
@@ -108,9 +110,16 @@ type Tab = "received" | "sent";
 interface FlagInvitationTabsProps {
   initialReceived: ReceivedFlagInvitationResult[];
   initialSent: SentFlagInvitationResult[];
+  receivedFailure?: Failure;
+  sentFailure?: Failure;
 }
 
-export default function FlagInvitationTabs({ initialReceived, initialSent }: FlagInvitationTabsProps) {
+export default function FlagInvitationTabs({
+  initialReceived,
+  initialSent,
+  receivedFailure,
+  sentFailure,
+}: FlagInvitationTabsProps) {
   const [activeTab, setActiveTab] = useState<Tab>("received");
 
   return (
@@ -139,7 +148,13 @@ export default function FlagInvitationTabs({ initialReceived, initialSent }: Fla
       </div>
 
       {activeTab === "received" ? (
-        <FlagInvitationList initialInvitations={initialReceived} />
+        receivedFailure ? (
+          <FailureState failure={receivedFailure} />
+        ) : (
+          <FlagInvitationList initialInvitations={initialReceived} />
+        )
+      ) : sentFailure ? (
+        <FailureState failure={sentFailure} />
       ) : (
         <SentInvitationList initialInvitations={initialSent} />
       )}

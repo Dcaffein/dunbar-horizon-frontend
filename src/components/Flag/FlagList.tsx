@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import type { FlagResult } from "@/api/model/flagResult";
 import { getFriendFlagsAction } from "@/app/actions/flag";
+import type { Failure } from "@/api/apiClient";
+import FailureState from "@/components/common/FailureState";
 
 type Tab = "participating" | "hosting" | "browse";
 type StatusFilter = "active" | "deadline" | "ended";
@@ -130,21 +132,37 @@ function FlagCard({ flag }: FlagCardProps) {
 interface FlagListProps {
   initialHosting: FlagResult[];
   initialParticipating: FlagResult[];
+  /** 참여중·호스팅 조회가 실패했을 때. 빈 목록과 구분해서 보여준다. */
+  failure?: Failure;
 }
 
-export default function FlagList({ initialHosting, initialParticipating }: FlagListProps) {
+export default function FlagList({ initialHosting, initialParticipating, failure }: FlagListProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<Tab>("participating");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("active");
   const [browseFlags, setBrowseFlags] = useState<FlagResult[]>([]);
   const [browseFetched, setBrowseFetched] = useState(false);
+  const [browseFailure, setBrowseFailure] = useState<Failure | undefined>();
+
+  const applyBrowse = useCallback((result: Awaited<ReturnType<typeof getFriendFlagsAction>>) => {
+    if (result.success) {
+      setBrowseFlags(result.data);
+      setBrowseFailure(undefined);
+    } else {
+      setBrowseFailure(result.failure);
+    }
+    setBrowseFetched(true);
+  }, []);
+
+  // 재시도용. 서버 컴포넌트가 아니라 이 상태를 다시 채운다.
+  const loadBrowse = useCallback(
+    () => getFriendFlagsAction().then(applyBrowse),
+    [applyBrowse],
+  );
 
   useEffect(() => {
-    getFriendFlagsAction().then((result) => {
-      if (result.success) setBrowseFlags(result.data);
-      setBrowseFetched(true);
-    });
-  }, []);
+    getFriendFlagsAction().then(applyBrowse);
+  }, [applyBrowse]);
 
   const tabData: Record<Tab, FlagResult[]> = {
     participating: initialParticipating,
@@ -153,6 +171,8 @@ export default function FlagList({ initialHosting, initialParticipating }: FlagL
   };
 
   const flags = tabData[activeTab].filter((f) => flagStatus(f) === statusFilter);
+  // 둘러보기는 클라이언트에서 따로 가져오므로 실패도 따로 본다.
+  const activeFailure = activeTab === "browse" ? browseFailure : failure;
 
   function handleTabChange(tab: Tab) {
     setActiveTab(tab);
@@ -211,6 +231,12 @@ export default function FlagList({ initialHosting, initialParticipating }: FlagL
           </svg>
           <p className="text-sm text-gray-400">친구들의 Flag를 불러오는 중...</p>
         </div>
+      ) : activeFailure ? (
+        // 조회 실패. Flag 가 있는지 없는지 모르는 상태다.
+        <FailureState
+          failure={activeFailure}
+          onRetry={activeTab === "browse" ? loadBrowse : undefined}
+        />
       ) : flags.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-gray-400">
           <svg className="w-12 h-12 mb-3 text-gray-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
