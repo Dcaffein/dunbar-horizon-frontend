@@ -156,4 +156,60 @@ Task 42 완료 후 재검토할 항목:
 
 ## Result
 
-_미착수_
+**완료** (2026-08-21) — 브랜치 `agent/task-41-flag-api-url-refactor`
+
+### Phase 1 — 정적 분석
+
+- `npx tsc --noEmit` 0 에러
+- 변경 파일 3개 lint 클린 (`npx eslint` exit 0)
+- 구 경로 잔존 grep **0건**
+- 참고: `socialGraph/*` 등 미변경 파일에 사전 존재 lint 에러 3건이 남아 있다. 이번 작업 범위 밖이다.
+
+### Phase 2 / 3 — 실측 (Playwright + 실 백엔드)
+
+기준 계정 이수환(user_id=4), 스크린샷 `harness/verify/verify-41-*.png`
+
+| 항목 | 결과 |
+|---|---|
+| 댓글 작성 / 대댓글 / 수정 / 삭제 | PASS — 4개 모두 신규 중첩 경로로 동작 |
+| 메모리얼 작성 / 수정 / 삭제 | PASS — 종료된 Flag 생성 후 확인 |
+| 친구 초대 | PASS — "초대가 전송되었습니다" (`POST /flag-invitations`) |
+| 최근 Flag | PASS — `GET /flags/recent?userId=4` 3건. **주최 + 참여가 섞여 반환**되어 합집합 계약 확인. FriendProfile·PublicProfile 양쪽 렌더 확인 |
+| 댓글 500자 가드 | PASS — 600자 입력 시 500자에서 잘림, 잔여 글자수 표시 |
+| 401 → `/login` | PASS — 쿠키 제거 후 접근 시 `/login?callbackUrl=%2Fflags` |
+
+### 탈퇴 · 초대권한 — 경로 계약 직접 확인
+
+호스트 계정으로는 UI 재현이 안 되어 응답 본문으로 판별했다.
+`404`만으로는 "경로 없음"과 "리소스 없음"이 구분되지 않기 때문이다.
+
+| 경로 | 응답 | 판정 |
+|---|---|---|
+| 신규 `DELETE .../participants/me` | `FlagParticipantNotFoundException` | **경로 존재** (호스트라 참여자가 아닐 뿐) |
+| 구 `DELETE .../participants` | `MethodNotAllowedException` | DELETE 핸들러 소멸 |
+| 신규 `PATCH .../participants/{pid}` | `FlagParticipantNotFoundException` | **경로 존재** |
+| 구 `PATCH .../invite-permission` | `NotFoundException: 요청하신 경로를 찾을 수 없습니다` | 경로 자체 소멸 |
+
+구 경로 `GET /flags/users/4/recent`, `GET /api/v1/comments/1` → 둘 다 404 확인.
+
+### 미검증 2건
+
+아래는 **두 번째 계정이 필요**해 이번에 재현하지 못했다. 코드 경로는 문구 통과 방식이라
+백엔드 사유가 그대로 노출되도록 되어 있으나, 실제 문구는 확인되지 않았다.
+
+- 모집 종료 후 탈퇴 → 409 (참여자 신분 필요)
+- 만료된 초대 수락 → 409 (받은 초대 필요)
+
+Task 42 착수 시 또는 계정이 확보될 때 확인하고, 백엔드 문구가 뭉뚱그린 문장이면
+`status` 기반 문구 분기 대상으로 올린다.
+
+### 범위 밖이나 함께 처리한 것
+
+`src/api/generated/flag-seed-controller/` 삭제. orval 재생성이 `flagSeedRequest`·`flagSeedResponse`
+모델 export를 지웠는데 이를 import하는 stale 컨트롤러가 남아 **작업 시작 시점부터 `tsc`가 깨져 있었다.**
+백엔드에서 삭제된 엔드포인트이고 import처가 없어 제거했다.
+`flag-query-controller`는 컴파일에 문제가 없어 그대로 두었다(「제외」 항목 유지).
+
+### 테스트 데이터
+
+검증용으로 생성한 Flag는 전부 삭제했다(잔여 0건, 보낸 초대 0건).
