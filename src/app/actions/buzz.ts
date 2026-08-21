@@ -1,6 +1,6 @@
 "use server";
 
-import { apiClient, isRedirectError } from "@/api/apiClient";
+import { apiClient, isRedirectError, toFailure } from "@/api/apiClient";
 import type { BuzzSummaryResult } from "@/api/model/buzzSummaryResult";
 import type { BuzzDetailResult } from "@/api/model/buzzDetailResult";
 import type { BuzzCreateRequest } from "@/api/model/buzzCreateRequest";
@@ -18,7 +18,7 @@ export async function getUnreadSendersAction() {
   } catch (error) {
     if (isRedirectError(error)) throw error;
     console.error("getUnreadSendersAction error:", error);
-    return { success: false as const, data: [] as number[] };
+    return { success: false as const, data: [] as number[], failure: toFailure(error) };
   }
 }
 
@@ -137,7 +137,7 @@ export async function getLabelsAction() {
   } catch (error) {
     if (isRedirectError(error)) throw error;
     console.error("getLabelsAction error:", error);
-    return { success: false as const, data: [] as LabelResult[] };
+    return { success: false as const, data: [] as LabelResult[], failure: toFailure(error) };
   }
 }
 

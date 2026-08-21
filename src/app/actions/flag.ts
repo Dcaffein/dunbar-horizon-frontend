@@ -1,6 +1,6 @@
 "use server";
 
-import { apiClient, isRedirectError } from "@/api/apiClient";
+import { apiClient, isRedirectError, toFailure } from "@/api/apiClient";
 import type { FlagResult } from "@/api/model/flagResult";
 import type { FlagDetailResult } from "@/api/model/flagDetailResult";
 import type { FlagCreateRequest } from "@/api/model/flagCreateRequest";
@@ -18,7 +18,7 @@ export async function getHostingFlagsAction() {
     return { success: true as const, data };
   } catch (error) {
     if (isRedirectError(error)) throw error;
-    return { success: false as const, data: [] as FlagResult[] };
+    return { success: false as const, data: [] as FlagResult[], failure: toFailure(error) };
   }
 }
 
@@ -28,7 +28,7 @@ export async function getParticipatingFlagsAction() {
     return { success: true as const, data };
   } catch (error) {
     if (isRedirectError(error)) throw error;
-    return { success: false as const, data: [] as FlagResult[] };
+    return { success: false as const, data: [] as FlagResult[], failure: toFailure(error) };
   }
 }
 
@@ -41,7 +41,7 @@ export async function getUserRecentFlagsAction(userId: number) {
     return { success: true as const, data };
   } catch (error) {
     if (isRedirectError(error)) throw error;
-    return { success: false as const, data: [] as FlagResult[] };
+    return { success: false as const, data: [] as FlagResult[], failure: toFailure(error) };
   }
 }
 
@@ -51,7 +51,7 @@ export async function getFriendFlagsAction() {
     return { success: true as const, data };
   } catch (error) {
     if (isRedirectError(error)) throw error;
-    return { success: false as const, data: [] as FlagResult[] };
+    return { success: false as const, data: [] as FlagResult[], failure: toFailure(error) };
   }
 }
 
@@ -160,7 +160,7 @@ export async function getReceivedInvitationsAction() {
     return { success: true as const, data };
   } catch (error) {
     if (isRedirectError(error)) throw error;
-    return { success: false as const, data: [] as ReceivedFlagInvitationResult[] };
+    return { success: false as const, data: [] as ReceivedFlagInvitationResult[], failure: toFailure(error) };
   }
 }
 
@@ -170,7 +170,7 @@ export async function getSentInvitationsAction() {
     return { success: true as const, data };
   } catch (error) {
     if (isRedirectError(error)) throw error;
-    return { success: false as const, data: [] as SentFlagInvitationResult[] };
+    return { success: false as const, data: [] as SentFlagInvitationResult[], failure: toFailure(error) };
   }
 }
 
@@ -239,7 +239,7 @@ export async function getMemorialCountAction(flagId: number) {
     return { success: true as const, count };
   } catch (error) {
     if (isRedirectError(error)) throw error;
-    return { success: false as const, count: 0 };
+    return { success: false as const, count: 0, failure: toFailure(error) };
   }
 }
 
@@ -251,7 +251,7 @@ export async function getMemorialsAction(flagId: number) {
     return { success: true as const, data: res.memorials ?? [], locked: res.locked ?? false };
   } catch (error) {
     if (isRedirectError(error)) throw error;
-    return { success: false as const, data: [] as MemorialResult[], locked: true };
+    return { success: false as const, data: [] as MemorialResult[], locked: true, failure: toFailure(error) };
   }
 }
 
@@ -294,7 +294,7 @@ export async function getCommentsAction(flagId: number) {
     return { success: true as const, data };
   } catch (error) {
     if (isRedirectError(error)) throw error;
-    return { success: false as const, data: [] as CommentResult[] };
+    return { success: false as const, data: [] as CommentResult[], failure: toFailure(error) };
   }
 }
 

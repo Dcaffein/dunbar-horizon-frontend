@@ -1,6 +1,6 @@
 "use server";
 
-import { apiClient, isRedirectError } from "@/api/apiClient";
+import { apiClient, isRedirectError, toFailure } from "@/api/apiClient";
 import type { LabelResult } from "@/api/model/labelResult";
 import type { LabelCreateRequest } from "@/api/model/labelCreateRequest";
 import type { LabelMemberAddRequest } from "@/api/model/labelMemberAddRequest";
@@ -12,7 +12,7 @@ export async function getLabelsAction() {
   } catch (error) {
     if (isRedirectError(error)) throw error;
     console.error("getLabelsAction error:", error);
-    return { success: false as const, data: [] as LabelResult[], message: "레이블 목록을 불러오는 데 실패했습니다." };
+    return { success: false as const, data: [] as LabelResult[], message: "레이블 목록을 불러오는 데 실패했습니다.", failure: toFailure(error) };
   }
 }
 
@@ -24,7 +24,7 @@ export async function createLabelAction(labelName: string) {
   } catch (error) {
     if (isRedirectError(error)) throw error;
     console.error("createLabelAction error:", error);
-    return { success: false as const, data: null, message: "레이블 생성에 실패했습니다." };
+    return { success: false as const, data: null, message: "레이블 생성에 실패했습니다.", failure: toFailure(error) };
   }
 }
 

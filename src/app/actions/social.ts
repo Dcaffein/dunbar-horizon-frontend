@@ -1,6 +1,6 @@
 "use server";
 
-import { apiClient, isRedirectError } from "@/api/apiClient";
+import { apiClient, isRedirectError, toFailure } from "@/api/apiClient";
 import type { NetworkFriendEdge } from "@/components/socialGraph/types";
 import type { NodeGraphResult } from "@/api/model/nodeGraphResult";
 import { GetFriendsNetworkCircleSize } from "@/api/model/getFriendsNetworkCircleSize";
@@ -99,7 +99,7 @@ export async function getOneHopMutualFriendEdgesAction(targetId: number, skeleto
     return { success: true as const, data };
   } catch (error) {
     if (isRedirectError(error)) throw error;
-    return { success: false as const, data: [] as MutualFriendEdgeResult[] };
+    return { success: false as const, data: [] as MutualFriendEdgeResult[], failure: toFailure(error) };
   }
 }
 
