@@ -45,16 +45,16 @@
 | Flag·댓글 | `must not be blank` / `size must be between 0 and 500` |
 | Buzz·Label·프로필 | **한국어** ("라벨 이름은 필수입니다." 등) |
 
-일부 DTO 만 `message` 속성을 지정했다. 그대로 꽂으면 한국어 UI 에 영문이 뜬다.
+그대로 꽂으면 한국어 UI 에 영문이 뜬다. 왜 엔드포인트마다 다른지는 백엔드 사정이다.
+프론트에 필요한 사실은 **일부 문구를 사용자에게 그대로 쓸 수 없다**는 것뿐이다.
 대응은 `PLAN.md` 참고.
 
 ### 백엔드에 보고할 것 (이 태스크 범위 밖)
 
-- Bean Validation `message` 속성이 비어 있는 DTO 들 — Buzz·Label 처럼 채우면
-  프론트의 대체 문구가 불필요해진다
+- **`validation` 문구가 영문인 엔드포인트들** (Flag 생성·수정, 댓글, 메모리얼).
+  Buzz·Label·프로필처럼 한국어로 오면 프론트의 대체 문구가 불필요해진다
 - **Flag 제목 256자부터 500** (`InternalServerException`). 이분 확인 결과 바이트가 아니라
-  글자 수 255 경계다. Bean Validation 이 없다는 것은 확실하나(있었으면 400) 원인은 미상.
-  400 + `validation` 으로 와야 제목 칸에 표시할 수 있다
+  글자 수 255 경계다. 400 + `validation` 으로 와야 제목 칸에 표시할 수 있다
 
 ## 참고
 
