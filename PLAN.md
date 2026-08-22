@@ -1,172 +1,141 @@
-# PLAN: Task 44 — 화면 상태 정합성
+# PLAN: Task 45 — validation 응답을 폼 필드에 바인딩
 
-배경·문제 정의는 `harness/tasks/44-screen-state-integrity.md` 참고.
+배경은 `harness/tasks/45-validation-field-binding.md` 참고.
 
-## 1. 지금 없는 것부터
+## 1. 착수 전 조사 결과
 
-착수 전 조사에서 드러난 사실 — **공용 장치가 하나도 없다.**
+문서에 "키가 폼 필드명과 일치하는지 먼저 확인"이라고 적어둔 항목을 실측했다.
+Task 43에서 404 문제를 찾은 것과 같은 방식으로 400 응답을 전수 수집했다.
 
-| 장치 | 현재 |
+### 좋은 소식 — 키가 그대로 맞는다
+
+```
+Flag 생성   {"title":"...", "description":"...", "startDateTime":"...", "endDateTime":"..."}
+Flag 인원   {"capacity":"..."}
+댓글·메모리얼 {"content":"..."}
+Buzz        {"recipient":"...", "text":"..."}
+Label       {"labelName":"..."}
+프로필      {"nickname":"..."}
+```
+
+`FlagForm`의 `errors.title` · `errors.startDateTime` · `errors.capacity` 와 **키가 동일하다.**
+매핑 테이블이 필요 없다.
+
+### 나쁜 소식 — 문구의 절반이 영어다
+
+| 엔드포인트 | 문구 |
 |---|---|
-| 빈 상태 표시 | `EmptyState`가 [FriendRequestPage.tsx:305](src/components/FriendRequest/FriendRequestPage.tsx#L305)의 **지역 함수**. 다른 화면은 각자 `<p>`로 직접 그림 |
-| 토스트 | `showToast`가 [FlagDetail.tsx:111](src/components/Flag/FlagDetail.tsx#L111)의 **지역 함수**. `socialGraph`에 또 하나 |
-| 실패 표시 | **없음** |
-| 재조회 | `router.refresh()`를 4곳에서 각자 호출 |
+| Flag 생성 | `must not be blank` / `must not be null` |
+| Flag 인원 | `must be greater than or equal to 1` |
+| 댓글 501자 | `size must be between 0 and 500` |
+| Buzz | **수신자 정보는 필수입니다.** |
+| Label | **라벨 이름은 필수입니다.** |
+| 프로필 | **닉네임은 1자 이상 20자 이하로 입력해주세요.** |
 
-그래서 Phase 1이 "장치 만들기"다. 이게 없으면 15곳을 고치면서 실패 UI를 15번 새로 그리게 된다.
+일부 DTO만 `message` 속성을 지정했고 나머지는 Bean Validation 기본 메시지가 그대로 온다.
+**그대로 꽂으면 한국어 UI에 `must not be blank` 가 뜬다.**
+
+Task 43의 404와 같은 종류의 발견이다 — 노출 범위를 넓히기 전에 무엇이 노출되는지 재봤더니
+그대로 쓸 수 없는 것이 섞여 있었다.
+
+### 부수적으로 발견한 백엔드 이슈 2건 (이 태스크 범위 밖, 보고 대상)
+
+- **Flag 제목 300자 → 500** (`서버 내부 오류`). 길이 제한이 Bean Validation 이 아니라
+  DB 컬럼에만 걸려 있는 것으로 보인다. 400 + `validation` 이어야 한다
+- **프로필 닉네임 21자 → `InvalidJsonFormatException`**. 길이 초과인데 JSON 형식 오류로 응답한다
 
 ## 2. 설계
 
-### 액션 반환 타입 — 추가만 한다
+### 영문 기본 메시지는 프론트가 한국어로 대체한다
 
-Task 42가 `message` 하위 호환으로 안전을 확보한 것과 같은 방식.
+문구에 **한글이 하나도 없으면** Bean Validation 기본 메시지로 간주하고 FE 문구로 바꾼다.
 
 ```ts
-// before
-catch { return { success: false as const, data: [] as FlagResult[] }; }
+const hasKorean = /[가-힣]/.test(msg);
+return hasKorean ? msg : FIELD_FALLBACK;   // "올바른 값을 입력해 주세요."
+```
 
-// after — failure 필드만 추가. data 는 그대로 빈 배열
+휴리스틱이라는 점은 분명히 해둔다. 다만
+
+- 오판의 방향이 안전하다 — 한국어 문구를 영문으로 오인할 일이 없고,
+  영문을 놓쳐도 지금과 같은 상태일 뿐이다
+- 백엔드가 `message` 속성을 채우면 **이 분기는 자연히 안 쓰이게 된다.** 코드를 되돌릴 필요가 없다
+- 문자열 내용으로 **분기**하는 것이 아니라 **표시 여부**만 정한다. Task 42가 금지한
+  "메시지로 동작을 가르는 것"과는 다르다
+
+구체적인 문구를 잃는 대신 언어 일관성을 얻는 교환이다. 백엔드 정비 요청과 병행한다.
+
+### 액션은 실어 보내기만 한다
+
+Task 44의 `failure` 와 같은 방식. 반환 타입에 추가만 하므로 기존 소비자가 깨지지 않는다.
+
+```ts
 catch (error) {
   if (isRedirectError(error)) throw error;
-  const failure = toFailure(error);          // { kind, status? }
-  return { success: false as const, data: [] as FlagResult[], failure };
+  const message = error instanceof Error ? error.message : "Flag 생성에 실패했습니다.";
+  return { success: false as const, message, validation: toFieldErrors(error) };
 }
 ```
 
-**기존 소비자는 `data`만 보므로 한 곳도 깨지지 않는다.** 화면이 준비된 순서대로
-`failure`를 읽어 나가면 된다. 15곳을 한 번에 화면까지 연결하지 않아도 된다.
+`toFieldErrors(error)` 는 `ApiError.validation` 을 위 규칙으로 정제해 `Record<string,string>`
+또는 `undefined` 를 돌려준다. `apiClient` 옆에 둔다.
 
-### 공용 컴포넌트 두 개
+### 폼은 기존 슬롯에 병합한다
 
+`FlagForm` 은 이미 `errors: Record<string, string>` 과 필드별 `<p>` 를 갖고 있다.
+서버 결과를 그 위에 얹으면 끝이다.
+
+```ts
+if (!result.success) {
+  setErrors((prev) => ({ ...prev, ...(result.validation ?? {}), submit: result.validation ? "" : result.message }));
+}
 ```
-components/common/EmptyState.tsx     FriendRequestPage 의 지역 함수를 승격
-components/common/FailureState.tsx   실패 사유 + 재시도 버튼
-```
 
-`FailureState`는 `failure.kind`로 문구와 재시도 노출을 정한다.
+필드 에러가 있으면 하단의 뭉뚱그린 문구(`errors.submit`)는 비운다. 같은 내용을 두 번 보여줄 이유가 없다.
 
-| `kind` | 문구 | 재시도 |
+## 3. 대상
+
+| 폼 | 슬롯 | 할 일 |
 |---|---|---|
-| `network` · `timeout` | 연결을 확인해 주세요 | ○ |
-| `http` · `parse` | `message` (이미 안전한 문장) | ○ |
-
-재시도는 `router.refresh()`로 통일한다. 이미 4곳에서 쓰는 방식이라 새 개념이 아니다.
-
-### 대전제 — "실패"와 "비어 있음"은 반대말이다
-
-이 태스크에서 가장 흔한 오해라 먼저 못박는다.
-
-| | `success` | 뜻 | 화면 |
-|---|---|---|---|
-| 조회 **실패** | `false` | 데이터가 있는지 **모른다** | 실패 + 재시도 |
-| 조회 성공, 빈 배열 | `true` | 데이터가 **정말 없다** | 기존 빈 상태 문구 |
-
-**빈 배열이라고 실패 화면을 띄우는 게 아니다.** `success === false`일 때만이다.
-
-지금은 이 둘이 구분되지 않는 것이 문제다. 실패해도 `[]`가 되므로
-신규 가입자와 서버 장애가 같은 화면을 본다. [app/page.tsx:100](src/app/page.tsx#L100)이
-`friends.length === 0`으로만 판단해서, **친구 조회가 실패하면 친구 56명인 사용자에게
-"아직 연결된 친구가 없습니다. 새로운 친구를 추가하여…"가 뜬다.**
-서버 장애인데 친구를 추가하라고 안내한다.
-
-Phase 2 이후 이 화면은 세 갈래가 된다.
-
-```
-success && friends.length > 0   →  그래프
-success && friends.length === 0 →  "아직 연결된 친구가 없습니다" (지금 문구 유지)
-!success                        →  실패 + 재시도                  (신규)
-```
-
-### 부분 실패 — 주 데이터인가 부수 데이터인가
-
-[app/page.tsx](src/app/page.tsx)가 `Promise.all` + 개별 `.catch()`로 셋을 병렬 조회한다.
-셋 다 같게 다루면 안 된다. **그 조회가 화면의 주 데이터인지로 가른다.**
-
-| 조회 | 성격 | **조회 실패 시** |
-|---|---|---|
-| `친구 목록` | **주 데이터** — 이게 없으면 그래프가 무의미 | 실패 화면 + 재시도 |
-| `라벨` | 부수 | 조용히 빈 목록. 로그만 |
-| `안읽은 알림 수` | 부수 | 조용히 0 |
-
-이 기준을 15곳 전부에 적용한다.
-
-## 3. 대상 15곳과 배치
-
-| 위치 | 액션 | 성격 | **조회 실패 시** |
-|---|---|---|---|
-| flag.ts:21 | `getHostingFlagsAction` | 주 | Flag 목록에 `FailureState` |
-| flag.ts:31 | `getParticipatingFlagsAction` | 주 | 〃 |
-| flag.ts:54 | `getFriendFlagsAction` | 주 | 〃 (둘러보기 탭) |
-| flag.ts:163 | `getReceivedInvitationsAction` | 주 | 초대 목록에 `FailureState` |
-| flag.ts:173 | `getSentInvitationsAction` | 주 | 〃 |
-| flag.ts:254 | `getMemorialsAction` | 주 | 메모리얼 화면에 `FailureState` |
-| flag.ts:297 | `getCommentsAction` | 주(섹션) | 댓글 섹션 인라인 실패 + 재시도 |
-| buzz.ts:21 | `getUnreadSendersAction` | 부수 | 조용히 빈 목록 |
-| buzz.ts:140 | `getLabelsAction` | 부수 | 〃 |
-| label.ts:15 | `getLabelsAction` | 부수(메인) / 주(라벨 관리) | 화면별로 다름 — 아래 참고 |
-| label.ts:27 | `createLabelAction` | 변경 요청 | `data: null` 유지, `message`는 이미 통과 |
-| notification.ts:15 | `getUnreadCountAction` | 부수 | 조용히 0 |
-| social.ts:102 | `getOneHopMutualFriendEdgesAction` | 부수 | 조용히 빈 배열 (그래프 확장 실패) |
-| flag.ts:242 | `getMemorialCountAction` | 부수 | 조용히 0 |
-| flag.ts:44 | `getUserRecentFlagsAction` | 부수(프로필 섹션) | 섹션에 작은 실패 표시 |
-
-`label.ts:15`는 같은 액션이 메인(부수)과 라벨 관리(주)에서 쓰인다.
-**액션이 아니라 화면이 판단하게 한다** — 액션은 `failure`를 실어 보내고,
-쓰는 쪽이 무시할지 표시할지 정한다.
+| `Flag/FlagForm.tsx` | 있음 (title·description·startDateTime·endDateTime·capacity) | 병합만 |
+| `Buzz/BuzzForm.tsx` | 있음 | 병합. 키는 `recipient`·`text` |
+| `MyProfile/MyProfile.tsx` | **없음** | `nickname` 슬롯 추가 |
+| `Label` 생성·수정 | **없음** | `labelName` 슬롯 추가 |
+| 댓글·메모리얼 | 입력이 한 칸뿐 | **제외** — 기존 단일 문구로 충분하고, Task 41의 `maxLength` 가드가 이미 예방한다 |
+| 회원가입 | 이미 완료 | 손대지 않는다 (선례) |
 
 ## 4. Phase
 
-### Phase 1 — 장치
+1. **장치** — `toFieldErrors()` + 액션 반환 타입에 `validation` 추가 (소비하지 않음)
+2. **슬롯 있는 폼** — `FlagForm`, `BuzzForm` 병합
+3. **슬롯 없는 폼** — `MyProfile`, `Label` 에 필드 에러 표시 추가
 
-- `toFailure(error)` 헬퍼 (`apiClient` 근처)
-- `components/common/EmptyState.tsx` — 기존 지역 함수 승격, `FriendRequestPage` 교체
-- `components/common/FailureState.tsx` — 신규
-- 조회 액션 15곳에 `failure` 필드 추가 **(소비하지 않음)**
-
-**이 Phase는 화면 동작이 하나도 바뀌지 않는다.** 검증도 그걸 확인한다.
-
-### Phase 2 — A 적용 (조회 실패 표시)
-
-위 표대로 화면을 연결한다. Flag 목록 → 초대 목록 → 메모리얼 → 댓글 순.
-부수 데이터는 그대로 둔다(변경 없음).
-
-### Phase 3 — B 적용 (409 재조회)
-
-**선행 확인이 끝난 뒤에 착수한다.** 409를 내는 엔드포인트를 나열하고
-각각이 "재조회하면 해결"인지 판정한다. Task 41·43에서 쓴 방식대로
-실제 응답을 전수 수집해서 판단한다.
-
-- [FlagDetail.tsx](src/components/Flag/FlagDetail.tsx) 참여 취소·참여하기
-- [FlagInvitationList.tsx](src/components/Flag/FlagInvitationList.tsx) 초대 수락·거절
+Phase 1은 화면 동작이 바뀌지 않는다. Task 44와 같은 구조다.
 
 ## 5. 검증
 
 ### Phase 1
 
 - `npx tsc --noEmit`, `npm run lint` (총계 15 problems 유지)
-- **화면 동작 무변경** — 전 도메인 스모크에서 지금과 동일하게 보일 것
-- `FriendRequestPage`의 빈 상태가 승격 전과 동일하게 보일 것
+- 전 도메인 스모크에서 **화면이 지금과 동일**할 것
 
-### Phase 2 — 핵심 대조
+### Phase 2·3 — 실제 백엔드로 폼마다 틀린 값 입력
 
-Task 42에서 만든 스텁으로 조회 실패를 주입한다.
-**"실패"와 "진짜 빈 데이터"가 다르게 보이는지가 이 태스크의 전부다.**
+| 폼 | 입력 | 기대 |
+|---|---|---|
+| Flag 생성 | 제목·설명 비움 | 두 칸 **각각** 아래에 안내. 영문(`must not be blank`)이 아닌 한국어 |
+| Flag 생성 | 인원 `-5` | 인원 칸 아래에 안내 |
+| Buzz | 본문 비움 | 본문 칸 아래에 **"본문 내용은 필수입니다."** (백엔드 한국어 그대로) |
+| Label | 이름 비움 | **"라벨 이름은 필수입니다."** |
+| 프로필 | 닉네임 비움 | **"닉네임은 1자 이상 20자 이하로 입력해주세요."** |
 
-| 상황 | 기대 |
-|---|---|
-| 조회 실패 (스텁 5xx) | 실패 문구 + 재시도 버튼 |
-| 조회 실패 (스텁 연결 끊김) | "연결을 확인해 주세요" + 재시도 |
-| **재시도 클릭 → 스텁 정상화** | 데이터가 채워짐 |
-| **성공 + 빈 배열** (200 `[]`) | 기존 빈 상태 문구 그대로. 실패 화면이 뜨면 **버그** |
-| 부수 데이터 실패 | 화면에 아무 표시 없음, 로그만 |
+**대조 항목**: 백엔드가 한국어를 준 경우(Buzz·Label·프로필)는 **그 문구가 그대로** 나와야 한다.
+FE 대체 문구로 덮이면 버그다.
 
-마지막 두 줄이 회귀 판정 기준이다. 실패를 표시하기 시작하면서
-**정상적인 "없음"까지 에러로 보이면 개악이다.**
+### 회귀
 
-### Phase 3
-
-- 종료된 Flag 탈퇴 → 409 → **참여자 목록이 갱신되고** 안내 표시
-- 만료된 초대 수락 → 409 → **초대 카드가 목록에서 사라지고** 안내 표시
+- 클라이언트 검증(제출 전)은 지금과 동일하게 동작할 것
+- 서버 검증 실패 시 **입력값이 보존**될 것 (폼이 비워지면 안 된다)
 
 Phase별 커밋. **push는 하지 않는다.**
 
@@ -174,11 +143,11 @@ Phase별 커밋. **push는 하지 않는다.**
 
 | 리스크 | 대응 |
 |---|---|
-| **실패가 눈에 보이기 시작해 "에러가 늘었다"로 인식** | 실제로는 원래 있던 실패가 드러나는 것. 부수 데이터는 조용히 두어 노출을 최소화 |
-| 진짜 "빈 데이터"를 실패로 오인 표시 | `success` 플래그로만 판정. Phase 2 검증의 핵심 대조 항목 |
-| 15곳을 한 번에 화면까지 연결하려다 커짐 | `failure` 필드는 추가만 하므로 화면 연결은 순차적으로 가능 |
-| 재시도가 무한 반복 | `router.refresh()`는 사용자 클릭에만 반응. 자동 재시도는 넣지 않는다 |
+| 한글 판정 휴리스틱의 오판 | 방향이 안전(한국어→영문 오인 불가). 백엔드 정비 시 자연 소멸 |
+| 서버 검증 실패 후 입력값 소실 | 회귀 항목으로 명시 검증 |
+| 필드 에러와 하단 문구 중복 표시 | 필드 에러가 있으면 `errors.submit` 을 비운다 |
+| 백엔드가 새 필드를 추가하면 슬롯이 없어 안 보임 | 매칭 안 되는 키는 하단 문구로 모아 표시(누락 방지) |
 
 ## 7. 브랜치
 
-`agent/task-44-screen-state-integrity` (main에서 분기, Task 43 병합 완료 상태).
+`agent/task-45-validation-field-binding` (main에서 분기, Task 44 병합 완료 상태).

@@ -32,9 +32,28 @@
 `ApiError.validation`을 액션의 반환 타입에 실어 폼 컴포넌트가 필드 아래에 표시한다.
 `auth.ts`의 `AuthFormState.errors` 구조가 이미 있으므로 그 형태를 재사용한다.
 
-키가 폼 필드명과 일치하는지 엔드포인트별로 확인이 필요하다.
-일치하지 않으면 매핑 테이블이 생기는데, 그건 유지보수 부담이므로
-백엔드에 키를 맞춰달라고 요청하는 쪽이 낫다.
+### 착수 전 조사 결과 (2026-08-21 실측)
+
+**키는 폼 필드명과 그대로 일치한다.** 매핑 테이블이 필요 없다 —
+`title`·`description`·`startDateTime`·`endDateTime`·`capacity`·`content`·
+`recipient`·`text`·`labelName`·`nickname`.
+
+**다만 문구의 절반이 영문 기본 메시지다.**
+
+| | 문구 |
+|---|---|
+| Flag·댓글 | `must not be blank` / `size must be between 0 and 500` |
+| Buzz·Label·프로필 | **한국어** ("라벨 이름은 필수입니다." 등) |
+
+일부 DTO 만 `message` 속성을 지정했다. 그대로 꽂으면 한국어 UI 에 영문이 뜬다.
+대응은 `PLAN.md` 참고.
+
+### 백엔드에 보고할 것 (이 태스크 범위 밖)
+
+- Bean Validation `message` 속성이 비어 있는 DTO 들 — Buzz·Label 처럼 채우면
+  프론트의 대체 문구가 불필요해진다
+- **Flag 제목 300자 → 500** (`서버 내부 오류`). 길이 제한이 DB 컬럼에만 걸린 것으로 보인다
+- **프로필 닉네임 21자 → `InvalidJsonFormatException`**. 길이 초과인데 JSON 형식 오류로 응답한다
 
 ## 참고
 
