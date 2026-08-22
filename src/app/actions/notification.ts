@@ -1,6 +1,6 @@
 "use server";
 
-import { apiClient, isRedirectError } from "@/api/apiClient";
+import { apiClient, isRedirectError, toFailure } from "@/api/apiClient";
 import type { NotificationResponse } from "@/api/model/notificationResponse";
 import type { SliceNotificationResponse } from "@/api/model/sliceNotificationResponse";
 import type { DeviceTokenStatusResponse } from "@/api/model/deviceTokenStatusResponse";
@@ -12,7 +12,7 @@ export async function getUnreadCountAction() {
   } catch (error) {
     if (isRedirectError(error)) throw error;
     console.error("getUnreadCountAction error:", error);
-    return { success: false as const, data: 0 };
+    return { success: false as const, data: 0, failure: toFailure(error) };
   }
 }
 

@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import type { MemorialResult } from "@/api/model/memorialResult";
+import type { Failure } from "@/api/apiClient";
+import FailureState from "@/components/common/FailureState";
 import {
   getMemorialsAction,
   createMemorialAction,
@@ -17,6 +19,8 @@ interface FlagMemorialProps {
   myProfileImageUrl?: string;
   isParticipant: boolean;
   locked?: boolean;
+  /** 조회 실패. 잠김·빈 목록과 구분해서 보여준다. */
+  failure?: Failure;
 }
 
 function timeAgo(iso?: string): string {
@@ -37,6 +41,7 @@ export default function FlagMemorial({
   myProfileImageUrl,
   isParticipant,
   locked = false,
+  failure,
 }: FlagMemorialProps) {
   const [memorials, setMemorials] = useState<MemorialResult[]>(initialMemorials);
   const [isLocked, setIsLocked] = useState(locked);
@@ -116,7 +121,9 @@ export default function FlagMemorial({
           )}
         </div>
 
-        {isLocked ? (
+        {failure ? (
+          <FailureState failure={failure} inline />
+        ) : isLocked ? (
           <div className="flex flex-col items-center py-8 gap-3">
             <span className="text-3xl">🔒</span>
             <p className="text-sm text-gray-500 text-center leading-relaxed">

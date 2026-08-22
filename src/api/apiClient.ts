@@ -14,7 +14,7 @@ interface RequestOptions extends RequestInit {
  * 실패가 흐름의 어느 지점에서 났는지. 문자열을 보고 추측하지 않고
  * 발생 위치로 결정하므로 판정이 확정적이다.
  */
-export type FailureKind = "http" | "network" | "timeout" | "parse";
+export type FailureKind = "http" | "network" | "timeout" | "parse" | "unknown";
 
 /** 백엔드 @RestControllerAdvice 가 내려주는 에러 본문 형태. */
 export interface ApiErrorBody {
@@ -202,6 +202,28 @@ async function fetchInternal<TResult, TBody = unknown>(
     }
     throw failure;
   }
+}
+
+/**
+ * Server Action 이 화면으로 넘기는 실패 정보.
+ *
+ * `ApiError` 는 클래스라 RSC 경계를 넘지 못한다. 직렬화 가능한 평범한 객체로 옮긴다.
+ * `message` 는 `ApiError` 의 불변식을 그대로 물려받아 **화면에 띄워도 되는 문장**이다.
+ */
+export interface Failure {
+  kind: FailureKind;
+  /** kind === "http" 일 때만 존재한다. 없다고 네트워크 실패인 것은 아니다 — kind 로 판단할 것. */
+  status?: number;
+  message: string;
+}
+
+/** 조회 실패를 화면이 읽을 수 있는 형태로 바꾼다. `isRedirectError` 는 호출 전에 걸러야 한다. */
+export function toFailure(error: unknown): Failure {
+  if (error instanceof ApiError) {
+    return { kind: error.kind, status: error.status, message: error.message };
+  }
+  // apiClient 를 거쳤다면 여기 오지 않는다. 액션 자체 코드가 던진 경우다.
+  return { kind: "unknown", message: SERVER_ERROR };
 }
 
 export function isRedirectError(error: unknown): boolean {

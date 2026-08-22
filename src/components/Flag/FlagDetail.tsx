@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { FlagDetailResult } from "@/api/model/flagDetailResult";
@@ -8,6 +8,7 @@ import type { ParticipantResult } from "@/api/model/participantResult";
 import type { CommentResult } from "@/api/model/commentResult";
 import type { FriendshipDetail } from "@/components/socialGraph/types";
 import FlagComments from "./FlagComments";
+import type { Failure } from "@/api/apiClient";
 import {
   closeRecruitmentAction,
   deleteFlagAction,
@@ -69,6 +70,20 @@ export default function FlagDetail({ flag, myUserId, friends }: FlagDetailProps)
   const [comments, setComments] = useState<CommentResult[]>([]);
   const [memorialCount, setMemorialCount] = useState(0);
 
+  const [commentsFailure, setCommentsFailure] = useState<Failure | undefined>();
+
+  const loadComments = useCallback(async () => {
+    if (!flag.id) return;
+    const result = await getCommentsAction(flag.id);
+    if (result.success) {
+      setComments(result.data);
+      setCommentsFailure(undefined);
+    } else {
+      // memorialCount 는 부수 데이터라 실패해도 조용히 0 으로 둔다.
+      setCommentsFailure(result.failure);
+    }
+  }, [flag.id]);
+
   useEffect(() => {
     if (!flag.id) return;
     Promise.all([
@@ -76,6 +91,7 @@ export default function FlagDetail({ flag, myUserId, friends }: FlagDetailProps)
       getMemorialCountAction(flag.id),
     ]).then(([commentsResult, memorialResult]) => {
       if (commentsResult.success) setComments(commentsResult.data);
+      else setCommentsFailure(commentsResult.failure);
       if (memorialResult.success) setMemorialCount(memorialResult.count);
     });
   }, [flag.id]);
@@ -359,6 +375,8 @@ export default function FlagDetail({ flag, myUserId, friends }: FlagDetailProps)
           <FlagComments
             flagId={flag.id}
             initialComments={comments}
+            failure={commentsFailure}
+            onRetry={loadComments}
             myWriterInfo={
               isHost
                 ? { id: flag.host?.id, nickname: flag.host?.nickname, profileImageUrl: flag.host?.profileImageUrl }

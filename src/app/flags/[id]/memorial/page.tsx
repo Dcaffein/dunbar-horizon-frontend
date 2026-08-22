@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { isRedirectError, apiClient } from "@/api/apiClient";
+import type { Failure } from "@/api/apiClient";
 import { getFlagDetailAction, getMemorialsAction } from "@/app/actions/flag";
 import FlagMemorial from "@/components/Flag/FlagMemorial";
 import type { MemorialResult } from "@/api/model/memorialResult";
@@ -45,6 +46,9 @@ export default async function FlagMemorialPage({
 
   const memorials: MemorialResult[] = memorialsResult?.success ? memorialsResult.data : [];
   const locked = memorialsResult ? (memorialsResult.success ? memorialsResult.locked : true) : true;
+  // 조회 실패는 "잠김"과 다르다. 실패 표시가 잠김보다 우선한다.
+  const memorialsFailure: Failure | undefined =
+    memorialsResult && !memorialsResult.success ? memorialsResult.failure : undefined;
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -68,6 +72,7 @@ export default async function FlagMemorialPage({
           myProfileImageUrl={myProfileImageUrl}
           isParticipant={isParticipant}
           locked={locked}
+          failure={memorialsFailure}
         />
       </div>
     </div>
