@@ -52,8 +52,9 @@
 
 - Bean Validation `message` 속성이 비어 있는 DTO 들 — Buzz·Label 처럼 채우면
   프론트의 대체 문구가 불필요해진다
-- **Flag 제목 300자 → 500** (`서버 내부 오류`). 길이 제한이 DB 컬럼에만 걸린 것으로 보인다
-- **프로필 닉네임 21자 → `InvalidJsonFormatException`**. 길이 초과인데 JSON 형식 오류로 응답한다
+- **Flag 제목 256자부터 500** (`InternalServerException`). 이분 확인 결과 바이트가 아니라
+  글자 수 255 경계다. Bean Validation 이 없다는 것은 확실하나(있었으면 400) 원인은 미상.
+  400 + `validation` 으로 와야 제목 칸에 표시할 수 있다
 
 ## 참고
 
