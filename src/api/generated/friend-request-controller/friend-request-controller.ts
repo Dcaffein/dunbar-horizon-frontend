@@ -7,34 +7,43 @@
  */
 import type {
   FriendRequestCreateRequest,
-  FriendRequestResult
+  FriendRequestResult,
+  FriendRequestStatusUpdateRequest,
+  GetRequestsParams
 } from '../../model';
 
 import { customFetch } from '../../apiClient';
 
-export type getReceivedRequestsResponse200 = {
+export type getRequestsResponse200 = {
   data: FriendRequestResult[]
   status: 200
 }
 
-export type getReceivedRequestsResponseSuccess = (getReceivedRequestsResponse200) & {
+export type getRequestsResponseSuccess = (getRequestsResponse200) & {
   headers: Headers;
 };
 ;
 
-export type getReceivedRequestsResponse = (getReceivedRequestsResponseSuccess)
+export type getRequestsResponse = (getRequestsResponseSuccess)
 
-export const getGetReceivedRequestsUrl = () => {
+export const getGetRequestsUrl = (params: GetRequestsParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/v1/friend-requests`
+  return stringifiedParams.length > 0 ? `/api/v1/friend-requests?${stringifiedParams}` : `/api/v1/friend-requests`
 }
 
-export const getReceivedRequests = async ( options?: RequestInit): Promise<getReceivedRequestsResponse> => {
+export const getRequests = async (params: GetRequestsParams, options?: RequestInit): Promise<getRequestsResponse> => {
 
-  return customFetch<getReceivedRequestsResponse>(getGetReceivedRequestsUrl(),
+  return customFetch<getRequestsResponse>(getGetRequestsUrl(params),
   {
     ...options,
     method: 'GET'
@@ -76,166 +85,6 @@ export const sendFriendRequest = async (friendRequestCreateRequest: FriendReques
 );}
 
 
-export type hideFriendRequestResponse200 = {
-  data: void
-  status: 200
-}
-
-export type hideFriendRequestResponseSuccess = (hideFriendRequestResponse200) & {
-  headers: Headers;
-};
-;
-
-export type hideFriendRequestResponse = (hideFriendRequestResponseSuccess)
-
-export const getHideFriendRequestUrl = (requestId: string,) => {
-
-
-
-
-  return `/api/v1/friend-requests/${requestId}/hide`
-}
-
-export const hideFriendRequest = async (requestId: string, options?: RequestInit): Promise<hideFriendRequestResponse> => {
-
-  return customFetch<hideFriendRequestResponse>(getHideFriendRequestUrl(requestId),
-  {
-    ...options,
-    method: 'POST'
-
-
-  }
-);}
-
-
-export type undoHideFriendRequestResponse200 = {
-  data: void
-  status: 200
-}
-
-export type undoHideFriendRequestResponseSuccess = (undoHideFriendRequestResponse200) & {
-  headers: Headers;
-};
-;
-
-export type undoHideFriendRequestResponse = (undoHideFriendRequestResponseSuccess)
-
-export const getUndoHideFriendRequestUrl = (requestId: string,) => {
-
-
-
-
-  return `/api/v1/friend-requests/${requestId}/hide`
-}
-
-export const undoHideFriendRequest = async (requestId: string, options?: RequestInit): Promise<undoHideFriendRequestResponse> => {
-
-  return customFetch<undoHideFriendRequestResponse>(getUndoHideFriendRequestUrl(requestId),
-  {
-    ...options,
-    method: 'DELETE'
-
-
-  }
-);}
-
-
-export type acceptFriendRequestResponse200 = {
-  data: void
-  status: 200
-}
-
-export type acceptFriendRequestResponseSuccess = (acceptFriendRequestResponse200) & {
-  headers: Headers;
-};
-;
-
-export type acceptFriendRequestResponse = (acceptFriendRequestResponseSuccess)
-
-export const getAcceptFriendRequestUrl = (requestId: string,) => {
-
-
-
-
-  return `/api/v1/friend-requests/${requestId}/accept`
-}
-
-export const acceptFriendRequest = async (requestId: string, options?: RequestInit): Promise<acceptFriendRequestResponse> => {
-
-  return customFetch<acceptFriendRequestResponse>(getAcceptFriendRequestUrl(requestId),
-  {
-    ...options,
-    method: 'POST'
-
-
-  }
-);}
-
-
-export type getSentRequestsResponse200 = {
-  data: FriendRequestResult[]
-  status: 200
-}
-
-export type getSentRequestsResponseSuccess = (getSentRequestsResponse200) & {
-  headers: Headers;
-};
-;
-
-export type getSentRequestsResponse = (getSentRequestsResponseSuccess)
-
-export const getGetSentRequestsUrl = () => {
-
-
-
-
-  return `/api/v1/friend-requests/sent`
-}
-
-export const getSentRequests = async ( options?: RequestInit): Promise<getSentRequestsResponse> => {
-
-  return customFetch<getSentRequestsResponse>(getGetSentRequestsUrl(),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-export type getHiddenRequestsResponse200 = {
-  data: FriendRequestResult[]
-  status: 200
-}
-
-export type getHiddenRequestsResponseSuccess = (getHiddenRequestsResponse200) & {
-  headers: Headers;
-};
-;
-
-export type getHiddenRequestsResponse = (getHiddenRequestsResponseSuccess)
-
-export const getGetHiddenRequestsUrl = () => {
-
-
-
-
-  return `/api/v1/friend-requests/hidden`
-}
-
-export const getHiddenRequests = async ( options?: RequestInit): Promise<getHiddenRequestsResponse> => {
-
-  return customFetch<getHiddenRequestsResponse>(getGetHiddenRequestsUrl(),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
 export type cancelFriendRequestResponse200 = {
   data: void
   status: 200
@@ -248,22 +97,55 @@ export type cancelFriendRequestResponseSuccess = (cancelFriendRequestResponse200
 
 export type cancelFriendRequestResponse = (cancelFriendRequestResponseSuccess)
 
-export const getCancelFriendRequestUrl = (requestId: string,) => {
+export const getCancelFriendRequestUrl = (counterpartId: number,) => {
 
 
 
 
-  return `/api/v1/friend-requests/${requestId}`
+  return `/api/v1/friend-requests/${counterpartId}`
 }
 
-export const cancelFriendRequest = async (requestId: string, options?: RequestInit): Promise<cancelFriendRequestResponse> => {
+export const cancelFriendRequest = async (counterpartId: number, options?: RequestInit): Promise<cancelFriendRequestResponse> => {
 
-  return customFetch<cancelFriendRequestResponse>(getCancelFriendRequestUrl(requestId),
+  return customFetch<cancelFriendRequestResponse>(getCancelFriendRequestUrl(counterpartId),
   {
     ...options,
     method: 'DELETE'
 
 
+  }
+);}
+
+
+export type updateFriendRequestStatusResponse200 = {
+  data: void
+  status: 200
+}
+
+export type updateFriendRequestStatusResponseSuccess = (updateFriendRequestStatusResponse200) & {
+  headers: Headers;
+};
+;
+
+export type updateFriendRequestStatusResponse = (updateFriendRequestStatusResponseSuccess)
+
+export const getUpdateFriendRequestStatusUrl = (counterpartId: number,) => {
+
+
+
+
+  return `/api/v1/friend-requests/${counterpartId}`
+}
+
+export const updateFriendRequestStatus = async (counterpartId: number,
+    friendRequestStatusUpdateRequest: FriendRequestStatusUpdateRequest, options?: RequestInit): Promise<updateFriendRequestStatusResponse> => {
+
+  return customFetch<updateFriendRequestStatusResponse>(getUpdateFriendRequestStatusUrl(counterpartId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(friendRequestStatusUpdateRequest)
   }
 );}
 

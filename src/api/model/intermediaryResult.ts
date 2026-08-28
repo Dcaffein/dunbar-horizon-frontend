@@ -9,5 +9,4 @@
 export interface IntermediaryResult {
   userId?: number;
   nickname?: string;
-  score?: number;
 }

@@ -8,10 +8,15 @@
 import type {
   FlagCapacityUpdateRequest,
   FlagCreateRequest,
+  FlagDetailResult,
   FlagDetailsUpdateRequest,
   FlagInvitePermissionRequest,
-  FlagInviteRequest,
-  FlagScheduleUpdateRequest
+  FlagResult,
+  FlagScheduleUpdateRequest,
+  GetFeedFlagsParams,
+  GetMyFlagsByRoleParams,
+  GetProfileFlagsParams,
+  SliceFlagResult
 } from '../../model';
 
 import { customFetch } from '../../apiClient';
@@ -28,23 +33,62 @@ export type replaceScheduleResponseSuccess = (replaceScheduleResponse200) & {
 
 export type replaceScheduleResponse = (replaceScheduleResponseSuccess)
 
-export const getReplaceScheduleUrl = (id: number,) => {
+export const getReplaceScheduleUrl = (flagId: number,) => {
 
 
 
 
-  return `/api/v1/flags/${id}/schedule`
+  return `/api/v1/flags/${flagId}/schedule`
 }
 
-export const replaceSchedule = async (id: number,
+export const replaceSchedule = async (flagId: number,
     flagScheduleUpdateRequest: FlagScheduleUpdateRequest, options?: RequestInit): Promise<replaceScheduleResponse> => {
 
-  return customFetch<replaceScheduleResponse>(getReplaceScheduleUrl(id),
+  return customFetch<replaceScheduleResponse>(getReplaceScheduleUrl(flagId),
   {
     ...options,
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(flagScheduleUpdateRequest)
+  }
+);}
+
+
+export type getMyFlagsByRoleResponse200 = {
+  data: SliceFlagResult
+  status: 200
+}
+
+export type getMyFlagsByRoleResponseSuccess = (getMyFlagsByRoleResponse200) & {
+  headers: Headers;
+};
+;
+
+export type getMyFlagsByRoleResponse = (getMyFlagsByRoleResponseSuccess)
+
+export const getGetMyFlagsByRoleUrl = (params: GetMyFlagsByRoleParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/flags?${stringifiedParams}` : `/api/v1/flags`
+}
+
+export const getMyFlagsByRole = async (params: GetMyFlagsByRoleParams, options?: RequestInit): Promise<getMyFlagsByRoleResponse> => {
+
+  return customFetch<getMyFlagsByRoleResponse>(getGetMyFlagsByRoleUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
   }
 );}
 
@@ -93,87 +137,22 @@ export type participateResponseSuccess = (participateResponse200) & {
 
 export type participateResponse = (participateResponseSuccess)
 
-export const getParticipateUrl = (id: number,) => {
+export const getParticipateUrl = (flagId: number,) => {
 
 
 
 
-  return `/api/v1/flags/${id}/participants`
+  return `/api/v1/flags/${flagId}/participants`
 }
 
-export const participate = async (id: number, options?: RequestInit): Promise<participateResponse> => {
+export const participate = async (flagId: number, options?: RequestInit): Promise<participateResponse> => {
 
-  return customFetch<participateResponse>(getParticipateUrl(id),
+  return customFetch<participateResponse>(getParticipateUrl(flagId),
   {
     ...options,
     method: 'POST'
 
 
-  }
-);}
-
-
-export type leaveResponse200 = {
-  data: void
-  status: 200
-}
-
-export type leaveResponseSuccess = (leaveResponse200) & {
-  headers: Headers;
-};
-;
-
-export type leaveResponse = (leaveResponseSuccess)
-
-export const getLeaveUrl = (id: number,) => {
-
-
-
-
-  return `/api/v1/flags/${id}/participants`
-}
-
-export const leave = async (id: number, options?: RequestInit): Promise<leaveResponse> => {
-
-  return customFetch<leaveResponse>(getLeaveUrl(id),
-  {
-    ...options,
-    method: 'DELETE'
-
-
-  }
-);}
-
-
-export type inviteResponse200 = {
-  data: number
-  status: 200
-}
-
-export type inviteResponseSuccess = (inviteResponse200) & {
-  headers: Headers;
-};
-;
-
-export type inviteResponse = (inviteResponseSuccess)
-
-export const getInviteUrl = (flagId: number,) => {
-
-
-
-
-  return `/api/v1/flags/${flagId}/invitations`
-}
-
-export const invite = async (flagId: number,
-    flagInviteRequest: FlagInviteRequest, options?: RequestInit): Promise<inviteResponse> => {
-
-  return customFetch<inviteResponse>(getInviteUrl(flagId),
-  {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(flagInviteRequest)
   }
 );}
 
@@ -190,88 +169,22 @@ export type closeRecruitmentResponseSuccess = (closeRecruitmentResponse200) & {
 
 export type closeRecruitmentResponse = (closeRecruitmentResponseSuccess)
 
-export const getCloseRecruitmentUrl = (id: number,) => {
+export const getCloseRecruitmentUrl = (flagId: number,) => {
 
 
 
 
-  return `/api/v1/flags/${id}/schedule/deadline`
+  return `/api/v1/flags/${flagId}/schedule/deadline`
 }
 
-export const closeRecruitment = async (id: number, options?: RequestInit): Promise<closeRecruitmentResponse> => {
+export const closeRecruitment = async (flagId: number, options?: RequestInit): Promise<closeRecruitmentResponse> => {
 
-  return customFetch<closeRecruitmentResponse>(getCloseRecruitmentUrl(id),
+  return customFetch<closeRecruitmentResponse>(getCloseRecruitmentUrl(flagId),
   {
     ...options,
     method: 'PATCH'
 
 
-  }
-);}
-
-
-export type modifyDetailsResponse200 = {
-  data: void
-  status: 200
-}
-
-export type modifyDetailsResponseSuccess = (modifyDetailsResponse200) & {
-  headers: Headers;
-};
-;
-
-export type modifyDetailsResponse = (modifyDetailsResponseSuccess)
-
-export const getModifyDetailsUrl = (id: number,) => {
-
-
-
-
-  return `/api/v1/flags/${id}/details`
-}
-
-export const modifyDetails = async (id: number,
-    flagDetailsUpdateRequest: FlagDetailsUpdateRequest, options?: RequestInit): Promise<modifyDetailsResponse> => {
-
-  return customFetch<modifyDetailsResponse>(getModifyDetailsUrl(id),
-  {
-    ...options,
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(flagDetailsUpdateRequest)
-  }
-);}
-
-
-export type modifyCapacityResponse200 = {
-  data: void
-  status: 200
-}
-
-export type modifyCapacityResponseSuccess = (modifyCapacityResponse200) & {
-  headers: Headers;
-};
-;
-
-export type modifyCapacityResponse = (modifyCapacityResponseSuccess)
-
-export const getModifyCapacityUrl = (id: number,) => {
-
-
-
-
-  return `/api/v1/flags/${id}/capacity`
-}
-
-export const modifyCapacity = async (id: number,
-    flagCapacityUpdateRequest: FlagCapacityUpdateRequest, options?: RequestInit): Promise<modifyCapacityResponse> => {
-
-  return customFetch<modifyCapacityResponse>(getModifyCapacityUrl(id),
-  {
-    ...options,
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(flagCapacityUpdateRequest)
   }
 );}
 
@@ -294,7 +207,7 @@ export const getUpdateInvitePermissionUrl = (flagId: number,
 
 
 
-  return `/api/v1/flags/${flagId}/participants/${participantId}/invite-permission`
+  return `/api/v1/flags/${flagId}/participants/${participantId}`
 }
 
 export const updateInvitePermission = async (flagId: number,
@@ -311,6 +224,104 @@ export const updateInvitePermission = async (flagId: number,
 );}
 
 
+export type modifyDetailsResponse200 = {
+  data: void
+  status: 200
+}
+
+export type modifyDetailsResponseSuccess = (modifyDetailsResponse200) & {
+  headers: Headers;
+};
+;
+
+export type modifyDetailsResponse = (modifyDetailsResponseSuccess)
+
+export const getModifyDetailsUrl = (flagId: number,) => {
+
+
+
+
+  return `/api/v1/flags/${flagId}/details`
+}
+
+export const modifyDetails = async (flagId: number,
+    flagDetailsUpdateRequest: FlagDetailsUpdateRequest, options?: RequestInit): Promise<modifyDetailsResponse> => {
+
+  return customFetch<modifyDetailsResponse>(getModifyDetailsUrl(flagId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(flagDetailsUpdateRequest)
+  }
+);}
+
+
+export type modifyCapacityResponse200 = {
+  data: void
+  status: 200
+}
+
+export type modifyCapacityResponseSuccess = (modifyCapacityResponse200) & {
+  headers: Headers;
+};
+;
+
+export type modifyCapacityResponse = (modifyCapacityResponseSuccess)
+
+export const getModifyCapacityUrl = (flagId: number,) => {
+
+
+
+
+  return `/api/v1/flags/${flagId}/capacity`
+}
+
+export const modifyCapacity = async (flagId: number,
+    flagCapacityUpdateRequest: FlagCapacityUpdateRequest, options?: RequestInit): Promise<modifyCapacityResponse> => {
+
+  return customFetch<modifyCapacityResponse>(getModifyCapacityUrl(flagId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(flagCapacityUpdateRequest)
+  }
+);}
+
+
+export type getFlagDetailResponse200 = {
+  data: FlagDetailResult
+  status: 200
+}
+
+export type getFlagDetailResponseSuccess = (getFlagDetailResponse200) & {
+  headers: Headers;
+};
+;
+
+export type getFlagDetailResponse = (getFlagDetailResponseSuccess)
+
+export const getGetFlagDetailUrl = (flagId: number,) => {
+
+
+
+
+  return `/api/v1/flags/${flagId}`
+}
+
+export const getFlagDetail = async (flagId: number, options?: RequestInit): Promise<getFlagDetailResponse> => {
+
+  return customFetch<getFlagDetailResponse>(getGetFlagDetailUrl(flagId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
 export type deleteFlagResponse200 = {
   data: void
   status: 200
@@ -323,17 +334,127 @@ export type deleteFlagResponseSuccess = (deleteFlagResponse200) & {
 
 export type deleteFlagResponse = (deleteFlagResponseSuccess)
 
-export const getDeleteFlagUrl = (id: number,) => {
+export const getDeleteFlagUrl = (flagId: number,) => {
 
 
 
 
-  return `/api/v1/flags/${id}`
+  return `/api/v1/flags/${flagId}`
 }
 
-export const deleteFlag = async (id: number, options?: RequestInit): Promise<deleteFlagResponse> => {
+export const deleteFlag = async (flagId: number, options?: RequestInit): Promise<deleteFlagResponse> => {
 
-  return customFetch<deleteFlagResponse>(getDeleteFlagUrl(id),
+  return customFetch<deleteFlagResponse>(getDeleteFlagUrl(flagId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+export type getProfileFlagsResponse200 = {
+  data: FlagResult[]
+  status: 200
+}
+
+export type getProfileFlagsResponseSuccess = (getProfileFlagsResponse200) & {
+  headers: Headers;
+};
+;
+
+export type getProfileFlagsResponse = (getProfileFlagsResponseSuccess)
+
+export const getGetProfileFlagsUrl = (params: GetProfileFlagsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/flags/profile?${stringifiedParams}` : `/api/v1/flags/profile`
+}
+
+export const getProfileFlags = async (params: GetProfileFlagsParams, options?: RequestInit): Promise<getProfileFlagsResponse> => {
+
+  return customFetch<getProfileFlagsResponse>(getGetProfileFlagsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+export type getFeedFlagsResponse200 = {
+  data: SliceFlagResult
+  status: 200
+}
+
+export type getFeedFlagsResponseSuccess = (getFeedFlagsResponse200) & {
+  headers: Headers;
+};
+;
+
+export type getFeedFlagsResponse = (getFeedFlagsResponseSuccess)
+
+export const getGetFeedFlagsUrl = (params?: GetFeedFlagsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/flags/feed?${stringifiedParams}` : `/api/v1/flags/feed`
+}
+
+export const getFeedFlags = async (params?: GetFeedFlagsParams, options?: RequestInit): Promise<getFeedFlagsResponse> => {
+
+  return customFetch<getFeedFlagsResponse>(getGetFeedFlagsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+export type leaveResponse200 = {
+  data: void
+  status: 200
+}
+
+export type leaveResponseSuccess = (leaveResponse200) & {
+  headers: Headers;
+};
+;
+
+export type leaveResponse = (leaveResponseSuccess)
+
+export const getLeaveUrl = (flagId: number,) => {
+
+
+
+
+  return `/api/v1/flags/${flagId}/participants/me`
+}
+
+export const leave = async (flagId: number, options?: RequestInit): Promise<leaveResponse> => {
+
+  return customFetch<leaveResponse>(getLeaveUrl(flagId),
   {
     ...options,
     method: 'DELETE'

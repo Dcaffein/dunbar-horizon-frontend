@@ -6,7 +6,6 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export interface FlagInviteRequest {
-  flagId: number;
-  inviteeId: number;
-}
+export type GetRecentFlagsParams = {
+userId: number;
+};

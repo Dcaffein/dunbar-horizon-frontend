@@ -90,17 +90,19 @@ export type deleteMemorialResponseSuccess = (deleteMemorialResponse200) & {
 
 export type deleteMemorialResponse = (deleteMemorialResponseSuccess)
 
-export const getDeleteMemorialUrl = (id: number,) => {
+export const getDeleteMemorialUrl = (flagId: number,
+    memorialId: number,) => {
 
 
 
 
-  return `/api/v1/flags/memorials/${id}`
+  return `/api/v1/flags/${flagId}/memorials/${memorialId}`
 }
 
-export const deleteMemorial = async (id: number, options?: RequestInit): Promise<deleteMemorialResponse> => {
+export const deleteMemorial = async (flagId: number,
+    memorialId: number, options?: RequestInit): Promise<deleteMemorialResponse> => {
 
-  return customFetch<deleteMemorialResponse>(getDeleteMemorialUrl(id),
+  return customFetch<deleteMemorialResponse>(getDeleteMemorialUrl(flagId,memorialId),
   {
     ...options,
     method: 'DELETE'
@@ -122,18 +124,20 @@ export type updateMemorialResponseSuccess = (updateMemorialResponse200) & {
 
 export type updateMemorialResponse = (updateMemorialResponseSuccess)
 
-export const getUpdateMemorialUrl = (id: number,) => {
+export const getUpdateMemorialUrl = (flagId: number,
+    memorialId: number,) => {
 
 
 
 
-  return `/api/v1/flags/memorials/${id}`
+  return `/api/v1/flags/${flagId}/memorials/${memorialId}`
 }
 
-export const updateMemorial = async (id: number,
+export const updateMemorial = async (flagId: number,
+    memorialId: number,
     memorialUpdateRequest: MemorialUpdateRequest, options?: RequestInit): Promise<updateMemorialResponse> => {
 
-  return customFetch<updateMemorialResponse>(getUpdateMemorialUrl(id),
+  return customFetch<updateMemorialResponse>(getUpdateMemorialUrl(flagId,memorialId),
   {
     ...options,
     method: 'PATCH',

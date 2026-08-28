@@ -9,4 +9,6 @@ import type { GetMyFlagsByRoleRole } from './getMyFlagsByRoleRole';
 
 export type GetMyFlagsByRoleParams = {
 role: GetMyFlagsByRoleRole;
+page?: number;
+size?: number;
 };

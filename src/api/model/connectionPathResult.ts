@@ -9,5 +9,6 @@ import type { IntermediaryResult } from './intermediaryResult';
 
 export interface ConnectionPathResult {
   direct?: boolean;
+  totalCount?: number;
   intermediaries?: IntermediaryResult[];
 }

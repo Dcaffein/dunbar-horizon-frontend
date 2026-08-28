@@ -7,6 +7,10 @@
  */
 
 export interface CommentUpdateRequest {
+  /**
+     * @minLength 0
+     * @maxLength 500
+     */
   content: string;
   isPrivate?: boolean;
 }

@@ -29,7 +29,7 @@ export const getRecordTraceUrl = () => {
 
 
 
-  return `/api/v1/social/traces`
+  return `/api/v1/traces`
 }
 
 export const recordTrace = async (visitRequestDto: VisitRequestDto, options?: RequestInit): Promise<recordTraceResponse> => {

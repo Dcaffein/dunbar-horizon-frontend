@@ -5,10 +5,9 @@
  * DunbarHorizon 백엔드 API
  * OpenAPI spec version: 1.0.0
  */
-import type { LabelMemberResult } from './labelMemberResult';
 
 export interface LabelResult {
   id?: string;
   labelName?: string;
-  members?: LabelMemberResult[];
+  memberCount?: number;
 }

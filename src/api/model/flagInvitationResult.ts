@@ -6,7 +6,11 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export interface AnchorExpansionResult {
+export interface FlagInvitationResult {
   id?: number;
-  nickname?: string;
+  flagId?: number;
+  flagTitle?: string;
+  flagDescription?: string;
+  counterpartNickname?: string;
+  createdAt?: string;
 }

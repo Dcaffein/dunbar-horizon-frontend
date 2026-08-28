@@ -8,5 +8,6 @@
 import type { GetUserFlagsByRoleRole } from './getUserFlagsByRoleRole';
 
 export type GetUserFlagsByRoleParams = {
+userId: number;
 role: GetUserFlagsByRoleRole;
 };

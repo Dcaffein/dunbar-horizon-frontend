@@ -6,6 +6,7 @@
  * OpenAPI spec version: 1.0.0
  */
 import type {
+  GetAllLabelsParams,
   LabelCreateRequest,
   LabelMemberAddRequest,
   LabelMemberResult,
@@ -126,17 +127,24 @@ export type getAllLabelsResponseSuccess = (getAllLabelsResponse200) & {
 
 export type getAllLabelsResponse = (getAllLabelsResponseSuccess)
 
-export const getGetAllLabelsUrl = () => {
+export const getGetAllLabelsUrl = (params?: GetAllLabelsParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/v1/labels`
+  return stringifiedParams.length > 0 ? `/api/v1/labels?${stringifiedParams}` : `/api/v1/labels`
 }
 
-export const getAllLabels = async ( options?: RequestInit): Promise<getAllLabelsResponse> => {
+export const getAllLabels = async (params?: GetAllLabelsParams, options?: RequestInit): Promise<getAllLabelsResponse> => {
 
-  return customFetch<getAllLabelsResponse>(getGetAllLabelsUrl(),
+  return customFetch<getAllLabelsResponse>(getGetAllLabelsUrl(params),
   {
     ...options,
     method: 'GET'

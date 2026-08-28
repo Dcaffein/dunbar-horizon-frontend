@@ -5,8 +5,9 @@
  * DunbarHorizon 백엔드 API
  * OpenAPI spec version: 1.0.0
  */
+import type { GetRequestsStatus } from './getRequestsStatus';
 
-export interface FlagInviteRequest {
-  flagId: number;
-  inviteeId: number;
-}
+export type GetRequestsParams = {
+direction: string;
+status?: GetRequestsStatus;
+};

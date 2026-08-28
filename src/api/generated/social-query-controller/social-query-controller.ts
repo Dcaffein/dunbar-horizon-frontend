@@ -10,14 +10,52 @@ import type {
   ConnectionPathResult,
   GetConnectionPathParams,
   GetFriendsNetworkParams,
-  GetOneHopMutualFriendEdgesParams,
-  GetTwoHopMutualFriendsParams,
+  GetNetworkEdgesParams,
   GetTwoHopRecommendationParams,
   MutualFriendEdgeResult,
   NodeGraphResult
 } from '../../model';
 
 import { customFetch } from '../../apiClient';
+
+export type getFriendsNetworkResponse200 = {
+  data: NodeGraphResult[]
+  status: 200
+}
+
+export type getFriendsNetworkResponseSuccess = (getFriendsNetworkResponse200) & {
+  headers: Headers;
+};
+;
+
+export type getFriendsNetworkResponse = (getFriendsNetworkResponseSuccess)
+
+export const getGetFriendsNetworkUrl = (params?: GetFriendsNetworkParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/network?${stringifiedParams}` : `/api/v1/network`
+}
+
+export const getFriendsNetwork = async (params?: GetFriendsNetworkParams, options?: RequestInit): Promise<getFriendsNetworkResponse> => {
+
+  return customFetch<getFriendsNetworkResponse>(getGetFriendsNetworkUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
 
 export type getTwoHopRecommendationResponse200 = {
   data: AnchorExpansionResult[]
@@ -43,7 +81,7 @@ export const getGetTwoHopRecommendationUrl = (params: GetTwoHopRecommendationPar
 
   const stringifiedParams = normalizedParams.toString();
 
-  return stringifiedParams.length > 0 ? `/api/v1/networks/recommendations?${stringifiedParams}` : `/api/v1/networks/recommendations`
+  return stringifiedParams.length > 0 ? `/api/v1/network/recommendations?${stringifiedParams}` : `/api/v1/network/recommendations`
 }
 
 export const getTwoHopRecommendation = async (params: GetTwoHopRecommendationParams, options?: RequestInit): Promise<getTwoHopRecommendationResponse> => {
@@ -82,129 +120,12 @@ export const getGetConnectionPathUrl = (params: GetConnectionPathParams,) => {
 
   const stringifiedParams = normalizedParams.toString();
 
-  return stringifiedParams.length > 0 ? `/api/v1/networks/path?${stringifiedParams}` : `/api/v1/networks/path`
+  return stringifiedParams.length > 0 ? `/api/v1/network/path?${stringifiedParams}` : `/api/v1/network/path`
 }
 
 export const getConnectionPath = async (params: GetConnectionPathParams, options?: RequestInit): Promise<getConnectionPathResponse> => {
 
   return customFetch<getConnectionPathResponse>(getGetConnectionPathUrl(params),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-export type getTwoHopMutualFriendsResponse200 = {
-  data: number[]
-  status: 200
-}
-
-export type getTwoHopMutualFriendsResponseSuccess = (getTwoHopMutualFriendsResponse200) & {
-  headers: Headers;
-};
-;
-
-export type getTwoHopMutualFriendsResponse = (getTwoHopMutualFriendsResponseSuccess)
-
-export const getGetTwoHopMutualFriendsUrl = (params: GetTwoHopMutualFriendsParams,) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : String(value))
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
-
-  return stringifiedParams.length > 0 ? `/api/v1/networks/mutual/two-hop?${stringifiedParams}` : `/api/v1/networks/mutual/two-hop`
-}
-
-export const getTwoHopMutualFriends = async (params: GetTwoHopMutualFriendsParams, options?: RequestInit): Promise<getTwoHopMutualFriendsResponse> => {
-
-  return customFetch<getTwoHopMutualFriendsResponse>(getGetTwoHopMutualFriendsUrl(params),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-export type getOneHopMutualFriendEdgesResponse200 = {
-  data: MutualFriendEdgeResult[]
-  status: 200
-}
-
-export type getOneHopMutualFriendEdgesResponseSuccess = (getOneHopMutualFriendEdgesResponse200) & {
-  headers: Headers;
-};
-;
-
-export type getOneHopMutualFriendEdgesResponse = (getOneHopMutualFriendEdgesResponseSuccess)
-
-export const getGetOneHopMutualFriendEdgesUrl = (params: GetOneHopMutualFriendEdgesParams,) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : String(value))
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
-
-  return stringifiedParams.length > 0 ? `/api/v1/networks/mutual/one-hop?${stringifiedParams}` : `/api/v1/networks/mutual/one-hop`
-}
-
-export const getOneHopMutualFriendEdges = async (params: GetOneHopMutualFriendEdgesParams, options?: RequestInit): Promise<getOneHopMutualFriendEdgesResponse> => {
-
-  return customFetch<getOneHopMutualFriendEdgesResponse>(getGetOneHopMutualFriendEdgesUrl(params),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-export type getFriendsNetworkResponse200 = {
-  data: NodeGraphResult[]
-  status: 200
-}
-
-export type getFriendsNetworkResponseSuccess = (getFriendsNetworkResponse200) & {
-  headers: Headers;
-};
-;
-
-export type getFriendsNetworkResponse = (getFriendsNetworkResponseSuccess)
-
-export const getGetFriendsNetworkUrl = (params?: GetFriendsNetworkParams,) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : String(value))
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
-
-  return stringifiedParams.length > 0 ? `/api/v1/networks/me?${stringifiedParams}` : `/api/v1/networks/me`
-}
-
-export const getFriendsNetwork = async (params?: GetFriendsNetworkParams, options?: RequestInit): Promise<getFriendsNetworkResponse> => {
-
-  return customFetch<getFriendsNetworkResponse>(getGetFriendsNetworkUrl(params),
   {
     ...options,
     method: 'GET'
@@ -231,12 +152,51 @@ export const getGetLabelNetworkUrl = (labelId: string,) => {
 
 
 
-  return `/api/v1/networks/labels/${labelId}`
+  return `/api/v1/network/labels/${labelId}`
 }
 
 export const getLabelNetwork = async (labelId: string, options?: RequestInit): Promise<getLabelNetworkResponse> => {
 
   return customFetch<getLabelNetworkResponse>(getGetLabelNetworkUrl(labelId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+export type getNetworkEdgesResponse200 = {
+  data: MutualFriendEdgeResult[]
+  status: 200
+}
+
+export type getNetworkEdgesResponseSuccess = (getNetworkEdgesResponse200) & {
+  headers: Headers;
+};
+;
+
+export type getNetworkEdgesResponse = (getNetworkEdgesResponseSuccess)
+
+export const getGetNetworkEdgesUrl = (params: GetNetworkEdgesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/network/edges?${stringifiedParams}` : `/api/v1/network/edges`
+}
+
+export const getNetworkEdges = async (params: GetNetworkEdgesParams, options?: RequestInit): Promise<getNetworkEdgesResponse> => {
+
+  return customFetch<getNetworkEdgesResponse>(getGetNetworkEdgesUrl(params),
   {
     ...options,
     method: 'GET'

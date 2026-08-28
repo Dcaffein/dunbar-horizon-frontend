@@ -6,99 +6,44 @@
  * OpenAPI spec version: 1.0.0
  */
 import type {
-  ReceivedFlagInvitationResult,
-  SentFlagInvitationResult
+  FlagInvitationResult,
+  FlagInvitationStatusUpdateRequest,
+  FlagInviteRequest,
+  GetInvitationsParams
 } from '../../model';
 
 import { customFetch } from '../../apiClient';
 
-export type rejectResponse200 = {
-  data: void
+export type getInvitationsResponse200 = {
+  data: FlagInvitationResult[]
   status: 200
 }
 
-export type rejectResponseSuccess = (rejectResponse200) & {
+export type getInvitationsResponseSuccess = (getInvitationsResponse200) & {
   headers: Headers;
 };
 ;
 
-export type rejectResponse = (rejectResponseSuccess)
+export type getInvitationsResponse = (getInvitationsResponseSuccess)
 
-export const getRejectUrl = (invitationId: number,) => {
+export const getGetInvitationsUrl = (params: GetInvitationsParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/v1/flag-invitations/${invitationId}/reject`
+  return stringifiedParams.length > 0 ? `/api/v1/flag-invitations?${stringifiedParams}` : `/api/v1/flag-invitations`
 }
 
-export const reject = async (invitationId: number, options?: RequestInit): Promise<rejectResponse> => {
+export const getInvitations = async (params: GetInvitationsParams, options?: RequestInit): Promise<getInvitationsResponse> => {
 
-  return customFetch<rejectResponse>(getRejectUrl(invitationId),
-  {
-    ...options,
-    method: 'POST'
-
-
-  }
-);}
-
-
-export type acceptResponse200 = {
-  data: void
-  status: 200
-}
-
-export type acceptResponseSuccess = (acceptResponse200) & {
-  headers: Headers;
-};
-;
-
-export type acceptResponse = (acceptResponseSuccess)
-
-export const getAcceptUrl = (invitationId: number,) => {
-
-
-
-
-  return `/api/v1/flag-invitations/${invitationId}/accept`
-}
-
-export const accept = async (invitationId: number, options?: RequestInit): Promise<acceptResponse> => {
-
-  return customFetch<acceptResponse>(getAcceptUrl(invitationId),
-  {
-    ...options,
-    method: 'POST'
-
-
-  }
-);}
-
-
-export type getSentResponse200 = {
-  data: SentFlagInvitationResult[]
-  status: 200
-}
-
-export type getSentResponseSuccess = (getSentResponse200) & {
-  headers: Headers;
-};
-;
-
-export type getSentResponse = (getSentResponseSuccess)
-
-export const getGetSentUrl = () => {
-
-
-
-
-  return `/api/v1/flag-invitations/sent`
-}
-
-export const getSent = async ( options?: RequestInit): Promise<getSentResponse> => {
-
-  return customFetch<getSentResponse>(getGetSentUrl(),
+  return customFetch<getInvitationsResponse>(getGetInvitationsUrl(params),
   {
     ...options,
     method: 'GET'
@@ -108,51 +53,51 @@ export const getSent = async ( options?: RequestInit): Promise<getSentResponse> 
 );}
 
 
-export type getReceivedResponse200 = {
-  data: ReceivedFlagInvitationResult[]
+export type inviteResponse200 = {
+  data: number
   status: 200
 }
 
-export type getReceivedResponseSuccess = (getReceivedResponse200) & {
+export type inviteResponseSuccess = (inviteResponse200) & {
   headers: Headers;
 };
 ;
 
-export type getReceivedResponse = (getReceivedResponseSuccess)
+export type inviteResponse = (inviteResponseSuccess)
 
-export const getGetReceivedUrl = () => {
-
-
+export const getInviteUrl = () => {
 
 
-  return `/api/v1/flag-invitations/received`
+
+
+  return `/api/v1/flag-invitations`
 }
 
-export const getReceived = async ( options?: RequestInit): Promise<getReceivedResponse> => {
+export const invite = async (flagInviteRequest: FlagInviteRequest, options?: RequestInit): Promise<inviteResponse> => {
 
-  return customFetch<getReceivedResponse>(getGetReceivedUrl(),
+  return customFetch<inviteResponse>(getInviteUrl(),
   {
     ...options,
-    method: 'GET'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(flagInviteRequest)
   }
 );}
 
 
-export type cancelResponse200 = {
+export type _deleteResponse200 = {
   data: void
   status: 200
 }
 
-export type cancelResponseSuccess = (cancelResponse200) & {
+export type _deleteResponseSuccess = (_deleteResponse200) & {
   headers: Headers;
 };
 ;
 
-export type cancelResponse = (cancelResponseSuccess)
+export type _deleteResponse = (_deleteResponseSuccess)
 
-export const getCancelUrl = (invitationId: number,) => {
+export const getDeleteUrl = (invitationId: number,) => {
 
 
 
@@ -160,14 +105,47 @@ export const getCancelUrl = (invitationId: number,) => {
   return `/api/v1/flag-invitations/${invitationId}`
 }
 
-export const cancel = async (invitationId: number, options?: RequestInit): Promise<cancelResponse> => {
+export const _delete = async (invitationId: number, options?: RequestInit): Promise<_deleteResponse> => {
 
-  return customFetch<cancelResponse>(getCancelUrl(invitationId),
+  return customFetch<_deleteResponse>(getDeleteUrl(invitationId),
   {
     ...options,
     method: 'DELETE'
 
 
+  }
+);}
+
+
+export type updateStatusResponse200 = {
+  data: void
+  status: 200
+}
+
+export type updateStatusResponseSuccess = (updateStatusResponse200) & {
+  headers: Headers;
+};
+;
+
+export type updateStatusResponse = (updateStatusResponseSuccess)
+
+export const getUpdateStatusUrl = (invitationId: number,) => {
+
+
+
+
+  return `/api/v1/flag-invitations/${invitationId}`
+}
+
+export const updateStatus = async (invitationId: number,
+    flagInvitationStatusUpdateRequest: FlagInvitationStatusUpdateRequest, options?: RequestInit): Promise<updateStatusResponse> => {
+
+  return customFetch<updateStatusResponse>(getUpdateStatusUrl(invitationId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(flagInvitationStatusUpdateRequest)
   }
 );}
 

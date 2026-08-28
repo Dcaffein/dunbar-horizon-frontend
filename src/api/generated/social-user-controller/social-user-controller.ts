@@ -23,17 +23,17 @@ export type getSocialProfileResponseSuccess = (getSocialProfileResponse200) & {
 
 export type getSocialProfileResponse = (getSocialProfileResponseSuccess)
 
-export const getGetSocialProfileUrl = (id: number,) => {
+export const getGetSocialProfileUrl = (userId: number,) => {
 
 
 
 
-  return `/api/v1/social/users/${id}`
+  return `/api/v1/social/profiles/${userId}`
 }
 
-export const getSocialProfile = async (id: number, options?: RequestInit): Promise<getSocialProfileResponse> => {
+export const getSocialProfile = async (userId: number, options?: RequestInit): Promise<getSocialProfileResponse> => {
 
-  return customFetch<getSocialProfileResponse>(getGetSocialProfileUrl(id),
+  return customFetch<getSocialProfileResponse>(getGetSocialProfileUrl(userId),
   {
     ...options,
     method: 'GET'

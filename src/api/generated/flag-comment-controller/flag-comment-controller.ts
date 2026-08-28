@@ -90,18 +90,20 @@ export type createReplyResponseSuccess = (createReplyResponse200) & {
 
 export type createReplyResponse = (createReplyResponseSuccess)
 
-export const getCreateReplyUrl = (parentId: number,) => {
+export const getCreateReplyUrl = (flagId: number,
+    parentId: number,) => {
 
 
 
 
-  return `/api/v1/comments/${parentId}/replies`
+  return `/api/v1/flags/${flagId}/comments/${parentId}/replies`
 }
 
-export const createReply = async (parentId: number,
+export const createReply = async (flagId: number,
+    parentId: number,
     commentCreateRequest: CommentCreateRequest, options?: RequestInit): Promise<createReplyResponse> => {
 
-  return customFetch<createReplyResponse>(getCreateReplyUrl(parentId),
+  return customFetch<createReplyResponse>(getCreateReplyUrl(flagId,parentId),
   {
     ...options,
     method: 'POST',
@@ -123,17 +125,19 @@ export type deleteCommentResponseSuccess = (deleteCommentResponse200) & {
 
 export type deleteCommentResponse = (deleteCommentResponseSuccess)
 
-export const getDeleteCommentUrl = (commentId: number,) => {
+export const getDeleteCommentUrl = (flagId: number,
+    commentId: number,) => {
 
 
 
 
-  return `/api/v1/comments/${commentId}`
+  return `/api/v1/flags/${flagId}/comments/${commentId}`
 }
 
-export const deleteComment = async (commentId: number, options?: RequestInit): Promise<deleteCommentResponse> => {
+export const deleteComment = async (flagId: number,
+    commentId: number, options?: RequestInit): Promise<deleteCommentResponse> => {
 
-  return customFetch<deleteCommentResponse>(getDeleteCommentUrl(commentId),
+  return customFetch<deleteCommentResponse>(getDeleteCommentUrl(flagId,commentId),
   {
     ...options,
     method: 'DELETE'
@@ -155,18 +159,20 @@ export type updateCommentResponseSuccess = (updateCommentResponse200) & {
 
 export type updateCommentResponse = (updateCommentResponseSuccess)
 
-export const getUpdateCommentUrl = (commentId: number,) => {
+export const getUpdateCommentUrl = (flagId: number,
+    commentId: number,) => {
 
 
 
 
-  return `/api/v1/comments/${commentId}`
+  return `/api/v1/flags/${flagId}/comments/${commentId}`
 }
 
-export const updateComment = async (commentId: number,
+export const updateComment = async (flagId: number,
+    commentId: number,
     commentUpdateRequest: CommentUpdateRequest, options?: RequestInit): Promise<updateCommentResponse> => {
 
-  return customFetch<updateCommentResponse>(getUpdateCommentUrl(commentId),
+  return customFetch<updateCommentResponse>(getUpdateCommentUrl(flagId,commentId),
   {
     ...options,
     method: 'PATCH',
