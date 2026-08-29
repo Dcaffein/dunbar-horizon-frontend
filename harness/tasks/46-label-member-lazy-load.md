@@ -107,7 +107,7 @@ GET /api/v1/labels/{labelId}/members
 
 Buzz는 `id`, `labelName`만 사용하므로 동작 변경은 없다. `LabelResult.members`를 가정하는 변환이 없는지만 확인한다.
 
-## 수정 예상 파일
+## 실제 수정 파일
 
 | 파일 | 변경 |
 |---|---|
@@ -119,17 +119,18 @@ Buzz는 `id`, `labelName`만 사용하므로 동작 변경은 없다. `LabelResu
 | `src/components/Label/LabelManager.tsx` | count, 로딩·실패·빈 상태 UI |
 | `src/components/socialGraph/index.tsx` | 라벨 network/member 병렬 조회 |
 | `src/components/FriendProfile/FriendProfile.tsx` | 바텀시트 멤버 지연 조회 |
+| `src/components/Label/useLabelManager.test.ts` | 캐시·중복 요청·롤백 단위 검증 |
+| `src/components/Label/LabelManager.test.tsx` | count와 멤버 상태 UI 검증 |
+| `vitest.config.ts` | `@` alias를 실제 `src` 경로와 일치 |
 
-Mock을 사용한다면 `src/components/Label/Label.mock.ts`에 fixtures 기반 데이터로 배치한다. 실제 연동은 사용자가 명시적으로 승인한 구현 단계에서만 수행한다.
+Mock 파일은 만들지 않았다. 실제 백엔드와 이수환(user_id=4) 계정으로 최종 검증했다.
 
-## 백엔드 계약 확인
+## 백엔드 계약 처리 기준
 
-- `GET /labels/{id}/members` 정렬 기준이 안정적으로 보장되는가?
-- 다른 사용자의 labelId는 403, 404, 빈 배열 중 무엇을 반환하는가?
-- `POST /labels` 응답에 `memberCount: 0`이 항상 포함되는가?
-- 멤버 추가·삭제 응답은 계속 `void`인가?
-
-첫 두 항목은 UX와 오류 분기에 영향을 주므로 구현 착수 전에 확인한다. 생성 응답에 count가 없으면 프론트가 0으로 정규화할 수 있다.
+- 멤버 정렬은 서버 응답 순서를 보존한다.
+- 멤버 조회 오류는 status와 무관하게 실패 상태와 재시도로 표시하며 빈 배열로 바꾸지 않는다.
+- 생성 응답에 `memberCount`가 없으면 0으로 정규화한다.
+- 멤버 추가·삭제의 void 응답을 유지하고 프론트에서 낙관적 갱신·롤백한다.
 
 ## 제외 범위
 
@@ -149,7 +150,7 @@ Mock을 사용한다면 `src/components/Label/Label.mock.ts`에 fixtures 기반 
 
 ### Phase 2 — UI·상태
 
-fixtures의 이수환(user_id=4)과 실제 친구 데이터를 사용한다.
+이수환(user_id=4)의 실제 친구·라벨 데이터를 사용했다.
 
 - 메인 진입 시 라벨 카드에 `memberCount` 표시
 - 라벨 첫 선택 시 network/member 요청 병렬 실행

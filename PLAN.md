@@ -2,6 +2,10 @@
 
 배경과 계약은 `harness/tasks/46-label-member-lazy-load.md`를 따른다.
 
+## 상태
+
+완료 (2026-08-29). 계획된 세 Phase와 실제 백엔드 UI 검증까지 마쳤다.
+
 ## 1. 요구사항 분석
 
 백엔드 `LabelResult`가 `{ id, labelName, members[] }`에서 `{ id, labelName, memberCount }`로 바뀌었다. 프론트는 목록 응답만으로 멤버를 알고 있다는 가정을 제거하고, 멤버가 실제로 필요한 시점에 `GET /api/v1/labels/{labelId}/members`를 호출해야 한다.
@@ -113,7 +117,7 @@ Task 47의 `/network/labels/{labelId}` 경로 변경은 이 태스크에서 다�
 
 Buzz는 라벨의 `id`, `labelName`만 사용한다. 코드 변경은 타입 오류가 발생하는 최소 범위에 한정하며 멤버 조회를 추가하지 않는다.
 
-## 3. 생성·수정할 파일
+## 3. 실제 수정 파일
 
 | 파일 | 변경 |
 |---|---|
@@ -126,14 +130,17 @@ Buzz는 라벨의 `id`, `labelName`만 사용한다. 코드 변경은 타입 오
 | `src/components/Label/LabelManager.tsx` | count, 멤버 로딩·실패·빈 상태, 재시도 |
 | `src/components/socialGraph/index.tsx` | 라벨 network/member 병렬 시작과 고립 노드 반영 |
 | `src/components/FriendProfile/FriendProfile.tsx` | 바텀시트 멤버 지연 조회·캐시 |
+| `src/components/Label/LabelManager.test.tsx` | count, 지연 조회, 빈 상태·실패 UI 검증 |
+| `vitest.config.ts` | 프로젝트의 `@/* → src/*` alias와 테스트 환경 일치 |
+| `harness/verify/verify-46-*.png` | 실제 백엔드 UI 검증 이미지 3장 |
 
 `src/app/actions/buzz.ts`, `src/app/buzzes/new/page.tsx`, `src/components/Buzz/BuzzForm.tsx`는 읽기 대조 대상으로 두고 실제 타입 오류가 없으면 수정하지 않는다.
 
-새 Mock 파일은 만들지 않는다. 이번 작업은 사용자가 제공한 실제 백엔드 계약 연동이며, UI 검증 데이터는 `harness/fixtures/users.md`, `harness/fixtures/friendships.md`를 사용한다.
+Mock 파일은 만들지 않았다. 사용자가 제공한 실제 백엔드 계약과 이수환(user_id=4) 테스트 계정으로 검증했다.
 
 ## 4. 작업 순서와 세이브 포인트
 
-### Phase 1 — 계약·상태 기반 마련
+### Phase 1 — 계약·상태 기반 마련 (완료)
 
 1. label 조회 Server Action 두 개 구현
 2. Label UI 모델 변경
@@ -143,7 +150,7 @@ Buzz는 라벨의 `id`, `labelName`만 사용한다. 코드 변경은 타입 오
 6. lint, TypeScript, 단위 테스트 통과
 7. 커밋: `feat(task-46): 라벨 멤버 지연 조회 상태를 도입한다`
 
-### Phase 2 — UI·그래프 연결
+### Phase 2 — UI·그래프 연결 (완료)
 
 1. LabelManager 로딩·실패·빈 상태와 재시도 UI
 2. 라벨 선택 시 network/member 병렬 시작
@@ -152,7 +159,7 @@ Buzz는 라벨의 `id`, `labelName`만 사용한다. 코드 변경은 타입 오
 5. 실제 UI/상태 검증과 스크린샷
 6. 커밋: `feat(task-46): 라벨 멤버 지연 조회 UI를 연결한다`
 
-### Phase 3 — 예외와 회귀
+### Phase 3 — 예외와 회귀 (완료)
 
 1. 늦은 응답, 빠른 선택 전환, 중복 클릭 검증
 2. 조회·추가·삭제 실패 및 롤백 검증
@@ -175,7 +182,7 @@ Buzz는 라벨의 `id`, `labelName`만 사용한다. 코드 변경은 타입 오
 
 ### Phase 2 — UI·상태 검증
 
-기본 계정 이수환(user_id=4)과 fixtures의 실제 친구·라벨 데이터를 사용한다.
+기본 계정 이수환(user_id=4)의 실제 친구·라벨 데이터를 사용했다.
 
 - 메인 로드 직후 모든 라벨 카드 count가 서버 `memberCount`와 일치
 - 활성 라벨 첫 클릭에서 network와 members 요청이 함께 시작
@@ -220,6 +227,15 @@ Buzz는 라벨의 `id`, `labelName`만 사용한다. 코드 변경은 타입 오
 - 전역 캐시 라이브러리 도입
 - Buzz에 불필요한 멤버 조회 추가
 
-## 8. 브랜치
+## 8. 브랜치와 결과 커밋
 
-승인 후 로컬 `main`의 `ecc2dbb`에서 `agent/task-46-label-member-lazy-load` 브랜치를 생성한다. 현재 미커밋 Task 46~48 문서는 보존하고, Task 46 구현 커밋에는 Task 47·48 문서를 포함하지 않는다.
+브랜치: `agent/task-46-label-member-lazy-load`
+
+- `7ccf78a` — 계약·상태 기반과 훅 테스트
+- `678aa6a` — LabelManager·그래프·프로필 UI 연결
+- `453cd1e` — 중복 추가와 불완전 응답 예외 검증
+- `9364f31` — 실제 백엔드 UI 검증과 스크린샷
+
+Task 47·48 문서와 기존 사용자 변경은 모든 커밋에서 제외했다.
+
+전체 TypeScript의 잔여 5건과 lint 15건은 OpenAPI 계약을 먼저 반영하면서 드러난 기존/Task 47 범위다. Task 46 테스트 8개는 모두 통과했고 Task 46 변경 파일에는 새 정적 분석 오류가 없다.
