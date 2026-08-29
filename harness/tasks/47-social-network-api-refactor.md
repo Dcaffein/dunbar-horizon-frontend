@@ -2,7 +2,7 @@
 
 ## 상태
 
-미착수. 새 OpenAPI 계약 반영 확인 완료.
+완료 (2026-08-29). `agent/task-47-social-network-api-refactor`에서 구현·검증 완료.
 
 ## 배경
 
@@ -171,3 +171,42 @@ fixtures의 이수환(user_id=4), 2-hop 시나리오를 사용한다.
 ## 브랜치
 
 `agent/task-47-social-network-api-refactor`
+
+## Result
+
+### 구현
+
+- 모든 `/api/v1/networks/**` 호출을 `/api/v1/network/**`로 전환했다.
+- 공개 프로필을 `/api/v1/social/profiles/{userId}`, 방문 기록을 `/api/v1/traces`로 전환했다.
+- 삭제된 one-hop/two-hop 액션을 `getNetworkEdgesAction` 하나로 통합했다.
+- `baseNetworkFriendIds`는 생성 클라이언트와 같은 쉼표 구분 query로 직렬화했다.
+- `deriveTargetNetworkEdges`가 target 방향, 누락 ID, self-loop, base 밖 edge와 무방향 중복을 방어한다.
+- 추천 DTO의 제거 필드를 삭제하고, edge 성공 후 파생된 공통 친구 수만 패널에 표시한다.
+- request sequence로 이전 추천 목록·edge 응답을 폐기한다.
+- 그래프 밖 anchor는 노드 렌더 완료를 기다린 후 추천 edge를 추가한다.
+
+### 검증
+
+| 항목 | 결과 |
+|---|---|
+| 전체 Vitest | 4개 파일, 16개 테스트 통과 |
+| Task 47 변경 파일 ESLint | 오류 0건 |
+| 제거 URL·추천 DTO 필드 검색 | 잔여 참조 0건 |
+| SUPPORT network | 실제 백엔드 정상 렌더링 |
+| 그래프 밖 anchor 추천 | DJ 권대중 기준 추천 4건 정상 렌더링 |
+| 통합 edge | 정기완 선택 시 공통 친구 1명과 edge 일치 |
+| Task 46 회귀 | `ku` 라벨 멤버 15명 및 라벨 테스트 8건 통과 |
+
+스크린샷:
+
+- `harness/verify/verify-47-01-support-network.png`
+- `harness/verify/verify-47-02-recommendations.png`
+- `harness/verify/verify-47-03-recommendation-edge.png`
+- `harness/verify/verify-47-04-label-network.png`
+
+프로젝트 전체 lint의 기존 15건과 Flag 생성 코드의 `GetUserFlagsByRoleParams` 모델 배럴 누락 1건은 Task 47 외부 기준선으로 남겼다. 실제 `/users/{id}` 진입은 방문 trace를 생성하므로 자동 UI 검증에서는 실행하지 않았고, 세 URL은 코드 전환과 제거 URL 검색으로 확인했다.
+
+### 커밋
+
+- `994918b` — `feat(task-47): 신규 social network 계약을 연결한다`
+- `9a4e1d8` — `feat(task-47): 통합 edge 기반 추천 흐름을 연결한다`

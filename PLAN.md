@@ -2,6 +2,10 @@
 
 배경과 계약은 `harness/tasks/47-social-network-api-refactor.md`를 따른다.
 
+## 상태
+
+완료 (2026-08-29). 세 Phase 구현·검증과 실제 백엔드 UI 확인을 마쳤다.
+
 ## 1. 요구사항 분석
 
 OpenAPI 계약에서 Social network URL이 복수형 `/networks/**`에서 단수형 `/network/**`로 바뀌었다. 기존 one-hop/two-hop 공통 친구 API는 `GET /api/v1/network/edges` 하나로 통합됐으며 추천 DTO는 `{ id, nickname }`만 남았다.
@@ -118,7 +122,7 @@ Mock 데이터 파일은 만들지 않는다. Server Action은 실제 백엔드 
 
 ## 7. 작업 순서와 세이브 포인트
 
-### Phase 1 — URL·edge 기반
+### Phase 1 — URL·edge 기반 (완료)
 
 1. 모든 Social URL 교체
 2. 통합 `getNetworkEdgesAction` 구현
@@ -127,7 +131,7 @@ Mock 데이터 파일은 만들지 않는다. Server Action은 실제 백엔드 
 5. Task 47 관련 TypeScript 오류 0건, 테스트 통과
 6. 커밋: `feat(task-47): 신규 social network 계약을 연결한다`
 
-### Phase 2 — 추천·라벨 UI 연결
+### Phase 2 — 추천·라벨 UI 연결 (완료)
 
 1. 추천 edge loading/success/error와 request sequence 구현
 2. SuggestionPanel count 상태 UI와 테스트
@@ -136,7 +140,7 @@ Mock 데이터 파일은 만들지 않는다. Server Action은 실제 백엔드 
 5. 스크린샷 저장
 6. 커밋: `feat(task-47): 통합 edge 기반 추천 흐름을 연결한다`
 
-### Phase 3 — 예외·회귀
+### Phase 3 — 예외·회귀 (완료)
 
 1. 빈 추천·빈 edge·잘못된 edge 검증
 2. 빠른 추천 전환과 실패 상태 검증
@@ -198,3 +202,16 @@ OpenAPI 반영 후 생긴 unrelated `GetUserFlagsByRoleParams` barrel 오류와 
 ## 10. 브랜치
 
 승인 후 Task 46 완료 커밋 `e9abc2a`에서 `agent/task-47-social-network-api-refactor`를 만든다. Task 47은 Task 46의 라벨 그래프 흐름 위에서 동작하므로 해당 커밋을 부모로 삼되, `main` 머지는 별도 사용자 요청 전에는 수행하지 않는다. Task 48 문서와 기존 사용자 변경은 커밋에서 제외한다.
+
+## 11. 완료 결과
+
+- `994918b` — 신규 Social URL, 통합 edge 액션, edge 정규화와 단위 테스트
+- `9a4e1d8` — 추천 edge 상태·늦은 응답 차단, 그래프 밖 anchor 방어, 실제 UI 검증
+- 전체 Vitest 4개 파일 16개 테스트 통과
+- Task 47 변경 파일 ESLint 오류 0건
+- 실제 백엔드에서 SUPPORT 네트워크, DJ 권대중 anchor 추천 4건, 정기완 선택의 공통 친구 1명, `ku` 라벨 멤버 15명 확인
+- `harness/verify/verify-47-01-support-network.png`부터 `verify-47-04-label-network.png`까지 저장
+
+전체 저장소 기준선에는 Task 47 외부의 lint 15건(오류 3, 경고 12)과 Flag 생성 코드의 `GetUserFlagsByRoleParams` 배럴 누락 TypeScript 오류 1건이 남아 있다. Task 47 범위를 넓히지 않기 위해 수정하지 않았다.
+
+`/users/{id}` 실제 진입은 페이지 mount 시 방문 trace를 기록하므로 브라우저 자동 검증에서는 실행하지 않았다. 공개 프로필·연결 경로·trace는 코드의 신규 URL 전환과 제거 URL 0건으로 검증했다.
