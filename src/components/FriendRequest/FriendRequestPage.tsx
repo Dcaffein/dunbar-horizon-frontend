@@ -3,14 +3,15 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import type { FriendRequestResult } from "@/api/model/friendRequestResult";
-import { useFriendRequest } from "./useFriendRequest";
+import { useFriendRequest, type RequestTabState } from "./useFriendRequest";
+import { deriveCounterpartId, counterpartOf, loadingKey } from "./counterpart";
 import EmptyState from "@/components/common/EmptyState";
 
 type Tab = "received" | "sent" | "search";
 
 interface FriendRequestPageProps {
-  initialReceived: FriendRequestResult[];
-  initialSent: FriendRequestResult[];
+  initialReceived: RequestTabState;
+  initialSent: RequestTabState;
 }
 
 export default function FriendRequestPage({
@@ -23,12 +24,14 @@ export default function FriendRequestPage({
   const {
     receivedRequests,
     sentRequests,
+    receivedOk,
+    sentOk,
     searchEmail,
     setSearchEmail,
     searchStatus,
     searchResult,
     searchError,
-    actionLoadingId,
+    actionLoadingKey,
     actionError,
     handleSearch,
     handleAccept,
@@ -92,7 +95,8 @@ export default function FriendRequestPage({
         {activeTab === "received" && (
           <ReceivedTab
             requests={receivedRequests}
-            actionLoadingId={actionLoadingId}
+            ok={receivedOk}
+            actionLoadingKey={actionLoadingKey}
             onAccept={handleAccept}
             onHide={handleHide}
           />
@@ -101,7 +105,8 @@ export default function FriendRequestPage({
         {activeTab === "sent" && (
           <SentTab
             requests={sentRequests}
-            actionLoadingId={actionLoadingId}
+            ok={sentOk}
+            actionLoadingKey={actionLoadingKey}
             onCancel={handleCancel}
           />
         )}
@@ -154,107 +159,143 @@ function TabButton({
   );
 }
 
+function TabError({ message }: { message: string }) {
+  return (
+    <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
+      {message}
+    </p>
+  );
+}
+
 function ReceivedTab({
   requests,
-  actionLoadingId,
+  ok,
+  actionLoadingKey,
   onAccept,
   onHide,
 }: {
   requests: FriendRequestResult[];
-  actionLoadingId: string | null;
-  onAccept: (id: string) => void;
-  onHide: (id: string) => void;
+  ok: boolean;
+  actionLoadingKey: string | null;
+  onAccept: (requestId: string, counterpartId: number) => void;
+  onHide: (requestId: string, counterpartId: number) => void;
 }) {
+  if (!ok) {
+    return <TabError message="받은 요청을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요." />;
+  }
   if (requests.length === 0) {
     return <EmptyState message="받은 친구 요청이 없습니다." />;
   }
 
   return (
     <ul className="space-y-3">
-      {requests.map((req) => (
-        <li key={req.id} className="bg-white rounded-xl border border-gray-200 p-4 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
-              <span className="text-indigo-700 font-bold text-sm">
-                {req.requester?.nickname?.charAt(0) ?? "?"}
-              </span>
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-gray-800 truncate">
-                {req.requester?.nickname ?? "알 수 없음"}
-              </p>
-              {req.createdAt && (
-                <p className="text-xs text-gray-400 mt-0.5">
-                  {new Date(req.createdAt).toLocaleDateString("ko-KR")}
+      {requests.map((req) => {
+        const person = counterpartOf(req, "RECEIVED");
+        const counterpartId = deriveCounterpartId(req, "RECEIVED");
+        const key = counterpartId != null ? loadingKey("RECEIVED", counterpartId) : null;
+        const loading = key != null && actionLoadingKey === key;
+        const disabled = counterpartId == null || loading;
+        return (
+          <li key={req.id} className="bg-white rounded-xl border border-gray-200 p-4 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
+                <span className="text-indigo-700 font-bold text-sm">
+                  {person?.nickname?.charAt(0) ?? "?"}
+                </span>
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-gray-800 truncate">
+                  {person?.nickname ?? "알 수 없음"}
                 </p>
-              )}
+                {counterpartId == null ? (
+                  <p className="text-xs text-red-400 mt-0.5">사용자 정보를 확인할 수 없습니다.</p>
+                ) : req.createdAt ? (
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {new Date(req.createdAt).toLocaleDateString("ko-KR")}
+                  </p>
+                ) : null}
+              </div>
             </div>
-          </div>
-          <div className="flex gap-2 shrink-0">
-            <button
-              onClick={() => onAccept(req.id!)}
-              disabled={actionLoadingId === req.id}
-              className="text-xs px-3 py-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 font-medium"
-            >
-              수락
-            </button>
-            <button
-              onClick={() => onHide(req.id!)}
-              disabled={actionLoadingId === req.id}
-              className="text-xs px-3 py-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 disabled:opacity-50 font-medium"
-            >
-              숨기기
-            </button>
-          </div>
-        </li>
-      ))}
+            <div className="flex gap-2 shrink-0">
+              <button
+                onClick={() => counterpartId != null && onAccept(req.id!, counterpartId)}
+                disabled={disabled}
+                className="text-xs px-3 py-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+              >
+                수락
+              </button>
+              <button
+                onClick={() => counterpartId != null && onHide(req.id!, counterpartId)}
+                disabled={disabled}
+                className="text-xs px-3 py-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+              >
+                숨기기
+              </button>
+            </div>
+          </li>
+        );
+      })}
     </ul>
   );
 }
 
 function SentTab({
   requests,
-  actionLoadingId,
+  ok,
+  actionLoadingKey,
   onCancel,
 }: {
   requests: FriendRequestResult[];
-  actionLoadingId: string | null;
-  onCancel: (id: string) => void;
+  ok: boolean;
+  actionLoadingKey: string | null;
+  onCancel: (requestId: string, counterpartId: number) => void;
 }) {
+  if (!ok) {
+    return <TabError message="보낸 요청을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요." />;
+  }
   if (requests.length === 0) {
     return <EmptyState message="보낸 친구 요청이 없습니다." />;
   }
 
   return (
     <ul className="space-y-3">
-      {requests.map((req) => (
-        <li key={req.id} className="bg-white rounded-xl border border-gray-200 p-4 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center shrink-0">
-              <span className="text-gray-600 font-bold text-sm">
-                {req.receiver?.nickname?.charAt(0) ?? "?"}
-              </span>
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-gray-800 truncate">
-                {req.receiver?.nickname ?? "알 수 없음"}
-              </p>
-              {req.createdAt && (
-                <p className="text-xs text-gray-400 mt-0.5">
-                  {new Date(req.createdAt).toLocaleDateString("ko-KR")}
+      {requests.map((req) => {
+        const person = counterpartOf(req, "SENT");
+        const counterpartId = deriveCounterpartId(req, "SENT");
+        const key = counterpartId != null ? loadingKey("SENT", counterpartId) : null;
+        const loading = key != null && actionLoadingKey === key;
+        const disabled = counterpartId == null || loading;
+        return (
+          <li key={req.id} className="bg-white rounded-xl border border-gray-200 p-4 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center shrink-0">
+                <span className="text-gray-600 font-bold text-sm">
+                  {person?.nickname?.charAt(0) ?? "?"}
+                </span>
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-gray-800 truncate">
+                  {person?.nickname ?? "알 수 없음"}
                 </p>
-              )}
+                {counterpartId == null ? (
+                  <p className="text-xs text-red-400 mt-0.5">사용자 정보를 확인할 수 없습니다.</p>
+                ) : req.createdAt ? (
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {new Date(req.createdAt).toLocaleDateString("ko-KR")}
+                  </p>
+                ) : null}
+              </div>
             </div>
-          </div>
-          <button
-            onClick={() => onCancel(req.id!)}
-            disabled={actionLoadingId === req.id}
-            className="text-xs px-3 py-1.5 bg-red-50 text-red-500 border border-red-200 rounded-lg hover:bg-red-100 disabled:opacity-50 font-medium shrink-0"
-          >
-            취소
-          </button>
-        </li>
-      ))}
+            <button
+              onClick={() => counterpartId != null && onCancel(req.id!, counterpartId)}
+              disabled={disabled}
+              className="text-xs px-3 py-1.5 bg-red-50 text-red-500 border border-red-200 rounded-lg hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed font-medium shrink-0"
+            >
+              취소
+            </button>
+          </li>
+        );
+      })}
     </ul>
   );
 }

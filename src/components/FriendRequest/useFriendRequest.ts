@@ -7,25 +7,37 @@ import {
   acceptFriendRequestAction,
   hideFriendRequestAction,
   cancelFriendRequestAction,
+  getSentRequestsAction,
 } from "@/app/actions/friendRequest";
+import { loadingKey } from "./counterpart";
 
 type SearchStatus = "idle" | "loading" | "found" | "not-found" | "error";
 
+export interface RequestTabState {
+  data: FriendRequestResult[];
+  ok: boolean;
+}
+
 interface UseFriendRequestProps {
-  initialReceived: FriendRequestResult[];
-  initialSent: FriendRequestResult[];
+  initialReceived: RequestTabState;
+  initialSent: RequestTabState;
 }
 
 export function useFriendRequest({ initialReceived, initialSent }: UseFriendRequestProps) {
-  const [receivedRequests, setReceivedRequests] = useState<FriendRequestResult[]>(initialReceived);
-  const [sentRequests, setSentRequests] = useState<FriendRequestResult[]>(initialSent);
+  const [receivedRequests, setReceivedRequests] = useState<FriendRequestResult[]>(
+    initialReceived.data,
+  );
+  const [sentRequests, setSentRequests] = useState<FriendRequestResult[]>(initialSent.data);
+  const receivedOk = initialReceived.ok;
+  const sentOk = initialSent.ok;
 
   const [searchEmail, setSearchEmail] = useState("");
   const [searchStatus, setSearchStatus] = useState<SearchStatus>("idle");
   const [searchResult, setSearchResult] = useState<UserProfileInfo | null>(null);
   const [searchError, setSearchError] = useState<string | null>(null);
 
-  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  // 방향+counterpartId를 결합한 키. 서로 다른 탭의 동일 상대가 충돌하지 않는다.
+  const [actionLoadingKey, setActionLoadingKey] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
   const [sendStatus, setSendStatus] = useState<"idle" | "loading" | "sent" | "error">("idle");
@@ -57,20 +69,31 @@ export function useFriendRequest({ initialReceived, initialSent }: UseFriendRequ
     setSendStatus("loading");
     setSendError(null);
     const result = await sendFriendRequestAction(receiverId);
-    if (result.success && result.data) {
-      setSentRequests((prev) => [...prev, result.data!]);
-      setSendStatus("sent");
-    } else {
+    if (!result.success || !result.data) {
       setSendStatus("error");
       setSendError(result.message ?? "요청 전송에 실패했습니다.");
+      return;
     }
+
+    // receiver ID가 있어야 이후 counterpart mutation 대상이 된다.
+    // 누락 시 낙관적 추가 대신 보낸 목록을 재조회해 정합성을 확보한다.
+    if (result.data.receiver?.id != null) {
+      setSentRequests((prev) => [...prev, result.data!]);
+    } else {
+      const refetched = await getSentRequestsAction();
+      if (refetched.success) setSentRequests(refetched.data);
+    }
+    setSendStatus("sent");
   }
 
-  async function handleAccept(requestId: string) {
-    setActionLoadingId(requestId);
+  /** 받은 요청 수락: counterpartId(=requester.id)로 상태 전이 후 카드 제거. */
+  async function handleAccept(requestId: string, counterpartId: number) {
+    const key = loadingKey("RECEIVED", counterpartId);
+    if (actionLoadingKey === key) return; // 중복 클릭 차단
+    setActionLoadingKey(key);
     setActionError(null);
-    const result = await acceptFriendRequestAction(requestId);
-    setActionLoadingId(null);
+    const result = await acceptFriendRequestAction(counterpartId);
+    setActionLoadingKey(null);
     if (result.success) {
       setReceivedRequests((prev) => prev.filter((r) => r.id !== requestId));
     } else {
@@ -78,11 +101,14 @@ export function useFriendRequest({ initialReceived, initialSent }: UseFriendRequ
     }
   }
 
-  async function handleHide(requestId: string) {
-    setActionLoadingId(requestId);
+  /** 받은 요청 숨김. */
+  async function handleHide(requestId: string, counterpartId: number) {
+    const key = loadingKey("RECEIVED", counterpartId);
+    if (actionLoadingKey === key) return;
+    setActionLoadingKey(key);
     setActionError(null);
-    const result = await hideFriendRequestAction(requestId);
-    setActionLoadingId(null);
+    const result = await hideFriendRequestAction(counterpartId);
+    setActionLoadingKey(null);
     if (result.success) {
       setReceivedRequests((prev) => prev.filter((r) => r.id !== requestId));
     } else {
@@ -90,11 +116,14 @@ export function useFriendRequest({ initialReceived, initialSent }: UseFriendRequ
     }
   }
 
-  async function handleCancel(requestId: string) {
-    setActionLoadingId(requestId);
+  /** 보낸 요청 취소: counterpartId(=receiver.id)로 취소 후 카드 제거. */
+  async function handleCancel(requestId: string, counterpartId: number) {
+    const key = loadingKey("SENT", counterpartId);
+    if (actionLoadingKey === key) return;
+    setActionLoadingKey(key);
     setActionError(null);
-    const result = await cancelFriendRequestAction(requestId);
-    setActionLoadingId(null);
+    const result = await cancelFriendRequestAction(counterpartId);
+    setActionLoadingKey(null);
     if (result.success) {
       setSentRequests((prev) => prev.filter((r) => r.id !== requestId));
     } else {
@@ -105,6 +134,8 @@ export function useFriendRequest({ initialReceived, initialSent }: UseFriendRequ
   return {
     receivedRequests,
     sentRequests,
+    receivedOk,
+    sentOk,
     searchEmail,
     setSearchEmail,
     searchStatus,
@@ -112,7 +143,7 @@ export function useFriendRequest({ initialReceived, initialSent }: UseFriendRequ
     searchError,
     sendStatus,
     sendError,
-    actionLoadingId,
+    actionLoadingKey,
     actionError,
     isAlreadySent,
     handleSearch,
