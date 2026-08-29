@@ -101,7 +101,7 @@ export const getGraphStylesheet = (
         "line-color": "#f59e0b",
         "line-style": "dashed",
         opacity: 0.55,
-        width: "mapData(intimacy, 0, 1, 1, 4)" as any,
+        width: 1,
       },
     },
     {

@@ -5,10 +5,14 @@ export interface LabelMember {
   nickname: string;
 }
 
+export type LabelMembersStatus = "idle" | "loading" | "success" | "error";
+
 export interface Label {
   id: string;
   labelName: string;
+  memberCount: number;
   members: LabelMember[];
+  membersStatus: LabelMembersStatus;
 }
 
 export interface LabelCreateRequest {

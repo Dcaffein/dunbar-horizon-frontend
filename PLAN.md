@@ -1,179 +1,220 @@
-# PLAN: Task 45 — validation 응답을 폼 필드에 바인딩
+# PLAN: Task 47 — Social network API 단수화와 통합 edge 조회
 
-배경은 `harness/tasks/45-validation-field-binding.md` 참고.
+배경과 계약은 `harness/tasks/47-social-network-api-refactor.md`를 따른다.
 
-## 1. 착수 전 조사 결과
+## 상태
 
-문서에 "키가 폼 필드명과 일치하는지 먼저 확인"이라고 적어둔 항목을 실측했다.
-Task 43에서 404 문제를 찾은 것과 같은 방식으로 400 응답을 전수 수집했다.
+완료 (2026-08-29). 세 Phase 구현·검증과 실제 백엔드 UI 확인을 마쳤다.
 
-### 좋은 소식 — 키가 그대로 맞는다
+## 1. 요구사항 분석
 
-```
-Flag 생성   {"title":"...", "description":"...", "startDateTime":"...", "endDateTime":"..."}
-Flag 인원   {"capacity":"..."}
-댓글·메모리얼 {"content":"..."}
-Buzz        {"recipient":"...", "text":"..."}
-Label       {"labelName":"..."}
-프로필      {"nickname":"..."}
-```
+OpenAPI 계약에서 Social network URL이 복수형 `/networks/**`에서 단수형 `/network/**`로 바뀌었다. 기존 one-hop/two-hop 공통 친구 API는 `GET /api/v1/network/edges` 하나로 통합됐으며 추천 DTO는 `{ id, nickname }`만 남았다.
 
-`FlagForm`의 `errors.title` · `errors.startDateTime` · `errors.capacity` 와 **키가 동일하다.**
-매핑 테이블이 필요 없다.
+현재 프론트는 삭제된 URL 8곳과 제거된 추천 필드 `intimacy`, `mutualCount`를 사용한다. 이 때문에 네트워크·추천·라벨 그래프·프로필 trace가 런타임 404를 내고 TypeScript 오류 4건이 발생한다.
 
-### 나쁜 소식 — 문구의 절반이 영문이다
+완료 조건:
 
-| 엔드포인트 | 문구 |
+- 삭제된 Social URL 참조가 0건이다.
+- circleSize, 추천, 연결 경로, 라벨 네트워크, 공개 프로필, trace가 신규 URL로 동작한다.
+- 추천 선택과 라벨 멤버 추가가 동일한 `/network/edges` 액션을 사용한다.
+- edge 응답에서 target의 공통 친구 ID를 방향과 무관하게 안전하게 파생한다.
+- 추천 DTO에 없는 intimacy/mutualCount를 서버 값처럼 가장하지 않는다.
+- 빠른 추천 전환과 실패에서 기존 그래프 상태가 오염되지 않는다.
+
+## 2. API 전환
+
+| 액션 | 신규 계약 |
 |---|---|
-| Flag 생성 | `must not be blank` / `must not be null` |
-| Flag 인원 | `must be greater than or equal to 1` |
-| 댓글 501자 | `size must be between 0 and 500` |
-| Buzz | **수신자 정보는 필수입니다.** |
-| Label | **라벨 이름은 필수입니다.** |
-| 프로필 | **닉네임은 1자 이상 20자 이하로 입력해주세요.** |
+| `getFriendsNetworkAction` | `GET /api/v1/network?circleSize=` |
+| `getTwoHopSuggestionsByAnchorAction` | `GET /api/v1/network/recommendations?anchorId=` |
+| `getConnectionPathAction` | `GET /api/v1/network/path?targetId=` |
+| `getLabelNetworkAction` | `GET /api/v1/network/labels/{labelId}` |
+| `getNetworkEdgesAction` | `GET /api/v1/network/edges?targetId=&baseNetworkFriendIds=` |
+| `getSocialProfileAction` | `GET /api/v1/social/profiles/{userId}` |
+| `recordTraceAction` | `POST /api/v1/traces` |
 
-**그대로 꽂으면 한국어 UI에 `must not be blank` 가 뜬다.**
+`baseNetworkFriendIds`는 생성 클라이언트가 정의한 것처럼 쉼표 구분 문자열로 직렬화한다. 구현 초기의 실제 API smoke에서 백엔드 Spring binding을 확인하고, 실패하면 응답 근거를 보고 직렬화만 조정한다.
 
-왜 엔드포인트마다 다른지는 백엔드 사정이고 프론트가 알 필요도 없다.
-프론트에 필요한 사실은 하나다 — **일부 엔드포인트의 `validation` 문구는
-사용자에게 그대로 보여줄 수 없다.**
+빈 base network에서는 edge API를 호출하지 않고 성공한 빈 결과로 처리한다.
 
-Task 43의 404와 같은 종류의 발견이다 — 노출 범위를 넓히기 전에 무엇이 노출되는지 재봤더니
-그대로 쓸 수 없는 것이 섞여 있었다.
+## 3. edge 정규화 설계
 
-### 부수적으로 발견한 백엔드 이슈 1건 (이 태스크 범위 밖, 보고 대상)
-
-**Flag 제목 256자부터 500** (`InternalServerException`). 경계를 이분해 확인했다.
-
-```
-한글 255자(765byte) → 201     ASCII 255자 → 201
-한글 256자(768byte) → 500     ASCII 256자 → 500
-```
-
-바이트가 아니라 **글자 수 255 경계**다. 원인은 알 수 없고 알 필요도 없다 —
-관찰된 사실은 **400 + `validation` 이 아니라 500 이 온다**는 것뿐이다.
-
-프론트 입장에서는 **400 + `validation` 으로 와야 제목 칸에 표시할 수 있다.**
-지금은 500 이라 Task 42 규칙에 따라 "일시적인 오류가 발생했습니다"로 뜨고,
-사용자는 제목이 길어서 실패한 것을 모른다.
-
-## 2. 설계
-
-### 프론트가 문구를 소유하는 범위는 좁다
-
-세 경우를 구분한다.
-
-| 상황 | 대응 |
-|---|---|
-| `validation` 자체가 없는 400 | **기존 그대로** — `message`("입력값이 올바르지 않습니다")를 쓴다. 필드 문구를 만들지 않는다 |
-| `validation` 값이 **한국어** | **그대로 표시** (Buzz·Label·프로필) |
-| `validation` 값이 **영문** | 여기서만 FE 문구로 대체 |
-
-대체 문구는 **필드별 맞춤이 아니라 일반 문구 하나**다 — `"올바른 값을 입력해 주세요."`
-`"제목은 1~50자여야 합니다"` 같은 **규칙을 프론트가 다시 쓰지 않는다.**
-그러면 검증 규칙이 두 곳에 생기고 백엔드가 규칙을 바꿀 때 조용히 어긋난다.
-어느 칸이 틀렸는지만 정확히 알려주고, 무엇이 틀렸는지는 백엔드가 문구를 채울 때 좋아진다.
-
-판정은 문구에 **한글이 하나도 없으면** 사용자에게 보여줄 수 없는 문구로 간주한다.
+`src/components/socialGraph/networkEdges.ts`에 API DTO를 UI에서 직접 가공하지 않는 순수 함수를 둔다.
 
 ```ts
-const hasKorean = /[가-힣]/.test(msg);
-return hasKorean ? msg : FIELD_FALLBACK;   // "올바른 값을 입력해 주세요."
-```
-
-휴리스틱이라는 점은 분명히 해둔다. 다만
-
-- 오판의 방향이 안전하다 — 한국어 문구를 영문으로 오인할 일이 없고,
-  영문을 놓쳐도 지금과 같은 상태일 뿐이다
-- 백엔드가 해당 문구를 한국어로 바꾸면 **이 분기는 자연히 안 쓰이게 된다.** 코드를 되돌릴 필요가 없다
-- 문자열 내용으로 **분기**하는 것이 아니라 **표시 여부**만 정한다. Task 42가 금지한
-  "메시지로 동작을 가르는 것"과는 다르다
-
-구체적인 문구를 잃는 대신 언어 일관성을 얻는 교환이다. 백엔드 정비 요청과 병행한다.
-
-### 액션은 실어 보내기만 한다
-
-Task 44의 `failure` 와 같은 방식. 반환 타입에 추가만 하므로 기존 소비자가 깨지지 않는다.
-
-```ts
-catch (error) {
-  if (isRedirectError(error)) throw error;
-  const message = error instanceof Error ? error.message : "Flag 생성에 실패했습니다.";
-  return { success: false as const, message, validation: toFieldErrors(error) };
+deriveTargetNetworkEdges(
+  targetId: number,
+  baseNetworkFriendIds: number[],
+  results: MutualFriendEdgeResult[],
+): {
+  mutualFriendIds: number[];
+  edges: NetworkFriendEdge[];
 }
 ```
 
-`toFieldErrors(error)` 는 `ApiError.validation` 을 위 규칙으로 정제해 `Record<string,string>`
-또는 `undefined` 를 돌려준다. `apiClient` 옆에 둔다.
+규칙:
 
-### 폼은 기존 슬롯에 병합한다
+- `friendAId`, `friendBId`가 없는 항목 제거
+- self-loop 제거
+- target이 A/B 어느 쪽에 있어도 반대편을 추출
+- target이 없는 edge 제거
+- 반대편 ID가 base network에 없으면 제거
+- 무방향 key `min-max`로 중복 제거
+- intimacy가 없으면 그래프 edge 기본값 0 사용
+- mutualFriendIds와 edges는 같은 필터 결과에서 만들어 서로 어긋나지 않게 한다.
 
-`FlagForm` 은 이미 `errors: Record<string, string>` 과 필드별 `<p>` 를 갖고 있다.
-서버 결과를 그 위에 얹으면 끝이다.
+이 함수는 추천 선택과 라벨 멤버 추가에서 공동 사용한다.
+
+## 4. 추천 상태와 UI
+
+### 추천 목록
+
+`AnchorExpansionResult`의 `intimacy`, `mutualCount`, `labelCount` 참조를 모두 제거한다.
+
+- 추천 노드는 `id`, `nickname`, `type`만 갖는다.
+- anchor→suggestion edge에는 서버가 주지 않은 intimacy를 넣지 않는다.
+- 추천 class의 기존 전용 스타일(주황색 점선, opacity 0.55)을 유지한다.
+- 제거된 intimacy 기반 가변 두께를 흉내 내지 않고, 기존 화면의 얇은 선을 보존하는 `width: 1`을 사용한다.
+- 일반 friend edge 물리값으로 오인하지 않게 한다.
+
+### 추천 선택
+
+`src/components/socialGraph/index.tsx`에 선택별 edge 상태를 둔다.
 
 ```ts
-if (!result.success) {
-  setErrors((prev) => ({ ...prev, ...(result.validation ?? {}), submit: result.validation ? "" : result.message }));
-}
+type SuggestionEdgesStatus = "idle" | "loading" | "success" | "error";
 ```
 
-필드 에러가 있으면 하단의 뭉뚱그린 문구(`errors.submit`)는 비운다. 같은 내용을 두 번 보여줄 이유가 없다.
+- 추천 선택 직후 기존 mutual IDs를 비우고 loading
+- `/network/edges` 한 번 호출
+- 성공 시 정규화된 mutual IDs를 그래프와 패널에 전달
+- 실패 시 기존 친구 그래프는 유지하고 추천 부분 오류만 표시
+- request sequence로 이전 추천 응답이 새 선택을 덮지 못하게 방어
 
-## 3. 대상
+`SuggestionPanel`은 `mutualCount: number | null`과 loading/error 상태를 prop으로 받는다.
 
-| 폼 | 슬롯 | 할 일 |
-|---|---|---|
-| `Flag/FlagForm.tsx` | 있음 (title·description·startDateTime·endDateTime·capacity) | 병합만 |
-| `Buzz/BuzzForm.tsx` | 있음 | 병합. 키는 `recipient`·`text` |
-| `MyProfile/MyProfile.tsx` | **없음** | `nickname` 슬롯 추가 |
-| `Label` 생성·수정 | **없음** | `labelName` 슬롯 추가 |
-| 댓글·메모리얼 | 입력이 한 칸뿐 | **제외** — 기존 단일 문구로 충분하고, Task 41의 `maxLength` 가드가 이미 예방한다 |
-| 회원가입 | 이미 완료 | 손대지 않는다 (선례) |
+- 조회 전·중에는 count 문구를 숨기거나 로딩 표시
+- 성공 후에만 `공통 친구 N명` 표시
+- 실패 시 재선택/재시도 가능한 오류 표시
+- 추천 목록 각 항목에 선조회하는 N+1 호출은 하지 않는다.
 
-## 4. Phase
+## 5. 라벨 멤버 추가
 
-1. **장치** — `toFieldErrors()` + 액션 반환 타입에 `validation` 추가 (소비하지 않음)
-2. **슬롯 있는 폼** — `FlagForm`, `BuzzForm` 병합
-3. **슬롯 없는 폼** — `MyProfile`, `Label` 에 필드 에러 표시 추가
+Task 46의 `handleLabelMemberAdd`가 기존 one-hop API 대신 `getNetworkEdgesAction(friendId, currentNodeIds)`를 사용한다.
 
-Phase 1은 화면 동작이 바뀌지 않는다. Task 44와 같은 구조다.
+- 노드는 기존처럼 낙관적으로 추가
+- 신규 edge 성공 시 정규화 후 중복 없이 병합
+- edge 조회 실패가 라벨 멤버 추가 성공 자체를 롤백하지는 않는다. 멤버 관계와 시각화 edge는 별도 서버 동작이기 때문이다.
+- Task 46의 label network/member 병렬 흐름은 유지하고 URL만 신규 계약으로 전환한다.
 
-## 5. 검증
+## 6. 생성·수정할 파일
 
-### Phase 1
-
-- `npx tsc --noEmit`, `npm run lint` (총계 15 problems 유지)
-- 전 도메인 스모크에서 **화면이 지금과 동일**할 것
-
-### Phase 2·3 — 실제 백엔드로 폼마다 틀린 값 입력
-
-| 폼 | 입력 | 기대 |
-|---|---|---|
-| Flag 생성 | 제목·설명 비움 | 두 칸 **각각** 아래에 안내. 영문(`must not be blank`)이 아닌 한국어 |
-| Flag 생성 | 인원 `-5` | 인원 칸 아래에 안내 |
-| Buzz | 본문 비움 | 본문 칸 아래에 **"본문 내용은 필수입니다."** (백엔드 한국어 그대로) |
-| Label | 이름 비움 | **"라벨 이름은 필수입니다."** |
-| 프로필 | 닉네임 비움 | **"닉네임은 1자 이상 20자 이하로 입력해주세요."** |
-
-**대조 항목**: 백엔드가 한국어를 준 경우(Buzz·Label·프로필)는 **그 문구가 그대로** 나와야 한다.
-FE 대체 문구로 덮이면 버그다.
-
-### 회귀
-
-- 클라이언트 검증(제출 전)은 지금과 동일하게 동작할 것
-- 서버 검증 실패 시 **입력값이 보존**될 것 (폼이 비워지면 안 된다)
-
-Phase별 커밋. **push는 하지 않는다.**
-
-## 6. 리스크
-
-| 리스크 | 대응 |
+| 파일 | 변경 |
 |---|---|
-| 한글 판정 휴리스틱의 오판 | 방향이 안전(한국어→영문 오인 불가). 백엔드 문구가 한국어가 되면 자연 소멸 |
-| 서버 검증 실패 후 입력값 소실 | 회귀 항목으로 명시 검증 |
-| 필드 에러와 하단 문구 중복 표시 | 필드 에러가 있으면 `errors.submit` 을 비운다 |
-| 백엔드가 새 필드를 추가하면 슬롯이 없어 안 보임 | 매칭 안 되는 키는 하단 문구로 모아 표시(누락 방지) |
+| `src/app/actions/social.ts` | 단수 URL, 통합 `getNetworkEdgesAction`, 제거 액션 정리 |
+| `src/app/actions/friendship.ts` | 연결 경로 URL 변경 |
+| `src/components/socialGraph/networkEdges.ts` | target edge 정규화 순수 함수 |
+| `src/components/socialGraph/networkEdges.test.ts` | 방향·중복·self-loop·base 밖 edge 검증 |
+| `src/components/socialGraph/index.tsx` | 통합 edge 호출, 추천 요청 sequence와 상태 |
+| `src/components/socialGraph/useGraphData.ts` | 제거된 추천 필드 참조 제거 |
+| `src/components/SuggestionPanel/SuggestionPanel.tsx` | 파생 mutual count와 조회 상태 표시 |
+| `src/components/SuggestionPanel/SuggestionPanel.test.tsx` | count 로딩·성공·실패 UI 검증 |
 
-## 7. 브랜치
+Mock 데이터 파일은 만들지 않는다. Server Action은 실제 백엔드 계약을 연동하고, 단위 테스트에서는 액션과 edge DTO만 최소 mock한다.
 
-`agent/task-45-validation-field-binding` (main에서 분기, Task 44 병합 완료 상태).
+## 7. 작업 순서와 세이브 포인트
+
+### Phase 1 — URL·edge 기반 (완료)
+
+1. 모든 Social URL 교체
+2. 통합 `getNetworkEdgesAction` 구현
+3. edge 정규화 함수와 단위 테스트 작성
+4. 제거된 추천 DTO 필드 참조 제거
+5. Task 47 관련 TypeScript 오류 0건, 테스트 통과
+6. 커밋: `feat(task-47): 신규 social network 계약을 연결한다`
+
+### Phase 2 — 추천·라벨 UI 연결 (완료)
+
+1. 추천 edge loading/success/error와 request sequence 구현
+2. SuggestionPanel count 상태 UI와 테스트
+3. 라벨 멤버 추가를 통합 edge 액션으로 전환
+4. 실제 백엔드에서 circle, 추천, label network, profile, trace 검증
+5. 스크린샷 저장
+6. 커밋: `feat(task-47): 통합 edge 기반 추천 흐름을 연결한다`
+
+### Phase 3 — 예외·회귀 (완료)
+
+1. 빈 추천·빈 edge·잘못된 edge 검증
+2. 빠른 추천 전환과 실패 상태 검증
+3. Task 46 라벨 멤버 지연 조회 회귀 확인
+4. 전체 테스트와 정적 분석 결과 기록
+5. 커밋: `test(task-47): social network 예외와 회귀를 검증한다`
+
+## 8. 테스트 계획
+
+### Phase 1 — 정적·단위
+
+- `rg '/api/v1/networks|/api/v1/social/users|/api/v1/social/traces' src` 결과 0건
+- `rg 'suggestion\.(intimacy|mutualCount|labelCount)|s\.(intimacy|mutualCount|labelCount)' src` 결과 0건
+- edge 함수:
+  - target이 friendA인 경우
+  - target이 friendB인 경우
+  - target이 없는 edge
+  - ID 누락, self-loop, base 밖 ID
+  - 순서가 뒤집힌 중복 edge
+  - 빈 base/빈 응답
+- `npm test`
+- `npx tsc --noEmit`
+- `npm run lint`
+
+OpenAPI 반영 후 생긴 unrelated `GetUserFlagsByRoleParams` barrel 오류와 기존 lint 기준선은 결과를 분리 기록한다. Task 47 파일의 오류를 숨기기 위해 Flag generated 파일이나 기존 lint 파일을 함께 수정하지 않는다.
+
+### Phase 2 — 실제 UI·상태
+
+이수환(user_id=4) 테스트 계정 사용.
+
+- SUPPORT/SYMPATHY/KINSHIP/DUNBAR 네트워크 정상 표시
+- 친구 anchor에서 추천 목록 표시
+- 추천 선택 시 `/network/edges` 1회 호출과 공통 친구 edge/count 일치
+- 추천 패널에서 로딩 중 가짜 `0명` 미표시
+- 추천을 바꿨을 때 이전 edge 제거
+- 라벨 `ku` 선택 시 network와 지연 조회 멤버 15명 결합
+- 라벨 멤버 추가 시 신규 edge 병합
+- 친구 `/users/70` 연결 경로와 trace 신규 URL 확인
+- 비친구 공개 프로필 신규 URL 확인
+- 스크린샷 `harness/verify/verify-47-*.png`
+
+### Phase 3 — 예외
+
+- 추천 0명은 기존 그래프를 유지하고 안내 toast
+- edge 0개는 성공한 빈 결과
+- edge 실패는 추천 패널 오류, 친구 그래프 유지
+- A 추천 요청 중 B 추천 선택 시 A 응답 폐기
+- label network 실패와 label member 실패를 서로 빈 상태로 오인하지 않음
+- Task 46 라벨 count·멤버 캐시·프로필 바텀시트 유지
+
+## 9. 제외 범위
+
+- Friend request 통합 상태 전이: Task 48
+- Flag generated barrel 오류 수정
+- 연결 경로 `totalCount` 신규 UI
+- 그래프 레이아웃 알고리즘 재설계
+- 삭제된 추천 통계의 백엔드 재추가 요청
+
+## 10. 브랜치
+
+승인 후 Task 46 완료 커밋 `e9abc2a`에서 `agent/task-47-social-network-api-refactor`를 만든다. Task 47은 Task 46의 라벨 그래프 흐름 위에서 동작하므로 해당 커밋을 부모로 삼되, `main` 머지는 별도 사용자 요청 전에는 수행하지 않는다. Task 48 문서와 기존 사용자 변경은 커밋에서 제외한다.
+
+## 11. 완료 결과
+
+- `994918b` — 신규 Social URL, 통합 edge 액션, edge 정규화와 단위 테스트
+- `9a4e1d8` — 추천 edge 상태·늦은 응답 차단, 그래프 밖 anchor 방어, 실제 UI 검증
+- 전체 Vitest 4개 파일 16개 테스트 통과
+- Task 47 변경 파일 ESLint 오류 0건
+- 실제 백엔드에서 SUPPORT 네트워크, DJ 권대중 anchor 추천 4건, 정기완 선택의 공통 친구 1명, `ku` 라벨 멤버 15명 확인
+- `harness/verify/verify-47-01-support-network.png`부터 `verify-47-04-label-network.png`까지 저장
+- API 변경 전 기준 화면과 대조해 anchor→추천 edge를 얇은 주황색 점선(`width: 1`)으로 보존하고 재캡처
+
+전체 저장소 기준선에는 Task 47 외부의 lint 15건(오류 3, 경고 12)과 Flag 생성 코드의 `GetUserFlagsByRoleParams` 배럴 누락 TypeScript 오류 1건이 남아 있다. Task 47 범위를 넓히지 않기 위해 수정하지 않았다.
+
+`/users/{id}` 실제 진입은 페이지 mount 시 방문 trace를 기록하므로 브라우저 자동 검증에서는 실행하지 않았다. 공개 프로필·연결 경로·trace는 코드의 신규 URL 전환과 제거 URL 0건으로 검증했다.

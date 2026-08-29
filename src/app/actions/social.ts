@@ -48,7 +48,7 @@ export async function getFriendsNetworkAction(
 ) {
   try {
     const data = await apiClient.get<NodeGraphResult[]>(
-      `/api/v1/networks/me?circleSize=${circleSize}`,
+      `/api/v1/network?circleSize=${circleSize}`,
     );
     return { success: true, data: parseNetworkGraph(data) };
   } catch (error) {
@@ -64,7 +64,7 @@ export async function getFriendsNetworkAction(
 export async function getTwoHopSuggestionsByAnchorAction(anchorId: number) {
   try {
     const data = await apiClient.get<AnchorExpansionResult[]>(
-      `/api/v1/networks/recommendations?anchorId=${anchorId}`,
+      `/api/v1/network/recommendations?anchorId=${anchorId}`,
     );
     return { success: true as const, data };
   } catch (error) {
@@ -75,26 +75,18 @@ export async function getTwoHopSuggestionsByAnchorAction(anchorId: number) {
   }
 }
 
-export async function getTwoHopMutualFriendsAction(targetId: number, skeletonIds: number[]) {
-  try {
-    const skeletonQuery = skeletonIds.map((id) => `skeletonIds=${id}`).join("&");
-    const data = await apiClient.get<number[]>(
-      `/api/v1/networks/mutual/two-hop?targetId=${targetId}&${skeletonQuery}`,
-    );
-    return { success: true as const, data };
-  } catch (error) {
-    if (isRedirectError(error)) throw error;
-    console.error("getTwoHopMutualFriendsAction error:", error);
-    const message = error instanceof Error ? error.message : "공통 친구를 불러오는 데 실패했습니다.";
-    return { success: false as const, message };
+export async function getNetworkEdgesAction(
+  targetId: number,
+  baseNetworkFriendIds: number[],
+) {
+  if (baseNetworkFriendIds.length === 0) {
+    return { success: true as const, data: [] as MutualFriendEdgeResult[] };
   }
-}
 
-export async function getOneHopMutualFriendEdgesAction(targetId: number, skeletonIds: number[]) {
   try {
-    const skeletonQuery = skeletonIds.map((id) => `skeletonIds=${id}`).join("&");
+    const baseNetworkFriendIdsQuery = baseNetworkFriendIds.join(",");
     const data = await apiClient.get<MutualFriendEdgeResult[]>(
-      `/api/v1/networks/mutual/one-hop?targetId=${targetId}&${skeletonQuery}`,
+      `/api/v1/network/edges?targetId=${targetId}&baseNetworkFriendIds=${encodeURIComponent(baseNetworkFriendIdsQuery)}`,
     );
     return { success: true as const, data };
   } catch (error) {
@@ -106,7 +98,7 @@ export async function getOneHopMutualFriendEdgesAction(targetId: number, skeleto
 export async function recordTraceAction(targetId: number) {
   try {
     const data = await apiClient.post<TraceResult, { targetId: number }>(
-      "/api/v1/social/traces",
+      "/api/v1/traces",
       { targetId },
     );
     return { success: true as const, data };
@@ -118,7 +110,7 @@ export async function recordTraceAction(targetId: number) {
 
 export async function getSocialProfileAction(userId: number) {
   try {
-    const data = await apiClient.get<SocialProfileResult>(`/api/v1/social/users/${userId}`);
+    const data = await apiClient.get<SocialProfileResult>(`/api/v1/social/profiles/${userId}`);
     console.log("[getSocialProfileAction] profileImageUrl:", data.profileImageUrl);
     return { success: true as const, data };
   } catch (error) {
@@ -130,7 +122,7 @@ export async function getSocialProfileAction(userId: number) {
 export async function getLabelNetworkAction(labelId: string) {
   try {
     const data = await apiClient.get<NodeGraphResult[]>(
-      `/api/v1/networks/labels/${labelId}`,
+      `/api/v1/network/labels/${labelId}`,
     );
     return { success: true as const, data: parseNetworkGraph(data) };
   } catch (error) {
