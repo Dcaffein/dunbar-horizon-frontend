@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import { useLabelManager } from "./useLabelManager";
-import type { Label, LabelCreateRequest } from "./types";
+import type { Label, LabelCreateRequest, LabelMember } from "./types";
 import type { FriendshipDetail } from "@/components/socialGraph/types";
 
 const LABEL_NAME_MAX_LENGTH = 20;
@@ -11,7 +11,10 @@ const LABEL_NAME_MAX_LENGTH = 20;
 interface LabelManagerProps {
   initialLabels: Label[];
   friends: FriendshipDetail[];
-  onLabelSelect: (labelId: string | null, memberIds: number[]) => void;
+  onLabelSelect: (
+    labelId: string | null,
+    membersPromise?: Promise<LabelMember[] | null>,
+  ) => void;
   activeLabelId: string | null;
   onMemberAdd?: (friendId: number) => void;
   onMemberRemove?: (memberId: number) => void;
@@ -27,7 +30,8 @@ export default function LabelManager({
   onMemberRemove,
   onMemberClick,
 }: LabelManagerProps) {
-  const { labels, createLabel, addMember, removeMember } = useLabelManager(initialLabels);
+  const { labels, createLabel, ensureMembersLoaded, addMember, removeMember } =
+    useLabelManager(initialLabels);
 
   const [isCreateFormOpen, setIsCreateFormOpen] = useState(false);
   const [labelNameInput, setLabelNameInput] = useState("");
@@ -41,10 +45,9 @@ export default function LabelManager({
   function handleCardClick(labelId: string) {
     const isDeselecting = activeLabelId === labelId;
     if (isDeselecting) {
-      onLabelSelect(null, []);
+      onLabelSelect(null);
     } else {
-      const memberIds = labels.find((l) => l.id === labelId)?.members.map((m) => m.id) ?? [];
-      onLabelSelect(labelId, memberIds);
+      onLabelSelect(labelId, ensureMembersLoaded(labelId));
     }
   }
 
@@ -55,6 +58,7 @@ export default function LabelManager({
     } else {
       setSearchOpenLabelId(labelId);
       setSearchQuery("");
+      void ensureMembersLoaded(labelId);
     }
   }
 
@@ -139,9 +143,9 @@ export default function LabelManager({
         <p className="text-xs font-bold text-gray-600 mb-2 px-1">내 레이블 ({labels.length})</p>
         <div className="flex flex-col gap-2">
           {labels.map((label) => {
-            const nonMembers = friends.filter(
-              (f) => !label.members.some((m) => m.id === f.friendId)
-            );
+            const nonMembers = label.membersStatus === "success"
+              ? friends.filter((f) => !label.members.some((m) => m.id === f.friendId))
+              : [];
             const filteredFriends = searchQuery.trim()
               ? nonMembers.filter((f) => {
                   const q = searchQuery.toLowerCase();
@@ -170,14 +174,26 @@ export default function LabelManager({
                     {label.labelName}
                   </span>
                   <span className="text-xs text-gray-500 shrink-0 ml-2 font-medium">
-                    {label.members.length}명
+                    {label.memberCount}명
                   </span>
                 </button>
 
                 {/* 멤버 칩 목록 (활성 카드만) */}
                 {activeLabelId === label.id && (
                   <div className="px-3 pb-2">
-                    {label.members.length > 0 ? (
+                    {label.membersStatus === "loading" ? (
+                      <p className="text-xs text-gray-400 mb-2">멤버를 불러오는 중...</p>
+                    ) : label.membersStatus === "error" ? (
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <p className="text-xs text-red-500">멤버를 불러오지 못했습니다.</p>
+                        <button
+                          onClick={() => void ensureMembersLoaded(label.id)}
+                          className="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
+                        >
+                          재시도
+                        </button>
+                      </div>
+                    ) : label.membersStatus === "success" && label.members.length > 0 ? (
                       <div className="flex flex-wrap gap-1 mb-2">
                         {label.members.map((m) => (
                           <span
@@ -196,9 +212,9 @@ export default function LabelManager({
                           </span>
                         ))}
                       </div>
-                    ) : (
+                    ) : label.membersStatus === "success" ? (
                       <p className="text-xs text-gray-400 mb-2">멤버가 없습니다.</p>
-                    )}
+                    ) : null}
                   </div>
                 )}
 
@@ -213,6 +229,22 @@ export default function LabelManager({
 
                   {searchOpenLabelId === label.id && (
                     <div className="mt-2">
+                      {label.membersStatus === "loading" && (
+                        <p className="text-xs text-gray-400 text-center py-2">멤버를 확인하는 중...</p>
+                      )}
+                      {label.membersStatus === "error" && (
+                        <div className="flex items-center justify-between gap-2 py-2">
+                          <p className="text-xs text-red-500">멤버 확인에 실패했습니다.</p>
+                          <button
+                            onClick={() => void ensureMembersLoaded(label.id)}
+                            className="text-xs text-indigo-600 font-medium"
+                          >
+                            재시도
+                          </button>
+                        </div>
+                      )}
+                      {label.membersStatus === "success" && (
+                        <>
                       <input
                         type="text"
                         value={searchQuery}
@@ -250,6 +282,8 @@ export default function LabelManager({
                           })
                         )}
                       </div>
+                        </>
+                      )}
                     </div>
                   )}
                 </div>

@@ -6,10 +6,12 @@ import Link from "next/link";
 import type { FriendshipDetailResult } from "@/api/model/friendshipDetailResult";
 import type { FlagResult } from "@/api/model/flagResult";
 import type { LabelResult } from "@/api/model/labelResult";
+import type { LabelMemberResult } from "@/api/model/labelMemberResult";
 import type { IntermediaryResult } from "@/api/model/intermediaryResult";
 import { recordTraceAction } from "@/app/actions/social";
 import { getConnectionPathAction, updateFriendAction, deleteFriendAction } from "@/app/actions/friendship";
 import { getUserRecentFlagsAction } from "@/app/actions/flag";
+import { getLabelMembersAction } from "@/app/actions/label";
 
 interface FriendProfileProps {
   profile: FriendshipDetailResult;
@@ -18,6 +20,10 @@ interface FriendProfileProps {
 }
 
 type PathStatus = "idle" | "loading" | "done";
+type LabelMembersState = {
+  status: "idle" | "loading" | "success" | "error";
+  members: LabelMemberResult[];
+};
 
 export default function FriendProfile({ profile, userId, myLabels }: FriendProfileProps) {
   const router = useRouter();
@@ -32,6 +38,8 @@ export default function FriendProfile({ profile, userId, myLabels }: FriendProfi
   const [settingsError, setSettingsError] = useState<string | null>(null);
   const [recentFlags, setRecentFlags] = useState<FlagResult[] | null>(null);
   const [selectedLabel, setSelectedLabel] = useState<LabelResult | null>(null);
+  const [labelMembersById, setLabelMembersById] = useState<Record<string, LabelMembersState>>({});
+  const labelMemberRequests = useRef(new Set<string>());
   const [revealDismissed, setRevealDismissed] = useState(false);
   const traceCalled = useRef(false);
 
@@ -59,6 +67,31 @@ export default function FriendProfile({ profile, userId, myLabels }: FriendProfi
       setConnectionIntermediary(null);
     }
     setPathStatus("done");
+  }
+
+  async function loadLabelMembers(labelId: string) {
+    const current = labelMembersById[labelId];
+    if (current?.status === "success" || labelMemberRequests.current.has(labelId)) return;
+
+    labelMemberRequests.current.add(labelId);
+    setLabelMembersById((states) => ({
+      ...states,
+      [labelId]: { status: "loading", members: states[labelId]?.members ?? [] },
+    }));
+    const result = await getLabelMembersAction(labelId);
+    labelMemberRequests.current.delete(labelId);
+    setLabelMembersById((states) => ({
+      ...states,
+      [labelId]: result.success
+        ? { status: "success", members: result.data }
+        : { status: "error", members: states[labelId]?.members ?? [] },
+    }));
+  }
+
+  function handleLabelClick(label: LabelResult) {
+    if (!label.id) return;
+    setSelectedLabel(label);
+    void loadLabelMembers(label.id);
   }
 
   async function handleSaveAlias() {
@@ -153,7 +186,7 @@ export default function FriendProfile({ profile, userId, myLabels }: FriendProfi
                   {myLabels.map((label) => (
                     <button
                       key={label.id}
-                      onClick={() => setSelectedLabel(label)}
+                      onClick={() => handleLabelClick(label)}
                       className="text-xs px-1.5 py-0.5 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded-full font-medium hover:bg-indigo-100 transition"
                     >
                       {label.labelName}
@@ -357,7 +390,22 @@ export default function FriendProfile({ profile, userId, myLabels }: FriendProfi
               </button>
             </div>
             <div className="flex flex-col overflow-y-auto">
-              {selectedLabel.members?.map((member) => (
+              {selectedLabel.id && labelMembersById[selectedLabel.id]?.status === "loading" && (
+                <p className="text-xs text-gray-400 py-2">멤버를 불러오는 중...</p>
+              )}
+              {selectedLabel.id && labelMembersById[selectedLabel.id]?.status === "error" && (
+                <div className="flex items-center justify-between gap-2 py-2">
+                  <p className="text-xs text-red-500">멤버를 불러오지 못했습니다.</p>
+                  <button
+                    onClick={() => void loadLabelMembers(selectedLabel.id!)}
+                    className="text-xs text-indigo-600 font-medium"
+                  >
+                    재시도
+                  </button>
+                </div>
+              )}
+              {selectedLabel.id && labelMembersById[selectedLabel.id]?.status === "success" &&
+                labelMembersById[selectedLabel.id].members.map((member) => (
                 <button
                   key={member.id}
                   onClick={() => {
@@ -372,7 +420,9 @@ export default function FriendProfile({ profile, userId, myLabels }: FriendProfi
                   <span className="text-sm text-gray-800">{member.nickname}</span>
                 </button>
               ))}
-              {(!selectedLabel.members || selectedLabel.members.length === 0) && (
+              {selectedLabel.id &&
+                labelMembersById[selectedLabel.id]?.status === "success" &&
+                labelMembersById[selectedLabel.id].members.length === 0 && (
                 <p className="text-xs text-gray-400 py-2">멤버가 없습니다.</p>
               )}
             </div>

@@ -33,7 +33,7 @@ import LabelManager from "../Label/LabelManager";
 import FriendActionPanel from "../FriendActionPanel/FriendActionPanel";
 import SuggestionPanel from "../SuggestionPanel/SuggestionPanel";
 import type { FriendshipDetail, NetworkFriendEdge, LayoutType } from "./types";
-import type { Label } from "@/components/Label/types";
+import type { Label, LabelMember } from "@/components/Label/types";
 
 type SidebarTab = "network" | "label";
 type SuggestionSendStatus = "idle" | "loading" | "sent" | "error";
@@ -111,6 +111,7 @@ export default function SocialGraph({
     null,
   );
   const [graphToast, setGraphToast] = useState<string | null>(null);
+  const labelSelectionSequence = useRef(0);
 
   useEffect(() => {
     if (!graphToast) return;
@@ -483,7 +484,11 @@ export default function SocialGraph({
     setEdges((prev) => prev.filter((e) => e.friendAId !== memberId && e.friendBId !== memberId));
   }
 
-  async function handleLabelSelect(labelId: string | null, memberIds: number[] = []) {
+  async function handleLabelSelect(
+    labelId: string | null,
+    membersPromise?: Promise<LabelMember[] | null>,
+  ) {
+    const selectionSequence = ++labelSelectionSequence.current;
     setActiveLabelId(labelId);
     if (!labelId) return;
 
@@ -496,19 +501,25 @@ export default function SocialGraph({
     setSelectedNodeId(null);
     clearSuggestions();
     try {
-      const result = await getLabelNetworkAction(labelId);
+      const [result, members] = await Promise.all([
+        getLabelNetworkAction(labelId),
+        membersPromise ?? Promise.resolve(null),
+      ]);
+      if (selectionSequence !== labelSelectionSequence.current) return;
       if (result.success && result.data) {
         const { edges: labelEdges, nodeIds } = result.data;
         setEdges(labelEdges);
         const nodeIdSet = new Set(nodeIds);
-        const isolatedMemberIds = memberIds.filter((id) => !nodeIdSet.has(id));
+        const isolatedMemberIds = (members ?? [])
+          .map((member) => member.id)
+          .filter((id) => !nodeIdSet.has(id));
         setCircleNodeIds([...nodeIds, ...isolatedMemberIds]);
         setIsGraphActive(true);
       }
     } catch {
       router.push("/login");
     } finally {
-      setIsLoading(false);
+      if (selectionSequence === labelSelectionSequence.current) setIsLoading(false);
     }
   }
 
@@ -777,7 +788,7 @@ export default function SocialGraph({
                 <LabelManager
                   initialLabels={initialLabels}
                   friends={friendsList}
-                  onLabelSelect={(id, memberIds) => handleLabelSelect(id, memberIds)}
+                  onLabelSelect={handleLabelSelect}
                   activeLabelId={activeLabelId}
                   onMemberAdd={handleLabelMemberAdd}
                   onMemberRemove={handleLabelMemberRemove}
