@@ -60,6 +60,8 @@ export * from './getRequestsParams';
 export * from './getRequestsStatus';
 export * from './getSentBuzzesParams';
 export * from './getTwoHopRecommendationParams';
+export * from './getUserFlagsByRoleParams';
+export * from './getUserFlagsByRoleRole';
 export * from './intermediaryResult';
 export * from './labelCreateRequest';
 export * from './labelMemberAddRequest';
