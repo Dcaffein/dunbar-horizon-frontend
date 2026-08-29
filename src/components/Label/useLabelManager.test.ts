@@ -128,4 +128,21 @@ describe("useLabelManager", () => {
     expect(result.current.labels[0].memberCount).toBe(1);
     expect(result.current.labels[0].members).toEqual([{ id: 11, nickname: "김지훈" }]);
   });
+
+  it("이미 속한 멤버는 추가 API를 호출하거나 인원수를 올리지 않는다", async () => {
+    vi.mocked(getLabelMembersAction).mockResolvedValue({
+      success: true,
+      data: [{ id: 11, nickname: "김지훈" }],
+    });
+    const { result } = renderHook(() => useLabelManager(initialLabels));
+
+    await act(async () => {
+      await result.current.ensureMembersLoaded("label-1");
+      await result.current.addMember("label-1", 11, "김지훈");
+    });
+
+    expect(addLabelMemberAction).not.toHaveBeenCalled();
+    expect(result.current.labels[0].memberCount).toBe(1);
+    expect(result.current.labels[0].members).toHaveLength(1);
+  });
 });

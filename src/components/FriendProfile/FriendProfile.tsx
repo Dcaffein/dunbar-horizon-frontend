@@ -80,10 +80,13 @@ export default function FriendProfile({ profile, userId, myLabels }: FriendProfi
     }));
     const result = await getLabelMembersAction(labelId);
     labelMemberRequests.current.delete(labelId);
+    const members = result.success
+      ? result.data.filter((member) => member.id != null)
+      : [];
     setLabelMembersById((states) => ({
       ...states,
       [labelId]: result.success
-        ? { status: "success", members: result.data }
+        ? { status: "success", members }
         : { status: "error", members: states[labelId]?.members ?? [] },
     }));
   }
