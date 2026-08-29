@@ -73,7 +73,9 @@ deriveTargetNetworkEdges(
 
 - 추천 노드는 `id`, `nickname`, `type`만 갖는다.
 - anchor→suggestion edge에는 서버가 주지 않은 intimacy를 넣지 않는다.
-- 추천 class의 기존 전용 스타일을 유지하고 일반 friend edge 물리값으로 오인하지 않게 한다.
+- 추천 class의 기존 전용 스타일(주황색 점선, opacity 0.55)을 유지한다.
+- 제거된 intimacy 기반 가변 두께를 흉내 내지 않고, 기존 화면의 얇은 선을 보존하는 `width: 1`을 사용한다.
+- 일반 friend edge 물리값으로 오인하지 않게 한다.
 
 ### 추천 선택
 
@@ -211,6 +213,7 @@ OpenAPI 반영 후 생긴 unrelated `GetUserFlagsByRoleParams` barrel 오류와 
 - Task 47 변경 파일 ESLint 오류 0건
 - 실제 백엔드에서 SUPPORT 네트워크, DJ 권대중 anchor 추천 4건, 정기완 선택의 공통 친구 1명, `ku` 라벨 멤버 15명 확인
 - `harness/verify/verify-47-01-support-network.png`부터 `verify-47-04-label-network.png`까지 저장
+- API 변경 전 기준 화면과 대조해 anchor→추천 edge를 얇은 주황색 점선(`width: 1`)으로 보존하고 재캡처
 
 전체 저장소 기준선에는 Task 47 외부의 lint 15건(오류 3, 경고 12)과 Flag 생성 코드의 `GetUserFlagsByRoleParams` 배럴 누락 TypeScript 오류 1건이 남아 있다. Task 47 범위를 넓히지 않기 위해 수정하지 않았다.
 

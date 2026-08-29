@@ -101,7 +101,7 @@ export const getGraphStylesheet = (
         "line-color": "#f59e0b",
         "line-style": "dashed",
         opacity: 0.55,
-        width: 2,
+        width: 1,
       },
     },
     {

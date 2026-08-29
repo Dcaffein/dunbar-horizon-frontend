@@ -92,6 +92,7 @@ Social network API의 기본 경로가 `/api/v1/networks`에서 `/api/v1/network
 
 - `suggestion.intimacy`, `suggestion.mutualCount` 참조 제거
 - 추천 edge의 물리·스타일 값은 추천 DTO에 없는 intimacy를 가장하지 않도록 별도 class 기본값 사용
+- API 변경 전 화면의 주황색 점선 디자인을 유지하되, intimacy 가변 두께 대신 기존의 얇은 인상과 같은 `width: 1` 사용
 - 선택된 추천 노드의 mutual count가 필요하면 파생 상태를 명시적으로 전달
 
 `src/components/SuggestionPanel/SuggestionPanel.tsx`
@@ -184,6 +185,7 @@ fixtures의 이수환(user_id=4), 2-hop 시나리오를 사용한다.
 - 추천 DTO의 제거 필드를 삭제하고, edge 성공 후 파생된 공통 친구 수만 패널에 표시한다.
 - request sequence로 이전 추천 목록·edge 응답을 폐기한다.
 - 그래프 밖 anchor는 노드 렌더 완료를 기다린 후 추천 edge를 추가한다.
+- anchor→추천 edge는 기존 주황색 점선 디자인을 보존하고 두께를 1px로 고정했다.
 
 ### 검증
 
@@ -196,6 +198,7 @@ fixtures의 이수환(user_id=4), 2-hop 시나리오를 사용한다.
 | 그래프 밖 anchor 추천 | DJ 권대중 기준 추천 4건 정상 렌더링 |
 | 통합 edge | 정기완 선택 시 공통 친구 1명과 edge 일치 |
 | Task 46 회귀 | `ku` 라벨 멤버 15명 및 라벨 테스트 8건 통과 |
+| 추천 edge 시각 회귀 | API 변경 전 기준 화면과 같은 얇은 주황색 점선으로 재캡처 |
 
 스크린샷:
 
