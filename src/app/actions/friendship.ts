@@ -44,7 +44,7 @@ export async function getFriendProfileAction(friendId: number) {
 
 export async function getConnectionPathAction(targetId: number) {
   try {
-    const data = await apiClient.get<ConnectionPathResult>(`/api/v1/networks/path?targetId=${targetId}`);
+    const data = await apiClient.get<ConnectionPathResult>(`/api/v1/network/path?targetId=${targetId}`);
     return { success: true as const, data };
   } catch (error) {
     if (isRedirectError(error)) throw error;

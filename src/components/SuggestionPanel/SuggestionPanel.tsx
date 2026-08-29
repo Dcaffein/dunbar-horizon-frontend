@@ -5,6 +5,7 @@ import type { AnchorExpansionResult } from "@/api/model/anchorExpansionResult";
 
 interface SuggestionPanelProps {
   suggestion: AnchorExpansionResult;
+  mutualCount?: number | null;
   sendStatus: "idle" | "loading" | "sent" | "error";
   sendError: string | null;
   onSendRequest: (receiverId: number) => void;
@@ -12,12 +13,12 @@ interface SuggestionPanelProps {
 
 export default function SuggestionPanel({
   suggestion,
+  mutualCount = null,
   sendStatus,
   sendError,
   onSendRequest,
 }: SuggestionPanelProps) {
   const displayName = suggestion.nickname ?? "알 수 없음";
-  const mutualCount = suggestion.mutualCount ?? 0;
 
   return (
     <div className="border-t border-amber-200 bg-amber-50 p-4 shrink-0">
@@ -27,7 +28,7 @@ export default function SuggestionPanel({
           <span className="text-xs font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded">추천</span>
           <p className="font-bold text-gray-800 text-sm truncate">{displayName}</p>
         </div>
-        {mutualCount > 0 && (
+        {mutualCount !== null && mutualCount > 0 && (
           <p className="text-xs text-gray-500">공통 친구 {mutualCount}명</p>
         )}
       </div>

@@ -23,8 +23,7 @@ import {
   getFriendsNetworkAction,
   getLabelNetworkAction,
   getTwoHopSuggestionsByAnchorAction,
-  getTwoHopMutualFriendsAction,
-  getOneHopMutualFriendEdgesAction,
+  getNetworkEdgesAction,
 } from "@/app/actions/social";
 import { sendFriendRequestAction } from "@/app/actions/friendRequest";
 import { GetFriendsNetworkCircleSize } from "@/api/model/getFriendsNetworkCircleSize";
@@ -34,6 +33,7 @@ import FriendActionPanel from "../FriendActionPanel/FriendActionPanel";
 import SuggestionPanel from "../SuggestionPanel/SuggestionPanel";
 import type { FriendshipDetail, NetworkFriendEdge, LayoutType } from "./types";
 import type { Label, LabelMember } from "@/components/Label/types";
+import { deriveTargetNetworkEdges } from "./networkEdges";
 
 type SidebarTab = "network" | "label";
 type SuggestionSendStatus = "idle" | "loading" | "sent" | "error";
@@ -237,11 +237,12 @@ export default function SocialGraph({
       setManuallyAddedIds((prev) => new Set(prev).add(friendId));
       setSelectedNodeId(String(friendId));
       const skeletonIds = [...graphNodeIds].map(Number);
-      const result = await getOneHopMutualFriendEdgesAction(
+      const result = await getNetworkEdgesAction(
         friendId,
         skeletonIds,
       );
       if (result.success && result.data.length > 0) {
+        const derived = deriveTargetNetworkEdges(friendId, skeletonIds, result.data);
         setEdges((prev) => {
           const existingIds = new Set(
             prev.map(
@@ -249,17 +250,11 @@ export default function SocialGraph({
                 `${Math.min(e.friendAId, e.friendBId)}-${Math.max(e.friendAId, e.friendBId)}`,
             ),
           );
-          const newEdges = result.data
-            .filter((e) => e.friendAId != null && e.friendBId != null)
+          const newEdges = derived.edges
             .filter((e) => {
-              const key = `${Math.min(e.friendAId!, e.friendBId!)}-${Math.max(e.friendAId!, e.friendBId!)}`;
+              const key = `${Math.min(e.friendAId, e.friendBId)}-${Math.max(e.friendAId, e.friendBId)}`;
               return !existingIds.has(key);
-            })
-            .map((e) => ({
-              friendAId: e.friendAId!,
-              friendBId: e.friendBId!,
-              intimacy: e.intimacy ?? 0,
-            }));
+            });
           return [...prev, ...newEdges];
         });
       }
@@ -308,12 +303,13 @@ export default function SocialGraph({
   async function handleSuggestionTap(suggestionId: number) {
     setMutualFriendIds([]);
     const skeletonIds = [...graphNodeIds].map(Number);
-    const result = await getTwoHopMutualFriendsAction(
+    const result = await getNetworkEdgesAction(
       suggestionId,
       skeletonIds,
     );
     if (result.success && result.data) {
-      setMutualFriendIds(result.data);
+      const derived = deriveTargetNetworkEdges(suggestionId, skeletonIds, result.data);
+      setMutualFriendIds(derived.mutualFriendIds);
     }
   }
 
@@ -460,19 +456,18 @@ export default function SocialGraph({
       return [...prev, friendId];
     });
 
-    const result = await getOneHopMutualFriendEdgesAction(friendId, snapshotIds);
+    const result = await getNetworkEdgesAction(friendId, snapshotIds);
     if (result.success && result.data.length > 0) {
+      const derived = deriveTargetNetworkEdges(friendId, snapshotIds, result.data);
       setEdges((prev) => {
         const existingIds = new Set(
           prev.map((e) => `${Math.min(e.friendAId, e.friendBId)}-${Math.max(e.friendAId, e.friendBId)}`),
         );
-        const newEdges = result.data
-          .filter((e) => e.friendAId != null && e.friendBId != null)
+        const newEdges = derived.edges
           .filter((e) => {
-            const key = `${Math.min(e.friendAId!, e.friendBId!)}-${Math.max(e.friendAId!, e.friendBId!)}`;
+            const key = `${Math.min(e.friendAId, e.friendBId)}-${Math.max(e.friendAId, e.friendBId)}`;
             return !existingIds.has(key);
-          })
-          .map((e) => ({ friendAId: e.friendAId!, friendBId: e.friendBId!, intimacy: e.intimacy ?? 0 }));
+          });
         return [...prev, ...newEdges];
       });
     }

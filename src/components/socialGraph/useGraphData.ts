@@ -141,8 +141,6 @@ export function useGraphData({
           data: {
             id: `suggestion-${s.id}`,
             label: s.nickname ?? "",
-            intimacy: s.intimacy ?? 0,
-            mutualCount: s.mutualCount ?? 0,
             type: "suggestion",
           },
           ...(pos ? { position: pos } : {}),
@@ -161,7 +159,6 @@ export function useGraphData({
                 id: `suggestion-edge-${suggestionAnchorId}-${s.id}`,
                 source: String(suggestionAnchorId),
                 target: `suggestion-${s.id}`,
-                intimacy: s.intimacy ?? 0,
                 type: "suggestion-edge",
               },
               classes: "suggestion-edge",
