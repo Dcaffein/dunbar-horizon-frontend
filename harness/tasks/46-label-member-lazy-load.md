@@ -2,7 +2,7 @@
 
 ## 상태
 
-미착수. 새 OpenAPI 계약 반영 확인 완료.
+완료 (2026-08-29). 브랜치 `agent/task-46-label-member-lazy-load`.
 
 ## 배경
 
@@ -174,3 +174,24 @@ fixtures의 이수환(user_id=4)과 실제 친구 데이터를 사용한다.
 ## 브랜치
 
 `agent/task-46-label-member-lazy-load`
+
+## 구현 및 검증 결과
+
+- `Label` UI 모델에 `memberCount`와 `idle/loading/success/error` 상태를 추가했다.
+- 라벨별 멤버 조회는 성공 결과와 진행 중 Promise를 재사용한다.
+- 멤버 추가·삭제는 목록과 count를 함께 낙관적으로 갱신하고 실패 시 함께 롤백한다.
+- 친구 프로필은 `GET /labels?memberId={userId}`를 사용하며 바텀시트 멤버를 별도 조회한다.
+- Vitest 8개 통과: 훅 5개, LabelManager 3개.
+- 실제 계정 이수환(user_id=4)으로 다음을 확인했다.
+  - 라벨 목록 `ku 15명`, `확인 0명`, `신공학관 3명`
+  - `ku` 최초 선택 시 멤버 15명 조회, 재선택 시 멤버 API 재호출 없음
+  - 친구 배성진(`/users/70`)에게 소속 라벨 `ku`만 표시
+  - 프로필 `ku` 바텀시트 멤버 15명 조회, 재진입 시 API 재호출 없음
+- 검증 이미지:
+  - `harness/verify/verify-46-01-label-count.png`
+  - `harness/verify/verify-46-02-member-loaded.png`
+  - `harness/verify/verify-46-03-profile-label-members.png`
+
+전체 TypeScript는 Task 47 대상의 제거된 추천 DTO 필드 4건과 generated model export 1건 때문에 아직 실패한다. 전체 lint의 기존 15건(3 errors, 12 warnings)도 동일하다. Task 46 변경 파일에는 새 오류가 없다.
+
+실제 라벨 네트워크 조회 `/api/v1/networks/labels/{labelId}`와 trace `/api/v1/social/traces`는 백엔드에서 404였다. 신규 단수 URL 전환은 명세대로 Task 47 범위이며, Task 46의 멤버 조회·캐시 검증에는 영향을 주지 않았다.
