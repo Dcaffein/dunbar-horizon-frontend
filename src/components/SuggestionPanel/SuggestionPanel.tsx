@@ -5,7 +5,9 @@ import type { AnchorExpansionResult } from "@/api/model/anchorExpansionResult";
 
 interface SuggestionPanelProps {
   suggestion: AnchorExpansionResult;
-  mutualCount?: number | null;
+  mutualCount: number | null;
+  edgesStatus: "idle" | "loading" | "success" | "error";
+  edgesError: string | null;
   sendStatus: "idle" | "loading" | "sent" | "error";
   sendError: string | null;
   onSendRequest: (receiverId: number) => void;
@@ -13,7 +15,9 @@ interface SuggestionPanelProps {
 
 export default function SuggestionPanel({
   suggestion,
-  mutualCount = null,
+  mutualCount,
+  edgesStatus,
+  edgesError,
   sendStatus,
   sendError,
   onSendRequest,
@@ -28,8 +32,16 @@ export default function SuggestionPanel({
           <span className="text-xs font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded">추천</span>
           <p className="font-bold text-gray-800 text-sm truncate">{displayName}</p>
         </div>
-        {mutualCount !== null && mutualCount > 0 && (
+        {edgesStatus === "loading" && (
+          <p className="text-xs text-gray-500">공통 친구를 확인하는 중...</p>
+        )}
+        {edgesStatus === "success" && mutualCount !== null && (
           <p className="text-xs text-gray-500">공통 친구 {mutualCount}명</p>
+        )}
+        {edgesStatus === "error" && (
+          <p className="text-xs text-red-500">
+            {edgesError ?? "공통 친구를 불러오는 데 실패했습니다."}
+          </p>
         )}
       </div>
 

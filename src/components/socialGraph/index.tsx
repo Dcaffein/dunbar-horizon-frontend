@@ -37,6 +37,7 @@ import { deriveTargetNetworkEdges } from "./networkEdges";
 
 type SidebarTab = "network" | "label";
 type SuggestionSendStatus = "idle" | "loading" | "sent" | "error";
+type SuggestionEdgesStatus = "idle" | "loading" | "success" | "error";
 
 const CIRCLE_SIZE_LABELS: Record<GetFriendsNetworkCircleSize, string> = {
   SUPPORT: "SUPPORT",
@@ -110,8 +111,14 @@ export default function SocialGraph({
   const [suggestionSendError, setSuggestionSendError] = useState<string | null>(
     null,
   );
+  const [suggestionEdgesStatus, setSuggestionEdgesStatus] =
+    useState<SuggestionEdgesStatus>("idle");
+  const [suggestionEdgesError, setSuggestionEdgesError] = useState<string | null>(
+    null,
+  );
   const [graphToast, setGraphToast] = useState<string | null>(null);
   const labelSelectionSequence = useRef(0);
+  const suggestionEdgesRequestSequence = useRef(0);
 
   useEffect(() => {
     if (!graphToast) return;
@@ -214,6 +221,7 @@ export default function SocialGraph({
   );
 
   function clearSuggestions() {
+    suggestionEdgesRequestSequence.current += 1;
     setSuggestionNodes([]);
     setSuggestionAnchorId(null);
     setSuggestionAnchorPos(null);
@@ -221,6 +229,8 @@ export default function SocialGraph({
     setSelectedSuggestionId(null);
     setSuggestionSendStatus("idle");
     setSuggestionSendError(null);
+    setSuggestionEdgesStatus("idle");
+    setSuggestionEdgesError(null);
   }
 
   async function handleAddToGraph(friendId: number) {
@@ -282,17 +292,44 @@ export default function SocialGraph({
   }
 
   async function handleAnchorTap(anchorId: number) {
+    const requestSequence = ++suggestionEdgesRequestSequence.current;
     setMutualFriendIds([]);
     setSelectedSuggestionId(null);
     setSuggestionSendStatus("idle");
     setSuggestionSendError(null);
+    setSuggestionEdgesStatus("idle");
+    setSuggestionEdgesError(null);
+
+    if (!graphNodeIds.has(String(anchorId))) {
+      await handleAddToGraph(anchorId);
+      await new Promise<void>((resolve) => {
+        let attempts = 0;
+        const checkAnchorNode = () => {
+          attempts += 1;
+          const anchorNode = cyRef.current?.getElementById(String(anchorId));
+          if (anchorNode?.length || attempts >= 60) {
+            resolve();
+            return;
+          }
+          requestAnimationFrame(checkAnchorNode);
+        };
+        checkAnchorNode();
+      });
+    }
+
+    if (requestSequence !== suggestionEdgesRequestSequence.current) return;
+
+    const anchorNode = cyRef.current?.getElementById(String(anchorId));
+    if (!anchorNode?.length) {
+      setGraphToast("친구 노드를 그래프에 추가하지 못했습니다");
+      return;
+    }
 
     const result = await getTwoHopSuggestionsByAnchorAction(anchorId);
+    if (requestSequence !== suggestionEdgesRequestSequence.current) return;
+
     if (result.success && result.data && result.data.length > 0) {
-      const anchorNode = cyRef.current?.getElementById(String(anchorId));
-      if (anchorNode && anchorNode.length > 0) {
-        setSuggestionAnchorPos({ ...anchorNode.position() });
-      }
+      setSuggestionAnchorPos({ ...anchorNode.position() });
       setSuggestionNodes(result.data);
       setSuggestionAnchorId(anchorId);
     } else {
@@ -301,15 +338,26 @@ export default function SocialGraph({
   }
 
   async function handleSuggestionTap(suggestionId: number) {
+    const requestSequence = ++suggestionEdgesRequestSequence.current;
     setMutualFriendIds([]);
+    setSuggestionEdgesStatus("loading");
+    setSuggestionEdgesError(null);
     const skeletonIds = [...graphNodeIds].map(Number);
     const result = await getNetworkEdgesAction(
       suggestionId,
       skeletonIds,
     );
+    if (requestSequence !== suggestionEdgesRequestSequence.current) return;
+
     if (result.success && result.data) {
       const derived = deriveTargetNetworkEdges(suggestionId, skeletonIds, result.data);
       setMutualFriendIds(derived.mutualFriendIds);
+      setSuggestionEdgesStatus("success");
+    } else {
+      setSuggestionEdgesStatus("error");
+      setSuggestionEdgesError(
+        result.failure?.message ?? "공통 친구를 불러오는 데 실패했습니다.",
+      );
     }
   }
 
@@ -806,6 +854,11 @@ export default function SocialGraph({
           {selectedSuggestion && (
             <SuggestionPanel
               suggestion={selectedSuggestion}
+              mutualCount={
+                suggestionEdgesStatus === "success" ? mutualFriendIds.length : null
+              }
+              edgesStatus={suggestionEdgesStatus}
+              edgesError={suggestionEdgesError}
               sendStatus={suggestionSendStatus}
               sendError={suggestionSendError}
               onSendRequest={handleSuggestionSendRequest}
