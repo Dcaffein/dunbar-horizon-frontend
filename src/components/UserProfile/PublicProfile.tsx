@@ -9,7 +9,7 @@ import type { IntermediaryResult } from "@/api/model/intermediaryResult";
 import { recordTraceAction } from "@/app/actions/social";
 import { getConnectionPathAction } from "@/app/actions/friendship";
 import { sendFriendRequestAction } from "@/app/actions/friendRequest";
-import { getUserRecentFlagsAction } from "@/app/actions/flag";
+import { getUserProfileFlagsAction } from "@/app/actions/flag";
 
 interface PublicProfileProps {
   profile: SocialProfileResult;
@@ -39,7 +39,7 @@ export default function PublicProfile({ profile, userId }: PublicProfileProps) {
     recordTraceAction(userId).then((r) => {
       if (r?.data?.revealed) setRevealed(true);
     });
-    getUserRecentFlagsAction(userId).then((r) => {
+    getUserProfileFlagsAction(userId).then((r) => {
       setRecentFlags(r.data ?? []);
     });
   }, [userId]);

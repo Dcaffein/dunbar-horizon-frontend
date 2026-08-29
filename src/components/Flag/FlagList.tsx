@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import type { FlagResult } from "@/api/model/flagResult";
-import { getFriendFlagsAction } from "@/app/actions/flag";
+import { getFeedFlagsAction, getHostingFlagsAction, getParticipatingFlagsAction } from "@/app/actions/flag";
 import type { Failure } from "@/api/apiClient";
 import FailureState from "@/components/common/FailureState";
+import type { FlagPage } from "./flagPage";
+import { mergeFlagPages } from "./flagPage";
 
 type Tab = "participating" | "hosting" | "browse";
 type StatusFilter = "active" | "deadline" | "ended";
@@ -130,53 +132,89 @@ function FlagCard({ flag }: FlagCardProps) {
 }
 
 interface FlagListProps {
-  initialHosting: FlagResult[];
-  initialParticipating: FlagResult[];
-  /** 참여중·호스팅 조회가 실패했을 때. 빈 목록과 구분해서 보여준다. */
-  failure?: Failure;
+  initialHosting: FlagPage;
+  initialParticipating: FlagPage;
+  hostingFailure?: Failure;
+  participatingFailure?: Failure;
 }
 
-export default function FlagList({ initialHosting, initialParticipating, failure }: FlagListProps) {
-  const router = useRouter();
+export default function FlagList({
+  initialHosting,
+  initialParticipating,
+  hostingFailure,
+  participatingFailure,
+}: FlagListProps) {
   const [activeTab, setActiveTab] = useState<Tab>("participating");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("active");
-  const [browseFlags, setBrowseFlags] = useState<FlagResult[]>([]);
-  const [browseFetched, setBrowseFetched] = useState(false);
+  const [hostingPage, setHostingPage] = useState(initialHosting);
+  const [participatingPage, setParticipatingPage] = useState(initialParticipating);
+  const [feedPage, setFeedPage] = useState<FlagPage | null>(null);
+  const [loadingTab, setLoadingTab] = useState<Tab | null>(null);
   const [browseFailure, setBrowseFailure] = useState<Failure | undefined>();
+  const [moreFailure, setMoreFailure] = useState<Failure | undefined>();
 
-  const applyBrowse = useCallback((result: Awaited<ReturnType<typeof getFriendFlagsAction>>) => {
+  const loadBrowse = useCallback(async () => {
+    setLoadingTab("browse");
+    setBrowseFailure(undefined);
+    const result = await getFeedFlagsAction();
+    setLoadingTab(null);
     if (result.success) {
-      setBrowseFlags(result.data);
-      setBrowseFailure(undefined);
+      setFeedPage(result.data);
     } else {
       setBrowseFailure(result.failure);
     }
-    setBrowseFetched(true);
   }, []);
 
-  // 재시도용. 서버 컴포넌트가 아니라 이 상태를 다시 채운다.
-  const loadBrowse = useCallback(
-    () => getFriendFlagsAction().then(applyBrowse),
-    [applyBrowse],
-  );
-
-  useEffect(() => {
-    getFriendFlagsAction().then(applyBrowse);
-  }, [applyBrowse]);
+  const pages: Record<Tab, FlagPage | null> = {
+    participating: participatingPage,
+    hosting: hostingPage,
+    browse: feedPage,
+  };
 
   const tabData: Record<Tab, FlagResult[]> = {
-    participating: initialParticipating,
-    hosting: initialHosting,
-    browse: browseFlags,
+    participating: participatingPage.flags,
+    hosting: hostingPage.flags,
+    browse: feedPage?.flags ?? [],
   };
 
   const flags = tabData[activeTab].filter((f) => flagStatus(f) === statusFilter);
   // 둘러보기는 클라이언트에서 따로 가져오므로 실패도 따로 본다.
-  const activeFailure = activeTab === "browse" ? browseFailure : failure;
+  const activeFailure = activeTab === "browse"
+    ? browseFailure
+    : activeTab === "hosting"
+      ? hostingFailure
+      : participatingFailure;
 
   function handleTabChange(tab: Tab) {
     setActiveTab(tab);
     setStatusFilter("active");
+    if (tab === "browse" && !feedPage && loadingTab !== "browse") {
+      void loadBrowse();
+    }
+  }
+
+  async function loadMore() {
+    const currentPage = pages[activeTab];
+    if (!currentPage || currentPage.isLast || loadingTab) return;
+
+    setLoadingTab(activeTab);
+    setMoreFailure(undefined);
+    const result = activeTab === "browse"
+      ? await getFeedFlagsAction(currentPage.page + 1)
+      : activeTab === "hosting"
+        ? await getHostingFlagsAction(currentPage.page + 1)
+        : await getParticipatingFlagsAction(currentPage.page + 1);
+    setLoadingTab(null);
+
+    if (!result.success) {
+      setMoreFailure(result.failure);
+      return;
+    }
+
+    const merged = { ...result.data, flags: mergeFlagPages(currentPage.flags, result.data.flags) };
+    if (activeTab === "browse") setFeedPage(merged);
+    if (activeTab === "hosting") setHostingPage(merged);
+    if (activeTab === "participating") setParticipatingPage(merged);
   }
 
   return (
@@ -223,7 +261,7 @@ export default function FlagList({ initialHosting, initialParticipating, failure
       )}
 
       {/* 목록 */}
-      {activeTab === "browse" && !browseFetched ? (
+      {activeTab === "browse" && !feedPage && loadingTab === "browse" ? (
         <div className="flex flex-col items-center justify-center py-20 text-gray-400">
           <svg className="w-8 h-8 mb-3 animate-spin text-indigo-300" fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -235,7 +273,7 @@ export default function FlagList({ initialHosting, initialParticipating, failure
         // 조회 실패. Flag 가 있는지 없는지 모르는 상태다.
         <FailureState
           failure={activeFailure}
-          onRetry={activeTab === "browse" ? loadBrowse : undefined}
+          onRetry={activeTab === "browse" ? () => void loadBrowse() : undefined}
         />
       ) : flags.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-gray-400">
@@ -255,6 +293,19 @@ export default function FlagList({ initialHosting, initialParticipating, failure
             </li>
           ))}
         </ul>
+      )}
+
+      {pages[activeTab] && !pages[activeTab]!.isLast && !activeFailure && (
+        <div className="px-4 pb-6">
+          {moreFailure && <p className="mb-2 text-center text-xs text-red-500">{moreFailure.message}</p>}
+          <button
+            onClick={() => void loadMore()}
+            disabled={loadingTab !== null}
+            className="w-full rounded-xl border border-gray-200 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+          >
+            {loadingTab === activeTab ? "더 불러오는 중..." : "더 보기"}
+          </button>
+        </div>
       )}
     </div>
   );

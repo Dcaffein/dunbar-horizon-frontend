@@ -10,7 +10,7 @@ import type { LabelMemberResult } from "@/api/model/labelMemberResult";
 import type { IntermediaryResult } from "@/api/model/intermediaryResult";
 import { recordTraceAction } from "@/app/actions/social";
 import { getConnectionPathAction, updateFriendAction, deleteFriendAction } from "@/app/actions/friendship";
-import { getUserRecentFlagsAction } from "@/app/actions/flag";
+import { getUserProfileFlagsAction } from "@/app/actions/flag";
 import { getLabelMembersAction } from "@/app/actions/label";
 
 interface FriendProfileProps {
@@ -52,7 +52,7 @@ export default function FriendProfile({ profile, userId, myLabels }: FriendProfi
     recordTraceAction(userId).then((r) => {
       if (r?.data?.revealed) setRevealed(true);
     });
-    getUserRecentFlagsAction(userId).then((r) => {
+    getUserProfileFlagsAction(userId).then((r) => {
       setRecentFlags(r.data);
     });
   }, [userId]);

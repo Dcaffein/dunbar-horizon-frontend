@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { ReceivedFlagInvitationResult } from "@/api/model/receivedFlagInvitationResult";
+import type { FlagInvitationResult } from "@/api/model/flagInvitationResult";
 import { acceptInvitationAction, rejectInvitationAction } from "@/app/actions/flag";
 
 function relativeTime(createdAt?: string): string {
@@ -19,7 +19,7 @@ function relativeTime(createdAt?: string): string {
 }
 
 interface InvitationCardProps {
-  invitation: ReceivedFlagInvitationResult;
+  invitation: FlagInvitationResult;
   onRemove: (id: number) => void;
 }
 
@@ -64,8 +64,8 @@ function InvitationCard({ invitation, onRemove }: InvitationCardProps) {
             {invitation.flagDescription && (
               <p className="text-xs text-gray-500 mt-1">{invitation.flagDescription}</p>
             )}
-            {invitation.inviterNickname && (
-              <p className="text-xs text-gray-500 mt-1">{invitation.inviterNickname}님이 초대했어요</p>
+            {invitation.counterpartNickname && (
+              <p className="text-xs text-gray-500 mt-1">{invitation.counterpartNickname}님이 초대했어요</p>
             )}
             <p className="text-xs text-gray-400 mt-1.5">{relativeTime(invitation.createdAt)}</p>
           </div>
@@ -95,7 +95,7 @@ function InvitationCard({ invitation, onRemove }: InvitationCardProps) {
 }
 
 interface FlagInvitationListProps {
-  initialInvitations: ReceivedFlagInvitationResult[];
+  initialInvitations: FlagInvitationResult[];
 }
 
 export default function FlagInvitationList({ initialInvitations }: FlagInvitationListProps) {

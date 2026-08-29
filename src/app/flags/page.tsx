@@ -6,13 +6,14 @@ import {
   getParticipatingFlagsAction,
 } from "@/app/actions/flag";
 import FlagList from "@/components/Flag/FlagList";
-import type { FlagResult } from "@/api/model/flagResult";
+import type { FlagPage } from "@/components/Flag/flagPage";
 
 export default async function FlagsPage() {
-  let hosting: FlagResult[] = [];
-  let participating: FlagResult[] = [];
-  // 목록이 이 화면의 주 데이터다. 실패를 빈 배열로 삼키면 "Flag가 없습니다"가 뜬다.
-  let failure: Failure | undefined;
+  let hosting: FlagPage = { flags: [], page: 0, isLast: true };
+  let participating: FlagPage = { flags: [], page: 0, isLast: true };
+  // 탭별 실패를 분리해 한쪽 실패를 다른 탭의 빈 목록으로 위장하지 않는다.
+  let hostingFailure: Failure | undefined;
+  let participatingFailure: Failure | undefined;
 
   try {
     const [h, p] = await Promise.all([
@@ -21,10 +22,12 @@ export default async function FlagsPage() {
     ]);
     hosting = h.data;
     participating = p.data;
-    failure = h.success ? (p.success ? undefined : p.failure) : h.failure;
+    hostingFailure = h.success ? undefined : h.failure;
+    participatingFailure = p.success ? undefined : p.failure;
   } catch (error) {
     if (isRedirectError(error)) throw error;
-    failure = toFailure(error);
+    hostingFailure = toFailure(error);
+    participatingFailure = hostingFailure;
   }
 
   return (
@@ -58,7 +61,8 @@ export default async function FlagsPage() {
         <FlagList
           initialHosting={hosting}
           initialParticipating={participating}
-          failure={failure}
+          hostingFailure={hostingFailure}
+          participatingFailure={participatingFailure}
         />
       </main>
     </div>

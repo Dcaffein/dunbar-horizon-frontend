@@ -1,185 +1,176 @@
-# PLAN: Task 48 — Friend request 통합 조회와 counterpart 상태 전이
+# PLAN: Task 49 — Flag 목록·초대 API 계약 전환
 
-배경과 계약은 `harness/tasks/48-friend-request-api-refactor.md`를 따른다.
+상세 배경과 범위는 `harness/tasks/49-flag-api-contract-refactor.md`를 따른다.
 
 ## 상태
 
-완료 (2026-08-29). Phase 1(정적·단위) 통과·커밋. Phase 2에서 목록 계약을 실제 백엔드로 검증하고 SENT/status 계약 버그를 수정했다. 이후 실제 pending 요청을 생성해 counterpartId 기반 PATCH 수락·숨기기와 DELETE 취소의 화면 상태 전이까지 검증했다.
-
-## 완료 결과
-
-- `6e64909` — 통합 조회·PATCH 상태 전이·counterpartId 취소·deriveCounterpartId 단위 테스트·탭별 실패 UI.
-- `43228c9` — **실측 계약 수정**: `GET /friend-requests?direction=SENT&status=...`는 400(`FriendRequestInvalidException: "sent 조회에는 status를 사용할 수 없습니다."`). RECEIVED만 status 필터를 지원하므로 status를 선택 인자로 바꾸고 SENT는 생략. 실제 백엔드에서 받은/보낸 탭이 각각 200 빈 목록으로 정상 표시됨을 확인.
-- 실제 pending 요청 검증: 정기완 → 이수환 요청의 HIDDEN 전이, 이진혁 → 이수환 요청의 ACCEPTED 전이, 이진혁 → 이수환 요청의 DELETE 취소가 각각 해당 탭의 카드 제거로 반영됐다. 수락으로 생긴 친구 관계는 이후 친구 삭제로 원복했다.
-- 삭제 URL(`/sent`, `/accept`, `/hide`, UUID DELETE) 0건, 서버 액션 시그니처 `requestId` 0건.
-- 전체 Vitest 22개 통과(신규 counterpart 6개 포함), Task 48 파일 tsc/lint 오류 0건.
-- 기존 기준선(Flag generated `GetUserFlagsByRoleParams` barrel TS 오류 1건, Task 47 외 lint)은 범위 밖으로 미수정.
-
-### direction 확정값
-
-- `RECEIVED` / `SENT` (사용자 확인 + 실측). RECEIVED는 `status=PENDING` 지원, SENT는 status 미지원.
-
-## 0. 백엔드 계약 확정 (사용자 확인 완료)
-
-- `direction` 허용값: **`RECEIVED` / `SENT`** (받은/보낸).
-- RECEIVED 조회는 `status=PENDING`을 지원한다. SENT 조회에 `status`를 보내면 400이므로 생략한다. SENT 응답은 실제 화면에서 pending 요청만 반환됨을 확인했다.
-- 나머지 계약은 생성 코드 `src/api/generated/friend-request-controller/friend-request-controller.ts`로 확정:
-  - `GET /api/v1/friend-requests?direction=&status=` → `FriendRequestResult[]`
-  - `PATCH /api/v1/friend-requests/{counterpartId}` `{ status }` → `void` (수락·숨김 통합)
-  - `DELETE /api/v1/friend-requests/{counterpartId}` → `void` (취소)
-  - `POST /api/v1/friend-requests` `{ receiverId }` → `FriendRequestResult` (생성, 유지)
+구현 완료. Phase 1 정적·단위 검증과 Phase 2 읽기 경로 실측을 마쳤고, 실제 초대 mutation은 테스트 Flag 생성 입력 제약으로 보류했다.
 
 ## 1. 요구사항 분석
 
-기존 프론트는 삭제된 URL을 사용한다:
+최신 OpenAPI의 `flag-controller`와 `flag-invitation-controller`는 Flag 목록과 초대 조회 방식을 다음처럼 바꿨다.
 
-- `GET /api/v1/friend-requests/sent` (보낸 목록 전용)
-- `POST /api/v1/friend-requests/{requestId}/accept`
-- `POST /api/v1/friend-requests/{requestId}/hide`
-- `DELETE /api/v1/friend-requests/{requestId}` (UUID 기반)
+- 내 Flag 목록은 `/flags/me` 배열 응답에서 `GET /flags?role=&page=&size=`의 `SliceFlagResult` 응답으로 바뀌었다.
+- 친구 Flag는 `/flags/friends` 배열 응답에서 `GET /flags/feed?page=&size=`의 `SliceFlagResult` 응답으로 바뀌었다.
+- 공개 프로필 Flag는 `/flags/recent?userId=`에서 `GET /flags/profile?userId=`로 바뀌었다.
+- 받은/보낸 초대의 별도 URL·DTO가 `GET /flag-invitations?direction=`와 `FlagInvitationResult` 하나로 통합됐다.
+- 초대 수락은 `POST .../accept`가 아니라 invitation ID 대상 `PATCH`와 `{ status: "ACCEPTED" }` 본문을 사용한다.
 
-또한 모든 mutation이 `request.id`(UUID string)를 서버 대상 식별자로 사용한다. 신규 계약은 mutation 대상이 **상대 사용자 ID(number)** 이므로 UUID를 그대로 넘기면 잘못된 대상에 요청한다.
+현재 `src/app/actions/flag.ts`와 목록·초대·공개 프로필 UI는 이전 URL, 배열 응답, 방향별 초대 DTO를 사용한다. 이 작업은 최신 계약에 맞춰 Server Action과 화면 상태를 함께 바꾼다.
 
 완료 조건:
 
-- 삭제된 URL(`/sent`, `/accept`, `/hide`, UUID DELETE) 참조 0건.
-- 받은/보낸 PENDING 목록이 신규 query 계약으로 조회된다.
-- 수락·숨김이 하나의 PATCH 상태 전이 액션으로 통합된다.
-- 모든 mutation 대상이 `counterpartId: number`로 전환된다.
-- DOM key용 `request.id`(UUID)와 서버 대상 `counterpartId`가 타입·명칭으로 분리된다.
-- counterpartId를 안전하게 파생할 수 없는 응답은 버튼을 비활성화하고 `0`을 전송하지 않는다.
-- 한쪽 탭 조회 실패가 다른 탭 빈 목록으로 위장되지 않는다.
-- 상태 변경 실패 시 카드가 유지되고 재시도 가능하다.
+- 목록·feed가 Slice의 `content`, `number`, `last`를 안전하게 처리하고 페이지를 잃지 않는다.
+- 공개 프로필의 Flag가 profile URL로 조회된다.
+- 초대 탭이 `FlagInvitationResult.counterpartNickname`을 방향에 맞는 문구로 표시한다.
+- 수락·거절·취소가 최신 계약에서 실제 허용된 mutation만 호출한다.
+- 초기 조회·다음 페이지·mutation 실패가 기존 카드나 반대 탭을 빈 목록으로 바꾸지 않는다.
 
-## 2. counterpartId 파생 규칙
+## 2. 계약 확정과 구현 전 확인
 
-`FriendRequestResult`에는 `requester`, `receiver`가 모두 있다(`FriendResult { id?, nickname? }`).
+생성 코드의 최신 controller를 계약 기준으로 사용한다.
 
-- 받은 요청(RECEIVED)의 counterpart = `requester.id`
-- 보낸 요청(SENT)의 counterpart = `receiver.id`
+| 기능 | 최신 URL | 응답/요청 |
+|---|---|---|
+| 내 Flag | `GET /api/v1/flags?role=&page=&size=` | `SliceFlagResult` |
+| feed | `GET /api/v1/flags/feed?page=&size=` | `SliceFlagResult` |
+| 공개 프로필 Flag | `GET /api/v1/flags/profile?userId=` | `FlagResult[]` |
+| 초대 목록 | `GET /api/v1/flag-invitations?direction=` | `FlagInvitationResult[]` |
+| 초대 수락 | `PATCH /api/v1/flag-invitations/{invitationId}` | `{ status: "ACCEPTED" }` |
+| 초대 삭제 | `DELETE /api/v1/flag-invitations/{invitationId}` | `void` |
 
-목록을 UI 모델로 정규화할 때 방향별 `counterpartId`와 표시용 상대(nickname)를 함께 계산한다. `id`가 없으면 `counterpartId = null`로 두어 버튼을 비활성화한다.
+구현 전에 실제 백엔드 또는 생성 타입으로 다음을 확정한다.
 
-## 3. Server Action — `src/app/actions/friendRequest.ts`
+1. 초대 direction의 정확한 값.
+2. 수신자가 DELETE로 거절할 수 있는지. 최신 status enum에는 `ACCEPTED`만 있으므로 REJECTED를 추측해 보내지 않는다.
+3. `/flags/profile`의 정렬·최대 개수. 최근순이 보장되지 않으면 UI 문구를 "최근 Flag"에서 사실에 맞게 바꾼다.
+4. Slice 기본·최대 size. UI 페이지 크기를 백엔드 제약에 맞춘다.
 
-- 공통 조회
-  ```ts
-  type FriendRequestDirection = "RECEIVED" | "SENT";
-  type FriendRequestStatus = "PENDING" | "ACCEPTED" | "HIDDEN";
+확인 결과:
 
-  getFriendRequestsAction(
-    direction: FriendRequestDirection,
-    status?: FriendRequestStatus,
-  )
-  ```
-  - query는 `URLSearchParams`로 구성: `direction`, 필요할 때만 `status`.
-- 화면 의미용 wrapper 유지: `getReceivedRequestsAction()` = `("RECEIVED", "PENDING")`, `getSentRequestsAction()` = `("SENT")`.
-- 상태 전이 통합
-  ```ts
-  updateFriendRequestStatusAction(counterpartId: number, status: FriendRequestStatus)
-  ```
-  - `PATCH /api/v1/friend-requests/{counterpartId}` body `{ status }`.
-  - wrapper `acceptFriendRequestAction(counterpartId)` = `(id, "ACCEPTED")`, `hideFriendRequestAction(counterpartId)` = `(id, "HIDDEN")`. 인자명은 `requestId`가 아닌 `counterpartId: number`.
-- 취소 `cancelFriendRequestAction(counterpartId: number)` → `DELETE /api/v1/friend-requests/{counterpartId}`.
-- 생성 `sendFriendRequestAction(receiverId)`, 검색 `searchUserByEmailAction`은 유지(회귀 확인만).
-- 모든 액션은 기존처럼 `isRedirectError(error)` 재throw + `{ success, data|message }` 정규화 유지.
+- direction은 실제 백엔드에서 `RECEIVED`·`SENT` 두 값이 각각 정상 조회됨을 확인했다.
+- Slice 기본 page는 `0`, 기본 size는 `20`이다.
+- 상태 enum은 `ACCEPTED`만 노출한다. 거절은 별도 PATCH 상태가 없으므로 동일 invitation DELETE로 전환했다. 실제 수신자 DELETE 권한은 pending fixture가 있을 때 추가 확인한다.
 
-액션 시그니처 어디에도 `requestId` 이름을 남기지 않는다.
+## 3. Slice 목록 정규화
 
-## 4. 요청 페이지 초기 조회 — `src/app/requests/page.tsx`
+신규 `src/components/Flag/flagPage.ts`에 API Slice를 화면에서 안전하게 쓰기 위한 순수 함수를 둔다.
 
-- 받은/보낸 PENDING 목록을 `Promise.all`로 병렬 조회(각각 `getReceivedRequestsAction`, `getSentRequestsAction`).
-- 한쪽 실패를 빈 배열로 위장하지 않는다. 탭별 `{ data, ok }` 형태로 `FriendRequestPage`에 전달한다.
-  - `initialReceived: { data: FriendRequestResult[]; ok: boolean }`, `initialSent` 동일.
-- redirect error는 상위로 throw.
+```ts
+type FlagPage = {
+  flags: FlagResult[];
+  page: number;
+  isLast: boolean;
+};
 
-## 5. Client 상태 — `src/components/FriendRequest/useFriendRequest.ts`
+toFlagPage(slice: SliceFlagResult, requestedPage: number): FlagPage
+mergeFlagPages(current: FlagResult[], next: FlagResult[]): FlagResult[]
+```
 
-- 목록을 UI 모델로 정규화하는 순수 헬퍼를 컴포넌트 폴더에 둔다: `src/components/FriendRequest/counterpart.ts`
-  ```ts
-  deriveCounterpartId(request: FriendRequestResult, direction: FriendRequestDirection): number | null
-  ```
-  - RECEIVED → `requester?.id ?? null`, SENT → `receiver?.id ?? null`.
-- `actionLoadingId`는 방향과 counterpartId가 충돌하지 않는 키(`"RECEIVED:{id}"` / `"SENT:{id}"`) 사용. 동일 상대 중복 mutation 방지도 이 키로.
-- accept/hide/cancel handler는 `counterpartId: number`를 받는다. 로컬 제거는 방향별로 `request.id`(UUID) 기준 필터 — DOM 아이덴티티와 서버 식별자를 명확히 구분.
-  - accept/hide → received 목록에서 해당 카드 제거.
-  - cancel → sent 목록에서 해당 카드 제거.
-- 요청 전송 성공 시 반환 DTO를 sent 목록에 추가하되, `data.receiver?.id`가 없으면 낙관적 추가 대신 `getSentRequestsAction()` 재조회로 정합성 확보.
-- `isAlreadySent(userId)`는 기존처럼 `sentRequests.some(r => r.receiver?.id === userId)` 유지.
-- 실패 시 목록 불변 + `actionError` 표시(재시도 가능).
+- `content`가 없으면 빈 배열, `number`가 없으면 요청 page, `last`가 없으면 마지막 페이지로 처리한다.
+- 다음 페이지는 ID 중복 없이 현재 카드 뒤에 병합한다.
+- 탭별 상태는 목록, 현재 page, 마지막 여부, 초기 로딩, 다음 페이지 로딩, failure를 독립적으로 둔다.
+- 다음 페이지 실패는 이미 성공한 카드와 마지막 성공 page를 유지한다.
 
-## 6. UI — `src/components/FriendRequest/FriendRequestPage.tsx`
+## 4. Server Action 전환 — `src/app/actions/flag.ts`
 
-- `ReceivedTab`/`SentTab`은 각 카드에서 방향별 `counterpartId`를 계산해 handler에 **UUID가 아닌 counterpartId**를 전달.
-- 받은 카드는 `requester`, 보낸 카드는 `receiver`를 상대방으로 표시(기존과 동일 유지).
-- `counterpartId == null`이면 액션 버튼 비활성화 + 안전한 오류 문구 표시(잘못된 `0` 미전송).
-- 탭별 조회 실패(`ok === false`)면 해당 탭에 실패/재시도 안내, 반대 탭은 정상 유지.
-- 로딩 중(`actionLoadingId === key`) 버튼 비활성화로 연속 클릭 차단(기존 disabled 로직을 새 키에 맞춰 유지).
+- `getHostingFlagsAction(page?, size?)`, `getParticipatingFlagsAction(page?, size?)`를 `/flags?role=HOST|PARTICIPANT&page=&size=`로 바꾸고 `FlagPage` 또는 raw Slice를 반환한다.
+- `getFeedFlagsAction(page?, size?)`를 `/flags/feed`으로 도입한다. `getFriendFlagsAction`은 삭제하거나 호환 wrapper로만 남긴다.
+- `getUserProfileFlagsAction(userId)`를 `/flags/profile?userId=`로 만든다. 최근성을 보장하지 않는 새 계약에 맞춰 `getUserRecentFlagsAction` 이름은 제거한다.
+- `getFlagInvitationsAction(direction)`를 도입한다. 받은/보낸 wrapper가 있더라도 공통 action을 통해 query를 구성한다.
+- `acceptInvitationAction(invitationId)`는 PATCH와 `{ status: "ACCEPTED" }`를 사용한다.
+- 거절 action은 DELETE가 수신자에게 허용된다는 계약 확인 뒤에만 DELETE로 전환한다. 허용되지 않으면 UI에서 거절 action을 숨기거나 백엔드 결정을 요청한다.
+- 기존처럼 모든 catch에서 redirect error를 재throw하고, 목록 조회 실패는 `toFailure`로 정규화한다.
 
-## 7. 생성·수정할 파일
+## 5. UI 전환
+
+### Flag 목록
+
+`src/app/flags/page.tsx`, `src/components/Flag/FlagList.tsx`
+
+- 호스팅·참여 첫 페이지를 `Promise.all`로 병렬 조회한다.
+- 각 탭에서 다음 페이지가 있을 때만 "더 보기"를 보인다.
+- feed는 탭 최초 진입 때 첫 페이지를 불러오고, 더 보기와 재시도를 독립적으로 처리한다.
+- 빈 Slice, 초기 로딩, 다음 페이지 로딩, failure를 구별한다.
+
+### 공개 프로필
+
+`src/components/UserProfile/PublicProfile.tsx`
+
+- profile Flag action으로 바꾸고, 백엔드 정렬 보장에 따라 섹션 문구를 정정한다.
+
+### Flag 초대
+
+`src/app/flags/invitations/page.tsx`, `src/components/Flag/FlagInvitationTabs.tsx`, `src/components/Flag/FlagInvitationList.tsx`
+
+- `ReceivedFlagInvitationResult`, `SentFlagInvitationResult`를 `FlagInvitationResult`로 통일한다.
+- 받은 탭은 `counterpartNickname`을 "{이름}님이 초대했어요", 보낸 탭은 "{이름}님에게 보낸 초대"로 렌더링한다.
+- 수락·거절·취소 성공 시 해당 invitation ID 카드만 제거한다.
+- 실패 시 카드·탭 상태를 유지하고 오류를 해당 카드에 표시한다.
+
+## 6. 생성·수정 파일
 
 | 파일 | 변경 |
 |---|---|
-| `src/app/actions/friendRequest.ts` | 통합 목록(direction/status)·PATCH 상태 전이·counterpartId 취소 |
-| `src/app/requests/page.tsx` | direction=RECEIVED/SENT, status=PENDING 병렬 초기 조회, 탭별 ok 전달 |
-| `src/components/FriendRequest/counterpart.ts` | (신규) 방향별 counterpartId 파생 순수 함수 |
-| `src/components/FriendRequest/counterpart.test.ts` | (신규) received→requester.id, sent→receiver.id, ID 누락 검증 |
-| `src/components/FriendRequest/useFriendRequest.ts` | mutation 식별자 전환, 방향별 로딩 키, 중복 차단, 로컬 상태 변경 |
-| `src/components/FriendRequest/FriendRequestPage.tsx` | 방향별 counterpart 전달, 탭 실패 UI, 버튼 비활성화 |
+| `src/app/actions/flag.ts` | 최신 목록·profile·초대 query, PATCH 수락 계약 |
+| `src/app/flags/page.tsx` | 호스팅/참여 Slice 초기 조회 |
+| `src/components/Flag/FlagList.tsx` | 탭별 Slice 상태와 더 보기 |
+| `src/components/Flag/flagPage.ts` | 신규 Slice 정규화·병합 순수 함수 |
+| `src/components/Flag/flagPage.test.ts` | 신규 Slice 정규화 단위 테스트 |
+| `src/components/UserProfile/PublicProfile.tsx` | profile Flag action 및 문구 |
+| `src/app/flags/invitations/page.tsx` | direction별 통합 조회 |
+| `src/components/Flag/FlagInvitationTabs.tsx` | 공통 DTO와 방향별 UI |
+| `src/components/Flag/FlagInvitationList.tsx` | PATCH 수락·거절 계약 |
+| 초대 컴포넌트 테스트 | 방향별 문구, action 성공·실패 상태 |
 
-Mock 파일은 만들지 않는다. 단위 테스트는 counterpart 파생 함수만 최소 검증한다(테스트 러너는 기존 Vitest 사용).
+Mock 파일은 만들지 않는다. 실제 API 계약은 Server Action으로 연결하고, Slice·초대 UI의 순수 상태만 최소 단위 테스트한다.
 
-## 8. 작업 순서와 세이브 포인트
+## 7. 단계별 작업·검증
 
-### Phase 1 — 액션·순수 함수·정적 검증
+### Phase 1 — 계약·정적·단위
 
-1. `friendRequest.ts` 신규 계약으로 전환(목록/PATCH/DELETE).
-2. `counterpart.ts` 파생 함수 + 단위 테스트.
-3. `page.tsx`·`useFriendRequest.ts`·`FriendRequestPage.tsx` mutation 식별자/조회 전환.
-4. `rg '/sent|/accept|/hide' src/app/actions/friendRequest.ts` 0건, mutation 인자에 `requestId` 0건.
-5. `npm run lint`(Task 48 파일 오류 0건), `npx tsc --noEmit`(Task 48 파일 오류 0건).
-6. `npm test`(counterpart 테스트 통과).
-7. 커밋: `refactor(task-48): friend request 통합 조회와 counterpart 상태 전이`
+1. 최신 Flag controller의 URL·DTO·direction/거절 계약을 확정한다.
+2. `flagPage.ts`와 단위 테스트를 작성한다.
+3. Server Action을 Slice·profile·통합 초대·PATCH 수락으로 전환한다.
+4. 이전 목록·초대 URL(`flags/me`, `flags/friends`, `flags/recent`, `flag-invitations/received|sent|accept|reject`)의 잔존 여부를 확인한다.
+5. `npm run lint`, `npx tsc --noEmit`, 관련 Vitest를 실행한다.
+6. 통과 시 Phase 1 세이브포인트 커밋을 만든다.
 
-### Phase 2 — 실제 UI·상태 검증
+### Phase 2 — UI·상태
 
-이수환(user_id=4) 계정 기준.
-
-1. 받은/보낸 PENDING 목록과 각 Empty State를 실제 화면에서 확인했다.
-2. 이메일 검색 → 요청 전송 → 보낸 목록 표시를 확인했다.
-3. 받은 요청 수락 → 카드 제거를 확인하고, 생성된 친구 관계는 친구 삭제로 원복했다.
-4. 받은 요청 숨김 → 받은 탭 제거를 확인했다.
-5. 보낸 요청 취소 → 보낸 탭 제거를 확인했다.
-6. Server Action의 mutation 대상이 `counterpartId: number`인 것을 정적·단위 검증하고, 실제 전이 결과로 확인했다.
-7. 스크린샷 `harness/verify/verify-48-*.png` 저장.
-8. 최종 커밋에 검증 결과를 포함한다.
+1. 이수환 계정에서 호스팅·참여·feed 각 첫 페이지를 확인한다.
+2. 다음 페이지가 있는 탭에서 더 보기가 중복 없이 카드를 추가하는지 확인한다.
+3. 공개 프로필 Flag가 profile URL로 표시되는지 확인한다.
+4. 받은/보낸 초대가 counterpart 이름을 올바른 문구로 표시하는지 확인한다.
+5. pending 초대의 수락·거절·취소를 확정된 계약으로 실행해 해당 카드만 제거되는지 확인한다.
+6. `harness/verify/verify-49-*.png`에 화면을 저장한다.
+7. 통과 시 Phase 2 세이브포인트 커밋을 만든다.
 
 ### Phase 3 — 예외·회귀
 
-1. 받은/보낸 0건.
-2. 한쪽 탭 조회만 실패 → 반대 탭 정상.
-3. requester/receiver ID 없는 응답 → mutation 차단(버튼 비활성).
-4. accept/hide/cancel 연속 클릭 중복 차단.
-5. mutation 409/404 → 카드 유지 + 실패 사유 표시.
-6. 이미 보낸 상대 재전송 차단(`isAlreadySent`).
-7. 비친구 프로필/추천 패널 `sendFriendRequestAction(receiverId)` 회귀 확인(생성 API 유지).
-8. 커밋: `test(task-48): 예외와 회귀를 검증한다`
+1. 빈 Slice와 마지막 페이지의 Empty State·더 보기 비노출을 확인한다.
+2. 초기/다음 페이지 실패가 기존 카드나 반대 탭을 지우지 않는지 확인한다.
+3. 초대 mutation 실패 시 카드를 유지하고 오류를 표시하는지 확인한다.
+4. Flag 생성·상세·참여·탈퇴·댓글·메모리얼이 회귀하지 않았는지 확인한다.
+5. 통과 시 최종 커밋과 결과 기록을 만든다.
 
-## 9. 테스트 계획 (harness/TESTING_RULES.md 3단계)
+## 8. 현재 검증 결과
 
-- Phase 1(정적·단위): 삭제 URL 0건, `requestId` 인자 0건, lint/tsc/test.
-- Phase 2(UI·상태): 위 8항목, network path counterpartId 확인, 스크린샷.
-- Phase 3(예외): 위 8항목.
+- 전체 Vitest 26개가 통과했고, 신규 Slice 정규화 단위 테스트 4개를 추가했다.
+- Task 49 대상 ESLint 오류는 없다.
+- 이전 목록·초대 경로 문자열은 `src/app/actions/flag.ts`에서 제거했다.
+- 실제 백엔드에서 초대 `RECEIVED`·`SENT` 조회가 각각 정상 렌더링되고, `/flags`와 `/flags/feed` Slice 조회의 Empty State가 정상 표시됨을 확인했다.
+- `verify-49-01-sent-invitations-empty.png`, `verify-49-02-feed-empty.png`을 저장했다.
+- `npx tsc --noEmit`은 기존 stale generated `flag-query-controller`의 `GetUserFlagsByRoleParams` export 누락 1건으로 실패한다. Task 49 변경 파일 오류는 없다.
+- 초대 mutation을 위한 테스트 Flag 생성은 브라우저 자동화가 `datetime-local` 값을 React 입력 상태에 반영하지 못해 실행하지 못했다. Flag 또는 초대를 새로 만들지 않았고, 기존 데이터는 변경하지 않았다.
 
-기존 저장소 기준선 오류(Task 47 기록의 lint 15건 + Flag generated `GetUserFlagsByRoleParams` barrel TS 오류 1건)는 Task 48 범위를 넓히지 않기 위해 건드리지 않고 결과를 분리 기록한다.
+## 9. 제외 범위
 
-## 10. 제외 범위
+- Flag 생성·상세·참여·탈퇴·수정·모집 마감의 API 설계 변경
+- 댓글·메모리얼 API의 재작업
+- Flag 카드 디자인 전면 개편, 무한 스크롤·새 검색/정렬 UI
+- stale generated OpenAPI 파일 또는 생성기 설정 수정
 
-- 친구 관계 자체 PATCH/DELETE (`/friends/{friendId}`).
-- 추천 API/추천 노드(Task 47).
-- 숨긴 요청 전용 관리 화면, ACCEPTED/HIDDEN 히스토리 UI 신규 제작.
-- `HIDDEN→PENDING` 복구 UI 노출.
+## 10. 브랜치
 
-## 11. 브랜치
-
-승인 후 `main`(현재 `119b4fc`, Task 47 머지)에서 `agent/task-48-friend-request-api-refactor`를 만든다. `main` 머지와 push는 별도 사용자 요청 전에는 수행하지 않는다. Task 48 문서/기존 워킹트리 변경은 커밋에서 분리한다.
+승인 후 `main`의 `531f727`을 기준으로 `agent/task-49-flag-api-contract-refactor` 브랜치를 만들고 구현한다. main 머지와 push는 별도 사용자 요청 전에는 수행하지 않는다.

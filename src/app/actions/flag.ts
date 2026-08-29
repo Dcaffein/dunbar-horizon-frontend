@@ -2,6 +2,7 @@
 
 import { apiClient, isRedirectError, toFailure } from "@/api/apiClient";
 import type { FlagResult } from "@/api/model/flagResult";
+import type { SliceFlagResult } from "@/api/model/sliceFlagResult";
 import type { FlagDetailResult } from "@/api/model/flagDetailResult";
 import type { FlagCreateRequest } from "@/api/model/flagCreateRequest";
 import type { FlagDetailsUpdateRequest } from "@/api/model/flagDetailsUpdateRequest";
@@ -9,32 +10,40 @@ import type { FlagCapacityUpdateRequest } from "@/api/model/flagCapacityUpdateRe
 import type { FlagScheduleUpdateRequest } from "@/api/model/flagScheduleUpdateRequest";
 import type { MemorialResult } from "@/api/model/memorialResult";
 import type { CommentResult } from "@/api/model/commentResult";
-import type { ReceivedFlagInvitationResult } from "@/api/model/receivedFlagInvitationResult";
-import type { SentFlagInvitationResult } from "@/api/model/sentFlagInvitationResult";
+import type { FlagInvitationResult } from "@/api/model/flagInvitationResult";
+import { toFlagPage } from "@/components/Flag/flagPage";
 
-export async function getHostingFlagsAction() {
+export type FlagInvitationDirection = "RECEIVED" | "SENT";
+
+const FLAG_PAGE_SIZE = 20;
+
+export async function getHostingFlagsAction(page = 0, size = FLAG_PAGE_SIZE) {
   try {
-    const data = await apiClient.get<FlagResult[]>("/api/v1/flags/me?role=HOST");
-    return { success: true as const, data };
+    const data = await apiClient.get<SliceFlagResult>("/api/v1/flags", {
+      params: { role: "HOST", page, size },
+    });
+    return { success: true as const, data: toFlagPage(data, page) };
   } catch (error) {
     if (isRedirectError(error)) throw error;
-    return { success: false as const, data: [] as FlagResult[], failure: toFailure(error) };
+    return { success: false as const, data: toFlagPage({}, page), failure: toFailure(error) };
   }
 }
 
-export async function getParticipatingFlagsAction() {
+export async function getParticipatingFlagsAction(page = 0, size = FLAG_PAGE_SIZE) {
   try {
-    const data = await apiClient.get<FlagResult[]>("/api/v1/flags/me?role=PARTICIPANT");
-    return { success: true as const, data };
+    const data = await apiClient.get<SliceFlagResult>("/api/v1/flags", {
+      params: { role: "PARTICIPANT", page, size },
+    });
+    return { success: true as const, data: toFlagPage(data, page) };
   } catch (error) {
     if (isRedirectError(error)) throw error;
-    return { success: false as const, data: [] as FlagResult[], failure: toFailure(error) };
+    return { success: false as const, data: toFlagPage({}, page), failure: toFailure(error) };
   }
 }
 
-export async function getUserRecentFlagsAction(userId: number) {
+export async function getUserProfileFlagsAction(userId: number) {
   try {
-    const data = await apiClient.get<FlagResult[]>("/api/v1/flags/recent", {
+    const data = await apiClient.get<FlagResult[]>("/api/v1/flags/profile", {
       params: { userId },
       silent: true,
     });
@@ -45,13 +54,15 @@ export async function getUserRecentFlagsAction(userId: number) {
   }
 }
 
-export async function getFriendFlagsAction() {
+export async function getFeedFlagsAction(page = 0, size = FLAG_PAGE_SIZE) {
   try {
-    const data = await apiClient.get<FlagResult[]>("/api/v1/flags/friends");
-    return { success: true as const, data };
+    const data = await apiClient.get<SliceFlagResult>("/api/v1/flags/feed", {
+      params: { page, size },
+    });
+    return { success: true as const, data: toFlagPage(data, page) };
   } catch (error) {
     if (isRedirectError(error)) throw error;
-    return { success: false as const, data: [] as FlagResult[], failure: toFailure(error) };
+    return { success: false as const, data: toFlagPage({}, page), failure: toFailure(error) };
   }
 }
 
@@ -134,7 +145,7 @@ export async function inviteFriendAction(flagId: number, inviteeId: number) {
 
 export async function acceptInvitationAction(invitationId: number) {
   try {
-    await apiClient.post(`/api/v1/flag-invitations/${invitationId}/accept`);
+    await apiClient.patch(`/api/v1/flag-invitations/${invitationId}`, { status: "ACCEPTED" });
     return { success: true as const };
   } catch (error) {
     if (isRedirectError(error)) throw error;
@@ -145,7 +156,7 @@ export async function acceptInvitationAction(invitationId: number) {
 
 export async function rejectInvitationAction(invitationId: number) {
   try {
-    await apiClient.post(`/api/v1/flag-invitations/${invitationId}/reject`);
+    await apiClient.delete(`/api/v1/flag-invitations/${invitationId}`);
     return { success: true as const };
   } catch (error) {
     if (isRedirectError(error)) throw error;
@@ -154,24 +165,24 @@ export async function rejectInvitationAction(invitationId: number) {
   }
 }
 
-export async function getReceivedInvitationsAction() {
+export async function getFlagInvitationsAction(direction: FlagInvitationDirection) {
   try {
-    const data = await apiClient.get<ReceivedFlagInvitationResult[]>("/api/v1/flag-invitations/received");
+    const data = await apiClient.get<FlagInvitationResult[]>("/api/v1/flag-invitations", {
+      params: { direction },
+    });
     return { success: true as const, data };
   } catch (error) {
     if (isRedirectError(error)) throw error;
-    return { success: false as const, data: [] as ReceivedFlagInvitationResult[], failure: toFailure(error) };
+    return { success: false as const, data: [] as FlagInvitationResult[], failure: toFailure(error) };
   }
 }
 
+export async function getReceivedInvitationsAction() {
+  return getFlagInvitationsAction("RECEIVED");
+}
+
 export async function getSentInvitationsAction() {
-  try {
-    const data = await apiClient.get<SentFlagInvitationResult[]>("/api/v1/flag-invitations/sent");
-    return { success: true as const, data };
-  } catch (error) {
-    if (isRedirectError(error)) throw error;
-    return { success: false as const, data: [] as SentFlagInvitationResult[], failure: toFailure(error) };
-  }
+  return getFlagInvitationsAction("SENT");
 }
 
 export async function cancelInvitationAction(invitationId: number) {

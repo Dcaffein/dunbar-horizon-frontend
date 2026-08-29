@@ -3,12 +3,11 @@ import { isRedirectError, toFailure } from "@/api/apiClient";
 import type { Failure } from "@/api/apiClient";
 import { getReceivedInvitationsAction, getSentInvitationsAction } from "@/app/actions/flag";
 import FlagInvitationTabs from "@/components/Flag/FlagInvitationTabs";
-import type { ReceivedFlagInvitationResult } from "@/api/model/receivedFlagInvitationResult";
-import type { SentFlagInvitationResult } from "@/api/model/sentFlagInvitationResult";
+import type { FlagInvitationResult } from "@/api/model/flagInvitationResult";
 
 export default async function FlagInvitationsPage() {
-  let received: ReceivedFlagInvitationResult[] = [];
-  let sent: SentFlagInvitationResult[] = [];
+  let received: FlagInvitationResult[] = [];
+  let sent: FlagInvitationResult[] = [];
 
   // 탭마다 데이터가 달라 실패도 따로 잡는다. 한쪽이 실패해도 다른 쪽은 정상 표시된다.
   let receivedFailure: Failure | undefined;

@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { ReceivedFlagInvitationResult } from "@/api/model/receivedFlagInvitationResult";
-import type { SentFlagInvitationResult } from "@/api/model/sentFlagInvitationResult";
+import type { FlagInvitationResult } from "@/api/model/flagInvitationResult";
 import FlagInvitationList from "@/components/Flag/FlagInvitationList";
 import FailureState from "@/components/common/FailureState";
 import type { Failure } from "@/api/apiClient";
@@ -22,7 +21,7 @@ function relativeTime(createdAt?: string): string {
 }
 
 interface SentInvitationCardProps {
-  invitation: SentFlagInvitationResult;
+  invitation: FlagInvitationResult;
   onRemove: (id: number) => void;
 }
 
@@ -53,8 +52,8 @@ function SentInvitationCard({ invitation, onRemove }: SentInvitationCardProps) {
             {invitation.flagDescription && (
               <p className="text-xs text-gray-500 mt-1">{invitation.flagDescription}</p>
             )}
-            {invitation.inviteeNickname && (
-              <p className="text-xs text-gray-500 mt-1">{invitation.inviteeNickname}님에게 보낸 초대</p>
+            {invitation.counterpartNickname && (
+              <p className="text-xs text-gray-500 mt-1">{invitation.counterpartNickname}님에게 보낸 초대</p>
             )}
             <p className="text-xs text-gray-400 mt-1.5">{relativeTime(invitation.createdAt)}</p>
           </div>
@@ -75,7 +74,7 @@ function SentInvitationCard({ invitation, onRemove }: SentInvitationCardProps) {
 }
 
 interface SentInvitationListProps {
-  initialInvitations: SentFlagInvitationResult[];
+  initialInvitations: FlagInvitationResult[];
 }
 
 function SentInvitationList({ initialInvitations }: SentInvitationListProps) {
@@ -108,8 +107,8 @@ function SentInvitationList({ initialInvitations }: SentInvitationListProps) {
 type Tab = "received" | "sent";
 
 interface FlagInvitationTabsProps {
-  initialReceived: ReceivedFlagInvitationResult[];
-  initialSent: SentFlagInvitationResult[];
+  initialReceived: FlagInvitationResult[];
+  initialSent: FlagInvitationResult[];
   receivedFailure?: Failure;
   sentFailure?: Failure;
 }
