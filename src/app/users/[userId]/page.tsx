@@ -20,15 +20,14 @@ export default async function UserProfilePage({
       if (isRedirectError(error)) throw error;
       return null;
     }),
-    getLabelsAction().catch((error) => {
+    getLabelsAction(userId).catch((error) => {
       if (isRedirectError(error)) throw error;
       return { success: false as const, data: [] };
     }),
   ]);
 
   if (friendResult?.success && friendResult.data) {
-    const myLabels = (labelsResult.data ?? [])
-      .filter((l) => l.members?.some((m) => m.id === userId));
+    const myLabels = labelsResult.data ?? [];
     return <FriendProfile profile={friendResult.data} userId={userId} myLabels={myLabels} />;
   }
 

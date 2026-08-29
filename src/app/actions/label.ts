@@ -4,15 +4,37 @@ import { apiClient, isRedirectError, toFailure } from "@/api/apiClient";
 import type { LabelResult } from "@/api/model/labelResult";
 import type { LabelCreateRequest } from "@/api/model/labelCreateRequest";
 import type { LabelMemberAddRequest } from "@/api/model/labelMemberAddRequest";
+import type { LabelMemberResult } from "@/api/model/labelMemberResult";
 
-export async function getLabelsAction() {
+export async function getLabelsAction(memberId?: number) {
   try {
-    const data = await apiClient.get<LabelResult[]>("/api/v1/labels");
+    const searchParams = new URLSearchParams();
+    if (memberId !== undefined) searchParams.set("memberId", String(memberId));
+    const query = searchParams.toString();
+    const data = await apiClient.get<LabelResult[]>(`/api/v1/labels${query ? `?${query}` : ""}`);
     return { success: true as const, data };
   } catch (error) {
     if (isRedirectError(error)) throw error;
     console.error("getLabelsAction error:", error);
     return { success: false as const, data: [] as LabelResult[], message: "레이블 목록을 불러오는 데 실패했습니다.", failure: toFailure(error) };
+  }
+}
+
+export async function getLabelMembersAction(labelId: string) {
+  try {
+    const data = await apiClient.get<LabelMemberResult[]>(
+      `/api/v1/labels/${encodeURIComponent(labelId)}/members`,
+    );
+    return { success: true as const, data };
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    console.error("getLabelMembersAction error:", error);
+    return {
+      success: false as const,
+      data: [] as LabelMemberResult[],
+      message: "레이블 멤버를 불러오는 데 실패했습니다.",
+      failure: toFailure(error),
+    };
   }
 }
 

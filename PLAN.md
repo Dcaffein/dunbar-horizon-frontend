@@ -1,179 +1,225 @@
-# PLAN: Task 45 — validation 응답을 폼 필드에 바인딩
+# PLAN: Task 46 — Label 목록 축소와 멤버 지연 조회
 
-배경은 `harness/tasks/45-validation-field-binding.md` 참고.
+배경과 계약은 `harness/tasks/46-label-member-lazy-load.md`를 따른다.
 
-## 1. 착수 전 조사 결과
+## 1. 요구사항 분석
 
-문서에 "키가 폼 필드명과 일치하는지 먼저 확인"이라고 적어둔 항목을 실측했다.
-Task 43에서 404 문제를 찾은 것과 같은 방식으로 400 응답을 전수 수집했다.
+백엔드 `LabelResult`가 `{ id, labelName, members[] }`에서 `{ id, labelName, memberCount }`로 바뀌었다. 프론트는 목록 응답만으로 멤버를 알고 있다는 가정을 제거하고, 멤버가 실제로 필요한 시점에 `GET /api/v1/labels/{labelId}/members`를 호출해야 한다.
 
-### 좋은 소식 — 키가 그대로 맞는다
+또한 친구 프로필의 “이 친구가 속한 내 라벨”은 전체 라벨의 멤버를 역탐색하지 않고 `GET /api/v1/labels?memberId={userId}`로 조회한다.
 
-```
-Flag 생성   {"title":"...", "description":"...", "startDateTime":"...", "endDateTime":"..."}
-Flag 인원   {"capacity":"..."}
-댓글·메모리얼 {"content":"..."}
-Buzz        {"recipient":"...", "text":"..."}
-Label       {"labelName":"..."}
-프로필      {"nickname":"..."}
-```
+완료 조건은 다음과 같다.
 
-`FlagForm`의 `errors.title` · `errors.startDateTime` · `errors.capacity` 와 **키가 동일하다.**
-매핑 테이블이 필요 없다.
-
-### 나쁜 소식 — 문구의 절반이 영문이다
-
-| 엔드포인트 | 문구 |
-|---|---|
-| Flag 생성 | `must not be blank` / `must not be null` |
-| Flag 인원 | `must be greater than or equal to 1` |
-| 댓글 501자 | `size must be between 0 and 500` |
-| Buzz | **수신자 정보는 필수입니다.** |
-| Label | **라벨 이름은 필수입니다.** |
-| 프로필 | **닉네임은 1자 이상 20자 이하로 입력해주세요.** |
-
-**그대로 꽂으면 한국어 UI에 `must not be blank` 가 뜬다.**
-
-왜 엔드포인트마다 다른지는 백엔드 사정이고 프론트가 알 필요도 없다.
-프론트에 필요한 사실은 하나다 — **일부 엔드포인트의 `validation` 문구는
-사용자에게 그대로 보여줄 수 없다.**
-
-Task 43의 404와 같은 종류의 발견이다 — 노출 범위를 넓히기 전에 무엇이 노출되는지 재봤더니
-그대로 쓸 수 없는 것이 섞여 있었다.
-
-### 부수적으로 발견한 백엔드 이슈 1건 (이 태스크 범위 밖, 보고 대상)
-
-**Flag 제목 256자부터 500** (`InternalServerException`). 경계를 이분해 확인했다.
-
-```
-한글 255자(765byte) → 201     ASCII 255자 → 201
-한글 256자(768byte) → 500     ASCII 256자 → 500
-```
-
-바이트가 아니라 **글자 수 255 경계**다. 원인은 알 수 없고 알 필요도 없다 —
-관찰된 사실은 **400 + `validation` 이 아니라 500 이 온다**는 것뿐이다.
-
-프론트 입장에서는 **400 + `validation` 으로 와야 제목 칸에 표시할 수 있다.**
-지금은 500 이라 Task 42 규칙에 따라 "일시적인 오류가 발생했습니다"로 뜨고,
-사용자는 제목이 길어서 실패한 것을 모른다.
+- 메인·Buzz의 라벨 목록은 `memberCount` 계약으로 정상 렌더링된다.
+- 라벨 카드 선택과 멤버 추가 진입에서 필요한 라벨 멤버만 지연 조회된다.
+- 같은 라벨의 성공한 멤버 조회는 현재 화면 생명주기 동안 재사용된다.
+- 멤버 미조회, 로딩, 성공한 빈 목록, 실패가 구분된다.
+- 추가·삭제 성공/실패에서 멤버 목록과 `memberCount`가 어긋나지 않는다.
+- 친구 프로필은 `memberId` 역방향 조회를 사용하고 바텀시트 멤버를 별도 로드한다.
+- `LabelResult.members` 참조가 남지 않는다.
 
 ## 2. 설계
 
-### 프론트가 문구를 소유하는 범위는 좁다
+### 2.1 Server Action
 
-세 경우를 구분한다.
-
-| 상황 | 대응 |
-|---|---|
-| `validation` 자체가 없는 400 | **기존 그대로** — `message`("입력값이 올바르지 않습니다")를 쓴다. 필드 문구를 만들지 않는다 |
-| `validation` 값이 **한국어** | **그대로 표시** (Buzz·Label·프로필) |
-| `validation` 값이 **영문** | 여기서만 FE 문구로 대체 |
-
-대체 문구는 **필드별 맞춤이 아니라 일반 문구 하나**다 — `"올바른 값을 입력해 주세요."`
-`"제목은 1~50자여야 합니다"` 같은 **규칙을 프론트가 다시 쓰지 않는다.**
-그러면 검증 규칙이 두 곳에 생기고 백엔드가 규칙을 바꿀 때 조용히 어긋난다.
-어느 칸이 틀렸는지만 정확히 알려주고, 무엇이 틀렸는지는 백엔드가 문구를 채울 때 좋아진다.
-
-판정은 문구에 **한글이 하나도 없으면** 사용자에게 보여줄 수 없는 문구로 간주한다.
+`src/app/actions/label.ts`에 다음 조회를 둔다.
 
 ```ts
-const hasKorean = /[가-힣]/.test(msg);
-return hasKorean ? msg : FIELD_FALLBACK;   // "올바른 값을 입력해 주세요."
+getLabelsAction(memberId?: number)
+getLabelMembersAction(labelId: string)
 ```
 
-휴리스틱이라는 점은 분명히 해둔다. 다만
+- `memberId`가 있을 때만 `URLSearchParams`에 추가한다.
+- 멤버 응답은 `LabelMemberResult[]`로 받는다.
+- 두 액션 모두 redirect error를 다시 throw하고, 그 외 실패는 `failure`와 사용자용 message를 반환한다.
+- 기존 생성·삭제·멤버 추가·삭제 액션은 경로와 body가 유지되므로 반환 형태만 새 상태 관리와 맞춘다.
 
-- 오판의 방향이 안전하다 — 한국어 문구를 영문으로 오인할 일이 없고,
-  영문을 놓쳐도 지금과 같은 상태일 뿐이다
-- 백엔드가 해당 문구를 한국어로 바꾸면 **이 분기는 자연히 안 쓰이게 된다.** 코드를 되돌릴 필요가 없다
-- 문자열 내용으로 **분기**하는 것이 아니라 **표시 여부**만 정한다. Task 42가 금지한
-  "메시지로 동작을 가르는 것"과는 다르다
+### 2.2 Label 화면 모델
 
-구체적인 문구를 잃는 대신 언어 일관성을 얻는 교환이다. 백엔드 정비 요청과 병행한다.
-
-### 액션은 실어 보내기만 한다
-
-Task 44의 `failure` 와 같은 방식. 반환 타입에 추가만 하므로 기존 소비자가 깨지지 않는다.
+API DTO를 UI 상태로 직접 사용하지 않는다. `src/components/Label/types.ts`의 `Label`을 다음 의미로 확장한다.
 
 ```ts
-catch (error) {
-  if (isRedirectError(error)) throw error;
-  const message = error instanceof Error ? error.message : "Flag 생성에 실패했습니다.";
-  return { success: false as const, message, validation: toFieldErrors(error) };
+type LabelMembersStatus = "idle" | "loading" | "success" | "error";
+
+interface Label {
+  id: string;
+  labelName: string;
+  memberCount: number;
+  members: LabelMember[];
+  membersStatus: LabelMembersStatus;
 }
 ```
 
-`toFieldErrors(error)` 는 `ApiError.validation` 을 위 규칙으로 정제해 `Record<string,string>`
-또는 `undefined` 를 돌려준다. `apiClient` 옆에 둔다.
+- `idle + []`: 아직 조회하지 않음
+- `success + []`: 실제 빈 라벨
+- `error`: 마지막 조회 실패, 재시도 가능
+- `memberCount`는 목록의 서버 값을 기준으로 하며 생성 응답에 없으면 0으로 정규화한다.
 
-### 폼은 기존 슬롯에 병합한다
+상태를 별도 Map으로 이중 관리하지 않고 라벨 한 항목 안에 모아 count와 members의 원자적 갱신을 쉽게 한다.
 
-`FlagForm` 은 이미 `errors: Record<string, string>` 과 필드별 `<p>` 를 갖고 있다.
-서버 결과를 그 위에 얹으면 끝이다.
+### 2.3 멤버 캐시와 중복 호출 방지
 
-```ts
-if (!result.success) {
-  setErrors((prev) => ({ ...prev, ...(result.validation ?? {}), submit: result.validation ? "" : result.message }));
-}
-```
+`src/components/Label/useLabelManager.ts`가 메인 그래프 화면의 라벨 멤버 상태를 소유한다.
 
-필드 에러가 있으면 하단의 뭉뚱그린 문구(`errors.submit`)는 비운다. 같은 내용을 두 번 보여줄 이유가 없다.
+- `ensureMembersLoaded(labelId, { force?: boolean })`
+- `success`이면 캐시 반환
+- `loading`이면 같은 요청을 다시 만들지 않음
+- `idle/error`이면 조회 시작
+- 실패 후 재시도는 `force` 없이도 허용
+- 응답이 돌아올 때 라벨이 삭제됐으면 폐기
+- 라벨별 request sequence 또는 Promise ref로 늦은 응답이 최신 상태를 덮지 못하게 방어
 
-## 3. 대상
+React state에는 직렬화 가능한 상태만 두고, in-flight Promise/request token은 `useRef`에 둔다.
 
-| 폼 | 슬롯 | 할 일 |
-|---|---|---|
-| `Flag/FlagForm.tsx` | 있음 (title·description·startDateTime·endDateTime·capacity) | 병합만 |
-| `Buzz/BuzzForm.tsx` | 있음 | 병합. 키는 `recipient`·`text` |
-| `MyProfile/MyProfile.tsx` | **없음** | `nickname` 슬롯 추가 |
-| `Label` 생성·수정 | **없음** | `labelName` 슬롯 추가 |
-| 댓글·메모리얼 | 입력이 한 칸뿐 | **제외** — 기존 단일 문구로 충분하고, Task 41의 `maxLength` 가드가 이미 예방한다 |
-| 회원가입 | 이미 완료 | 손대지 않는다 (선례) |
+### 2.4 라벨 선택과 그래프
 
-## 4. Phase
+`LabelManager`의 `onLabelSelect`는 멤버 ID 배열을 즉시 전달하는 현재 계약을 없애고 라벨 ID 선택만 알린다.
 
-1. **장치** — `toFieldErrors()` + 액션 반환 타입에 `validation` 추가 (소비하지 않음)
-2. **슬롯 있는 폼** — `FlagForm`, `BuzzForm` 병합
-3. **슬롯 없는 폼** — `MyProfile`, `Label` 에 필드 에러 표시 추가
+`src/components/socialGraph/index.tsx`의 라벨 선택 흐름에서:
 
-Phase 1은 화면 동작이 바뀌지 않는다. Task 44와 같은 구조다.
+1. 라벨 네트워크 조회와 `ensureMembersLoaded(labelId)`를 같은 이벤트에서 시작한다.
+2. 네트워크 결과는 기존 그래프 edge/node 상태에 반영한다.
+3. 멤버 결과가 도착하면 모든 member ID를 manual node 집합에 반영해 고립 멤버도 표시한다.
+4. 멤버 조회 실패는 네트워크 성공 결과를 지우지 않는다.
+5. 선택이 바뀐 뒤 도착한 이전 라벨 결과는 현재 그래프에 반영하지 않는다.
 
-## 5. 검증
+Task 47의 `/network/labels/{labelId}` 경로 변경은 이 태스크에서 다루지 않는다. 현재 액션을 그대로 호출하며, Task 47에서 URL만 교체할 수 있게 흐름을 분리한다.
 
-### Phase 1
+### 2.5 멤버 추가·삭제
 
-- `npx tsc --noEmit`, `npm run lint` (총계 15 problems 유지)
-- 전 도메인 스모크에서 **화면이 지금과 동일**할 것
+- 멤버 추가 UI를 열기 전에 해당 라벨 멤버 로드를 완료한다.
+- 로딩 중에는 검색 입력과 추가를 비활성화한다.
+- 실패하면 후보 전체를 보여주지 않고 오류와 재시도 버튼을 표시한다.
+- 추가는 이미 캐시에 있는 ID면 API를 호출하지 않는다.
+- 낙관적 추가 시 members append와 `memberCount + 1`을 한 state update에서 수행한다.
+- 실패 시 두 값을 함께 롤백한다.
+- 삭제도 removed member snapshot과 이전 count를 보관해 함께 롤백한다.
+- count는 0 미만으로 내려가지 않는다.
 
-### Phase 2·3 — 실제 백엔드로 폼마다 틀린 값 입력
+### 2.6 친구 프로필
 
-| 폼 | 입력 | 기대 |
-|---|---|---|
-| Flag 생성 | 제목·설명 비움 | 두 칸 **각각** 아래에 안내. 영문(`must not be blank`)이 아닌 한국어 |
-| Flag 생성 | 인원 `-5` | 인원 칸 아래에 안내 |
-| Buzz | 본문 비움 | 본문 칸 아래에 **"본문 내용은 필수입니다."** (백엔드 한국어 그대로) |
-| Label | 이름 비움 | **"라벨 이름은 필수입니다."** |
-| 프로필 | 닉네임 비움 | **"닉네임은 1자 이상 20자 이하로 입력해주세요."** |
+`src/app/users/[userId]/page.tsx`는 친구 상세와 `getLabelsAction(userId)`를 병렬 호출한다. 더 이상 `LabelResult.members.some()`으로 필터링하지 않는다.
 
-**대조 항목**: 백엔드가 한국어를 준 경우(Buzz·Label·프로필)는 **그 문구가 그대로** 나와야 한다.
-FE 대체 문구로 덮이면 버그다.
+`src/components/FriendProfile/FriendProfile.tsx`는 프로필 화면 전용의 라벨별 멤버 캐시를 갖는다.
 
-### 회귀
+- 라벨 칩 클릭 시 `getLabelMembersAction(labelId)` 호출
+- 바텀시트에 로딩, 실패+재시도, 빈 상태, 멤버 목록을 구분 표시
+- 성공한 결과는 동일 페이지에서 재사용
+- 다른 라벨로 빠르게 이동해도 선택된 라벨의 결과만 표시
 
-- 클라이언트 검증(제출 전)은 지금과 동일하게 동작할 것
-- 서버 검증 실패 시 **입력값이 보존**될 것 (폼이 비워지면 안 된다)
+메인 그래프와 프로필은 서로 다른 라우트 생명주기이므로 전역 캐시를 새로 도입하지 않는다.
 
-Phase별 커밋. **push는 하지 않는다.**
+### 2.7 Buzz
 
-## 6. 리스크
+Buzz는 라벨의 `id`, `labelName`만 사용한다. 코드 변경은 타입 오류가 발생하는 최소 범위에 한정하며 멤버 조회를 추가하지 않는다.
 
-| 리스크 | 대응 |
+## 3. 생성·수정할 파일
+
+| 파일 | 변경 |
 |---|---|
-| 한글 판정 휴리스틱의 오판 | 방향이 안전(한국어→영문 오인 불가). 백엔드 문구가 한국어가 되면 자연 소멸 |
-| 서버 검증 실패 후 입력값 소실 | 회귀 항목으로 명시 검증 |
-| 필드 에러와 하단 문구 중복 표시 | 필드 에러가 있으면 `errors.submit` 을 비운다 |
-| 백엔드가 새 필드를 추가하면 슬롯이 없어 안 보임 | 매칭 안 되는 키는 하단 문구로 모아 표시(누락 방지) |
+| `src/app/actions/label.ts` | `memberId` query와 `getLabelMembersAction` |
+| `src/app/page.tsx` | 초기 라벨을 `memberCount`, `membersStatus: idle`로 변환 |
+| `src/app/users/[userId]/page.tsx` | 친구별 역방향 라벨 조회 |
+| `src/components/Label/types.ts` | `memberCount`, `membersStatus` 추가 |
+| `src/components/Label/useLabelManager.ts` | 지연 조회, in-flight 방지, add/remove 정합성 |
+| `src/components/Label/useLabelManager.test.ts` | 캐시와 낙관적 갱신 단위 검증 |
+| `src/components/Label/LabelManager.tsx` | count, 멤버 로딩·실패·빈 상태, 재시도 |
+| `src/components/socialGraph/index.tsx` | 라벨 network/member 병렬 시작과 고립 노드 반영 |
+| `src/components/FriendProfile/FriendProfile.tsx` | 바텀시트 멤버 지연 조회·캐시 |
 
-## 7. 브랜치
+`src/app/actions/buzz.ts`, `src/app/buzzes/new/page.tsx`, `src/components/Buzz/BuzzForm.tsx`는 읽기 대조 대상으로 두고 실제 타입 오류가 없으면 수정하지 않는다.
 
-`agent/task-45-validation-field-binding` (main에서 분기, Task 44 병합 완료 상태).
+새 Mock 파일은 만들지 않는다. 이번 작업은 사용자가 제공한 실제 백엔드 계약 연동이며, UI 검증 데이터는 `harness/fixtures/users.md`, `harness/fixtures/friendships.md`를 사용한다.
+
+## 4. 작업 순서와 세이브 포인트
+
+### Phase 1 — 계약·상태 기반 마련
+
+1. label 조회 Server Action 두 개 구현
+2. Label UI 모델 변경
+3. 메인 페이지와 사용자 프로필의 제거된 `members` 참조 교체
+4. `useLabelManager` 지연 조회·캐시·낙관적 갱신 구현
+5. 단위 테스트 작성
+6. lint, TypeScript, 단위 테스트 통과
+7. 커밋: `feat(task-46): 라벨 멤버 지연 조회 상태를 도입한다`
+
+### Phase 2 — UI·그래프 연결
+
+1. LabelManager 로딩·실패·빈 상태와 재시도 UI
+2. 라벨 선택 시 network/member 병렬 시작
+3. 고립 멤버 노드 반영
+4. FriendProfile 바텀시트 지연 조회와 캐시
+5. 실제 UI/상태 검증과 스크린샷
+6. 커밋: `feat(task-46): 라벨 멤버 지연 조회 UI를 연결한다`
+
+### Phase 3 — 예외와 회귀
+
+1. 늦은 응답, 빠른 선택 전환, 중복 클릭 검증
+2. 조회·추가·삭제 실패 및 롤백 검증
+3. 빈 라벨·빈 멤버·삭제된 라벨 응답 검증
+4. 최종 lint, TypeScript, 단위 테스트와 회귀 확인
+5. 커밋: `test(task-46): 라벨 멤버 지연 조회 예외를 검증한다`
+
+## 5. 테스트 시나리오
+
+### Phase 1 — 정적 분석·단위 검증
+
+- `rg "LabelResult|\.members" src/app src/components`로 API DTO의 제거 필드 참조 전수 확인
+- `npm run lint`
+- `npx tsc --noEmit`
+- 프로젝트에 설정된 Vitest 실행 명령을 확인해 `useLabelManager.test.ts` 실행
+- 최초 조회 1회, 성공 캐시 재사용, 실패 후 재시도
+- 동일 라벨 중복 호출이 한 요청으로 합쳐지는지 확인
+- 빈 응답은 `success + []`가 되는지 확인
+- add/remove 성공, 실패 롤백, 중복 추가에서 count와 members 일치
+
+### Phase 2 — UI·상태 검증
+
+기본 계정 이수환(user_id=4)과 fixtures의 실제 친구·라벨 데이터를 사용한다.
+
+- 메인 로드 직후 모든 라벨 카드 count가 서버 `memberCount`와 일치
+- 활성 라벨 첫 클릭에서 network와 members 요청이 함께 시작
+- 멤버 로딩 중 로딩 UI, 성공 후 칩 목록 표시
+- 같은 라벨 재선택 시 멤버 API 재호출 없음
+- edge가 없는 멤버도 그래프 노드에 표시
+- 멤버 추가 검색에서 기존 멤버 제외
+- 추가·삭제 직후 count와 칩이 동시에 갱신
+- 친구 프로필에 해당 친구가 속한 라벨만 표시
+- 프로필 바텀시트 첫 진입 조회와 재진입 캐시 확인
+- 스크린샷:
+  - `harness/verify/verify-46-01-label-count.png`
+  - `harness/verify/verify-46-02-member-loaded.png`
+  - `harness/verify/verify-46-03-profile-label-members.png`
+
+### Phase 3 — 예외 상황
+
+- 라벨 0개일 때 빈 목록 UI
+- `memberCount: 0`인 라벨을 열었을 때 조회 성공 후 “멤버가 없습니다” 표시
+- 멤버 조회 4xx/5xx에서 오류와 재시도 표시, 빈 상태 문구 금지
+- 멤버 조회 실패 상태에서 추가 후보 노출·추가 API 호출 차단
+- A 라벨 조회 중 B 라벨 선택 시 A 응답이 B 그래프/바텀시트를 덮지 않음
+- 추가·삭제 API 실패 시 members와 count 모두 이전 값으로 복원
+- 삭제된 라벨의 늦은 응답 폐기
+- Buzz 라벨 선택과 라벨 생성·삭제 회귀 없음
+
+## 6. 백엔드 계약 판단
+
+아래는 구현을 막지 않는 범위에서 방어적으로 처리한다.
+
+- 생성 응답에 `memberCount`가 없으면 0으로 정규화
+- 멤버 추가·삭제 응답이 void인 현재 계약을 유지하고 프론트 낙관적 갱신 사용
+- 멤버 정렬은 서버 응답 순서를 보존
+- 다른 사용자의 labelId 접근 실패는 status와 무관하게 failure UI로 처리하고 빈 배열로 바꾸지 않음
+
+배열 정렬과 403/404 구분은 사용자 동작을 바꾸지 않으므로 추가 확인 때문에 착수를 멈추지 않는다.
+
+## 7. 제외 범위
+
+- `/networks/**` → `/network/**` 전환과 통합 edge API: Task 47
+- Label CRUD UX 재설계
+- 전역 캐시 라이브러리 도입
+- Buzz에 불필요한 멤버 조회 추가
+
+## 8. 브랜치
+
+승인 후 로컬 `main`의 `ecc2dbb`에서 `agent/task-46-label-member-lazy-load` 브랜치를 생성한다. 현재 미커밋 Task 46~48 문서는 보존하고, Task 46 구현 커밋에는 Task 47·48 문서를 포함하지 않는다.

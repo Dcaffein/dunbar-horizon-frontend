@@ -43,7 +43,9 @@ export default async function MainPage() {
         .map((r) => ({
           id: r.id!,
           labelName: r.labelName ?? "",
-          members: (r.members ?? []).filter((m) => m.id != null).map((m) => ({ id: m.id!, nickname: m.nickname ?? "" })),
+          memberCount: r.memberCount ?? 0,
+          members: [],
+          membersStatus: "idle" as const,
         }))
     : [];
 
