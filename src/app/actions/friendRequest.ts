@@ -38,14 +38,20 @@ export async function sendFriendRequestAction(receiverId: number) {
 
 /**
  * 받은/보낸 요청을 하나의 목록 API로 조회한다.
- * status는 생략 시 백엔드가 전체 상태를 반환하므로 항상 명시 전송한다.
+ *
+ * 백엔드 계약(실측):
+ * - direction=RECEIVED 는 status 필터를 지원한다.
+ * - direction=SENT 는 status 를 붙이면 400(FriendRequestInvalidException)을 던진다.
+ *   ("sent 조회에는 status를 사용할 수 없습니다.") → SENT는 status를 생략한다.
+ * 따라서 status는 선택 인자이며, 전달된 경우에만 query에 직렬화한다.
  */
 export async function getFriendRequestsAction(
   direction: FriendRequestDirection,
-  status: FriendRequestStatus = "PENDING",
+  status?: FriendRequestStatus,
 ) {
   try {
-    const params = new URLSearchParams({ direction, status });
+    const params = new URLSearchParams({ direction });
+    if (status) params.append("status", status);
     const data = await apiClient.get<FriendRequestResult[]>(
       `/api/v1/friend-requests?${params.toString()}`,
     );
@@ -63,7 +69,8 @@ export async function getReceivedRequestsAction() {
 }
 
 export async function getSentRequestsAction() {
-  return getFriendRequestsAction("SENT", "PENDING");
+  // SENT는 status 미지원. 붙이면 400을 반환한다.
+  return getFriendRequestsAction("SENT");
 }
 
 /**
