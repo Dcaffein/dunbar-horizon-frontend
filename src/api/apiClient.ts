@@ -31,8 +31,10 @@ export type ApiErrorCode =
   // 공통 — 스프링이 요청 처리 전에 던지는 것들
   | "INVALID_INPUT"
   | "INVALID_JSON_FORMAT"
-  | "INVALID_REQUEST"
   | "INVALID_PARAMETER_TYPE"
+  | "INVALID_REQUEST"
+  | "AUTH_TOKEN_EXPIRED"
+  | "AUTH_TOKEN_INVALID"
   | "UNAUTHORIZED"
   | "ACCESS_DENIED"
   | "RESOURCE_NOT_FOUND"
@@ -41,62 +43,88 @@ export type ApiErrorCode =
   | "UNSUPPORTED_MEDIA_TYPE"
   | "INTERNAL_SERVER_ERROR"
   // account
-  | "ACCOUNT_ALREADY_ACTIVATED"
-  | "ACCOUNT_ALREADY_REGISTERED_EMAIL"
-  | "ACCOUNT_AUTH_NOT_FOUND"
   | "ACCOUNT_INVALID_CREDENTIALS"
-  | "ACCOUNT_VERIFICATION_TOKEN_INVALID"
   | "ACCOUNT_REFRESH_TOKEN_NOT_FOUND"
   | "ACCOUNT_TOKEN_THEFT_DETECTED"
   | "ACCOUNT_USER_NOT_FOUND"
-  | "AUTH_TOKEN_EXPIRED"
-  | "AUTH_TOKEN_INVALID"
+  | "ACCOUNT_ALREADY_ACTIVATED"
+  | "ACCOUNT_ALREADY_REGISTERED_EMAIL"
+  | "ACCOUNT_VERIFICATION_TOKEN_INVALID"
   // flag
-  | "FLAG_ACCESS_DENIED"
-  | "FLAG_DEADLINE_PASSED"
+  | "FLAG_COMMENT_INVALID_CONTENT"
+  | "FLAG_COMMENT_REPLY_DEPTH_EXCEEDED"
+  | "FLAG_DESCRIPTION_LENGTH_INVALID"
+  | "FLAG_HOST_REQUIRED"
   | "FLAG_FULL_CAPACITY"
-  | "FLAG_INVALID_BASIC_INFO"
   | "FLAG_INVALID_CAPACITY"
-  | "FLAG_INVALID_STATUS"
+  | "FLAG_INVITATION_INVALID_DIRECTION"
+  | "FLAG_MEMORIAL_INVALID_CONTENT"
+  | "FLAG_SCHEDULE_DEADLINE_AFTER_START"
+  | "FLAG_SCHEDULE_END_BEFORE_START"
+  | "FLAG_SCHEDULE_REQUIRED"
+  | "FLAG_TITLE_LENGTH_INVALID"
+  | "FLAG_COMMENT_AUTHOR_ONLY"
+  | "FLAG_FRIENDS_ONLY"
+  | "FLAG_HOST_NOT_ELIGIBLE"
+  | "FLAG_HOST_ONLY"
+  | "FLAG_INVITATION_INVITEE_ONLY"
+  | "FLAG_INVITATION_SENDER_ONLY"
+  | "FLAG_INVITE_NOT_ALLOWED"
+  | "FLAG_MEMORIAL_AUTHOR_ONLY"
+  | "FLAG_MEMORIAL_PARTICIPANT_ONLY"
+  | "FLAG_PARTICIPANT_ONLY"
+  | "FLAG_SELF_PARTICIPATION_ONLY"
+  | "FLAG_COMMENT_NOT_FOUND"
+  | "FLAG_INVITATION_NOT_FOUND"
+  | "FLAG_MEMORIAL_NOT_FOUND"
   | "FLAG_NOT_FOUND"
   | "FLAG_PARTICIPANT_NOT_FOUND"
-  | "FLAG_PARTICIPATION_DUPLICATE"
-  | "FLAG_SCHEDULE_INVALID"
-  | "FLAG_COMMENT_ACCESS_DENIED"
-  | "FLAG_COMMENT_INVALID_CONTENT"
-  | "FLAG_COMMENT_NOT_FOUND"
-  | "FLAG_COMMENT_REPLY_DEPTH_EXCEEDED"
-  | "FLAG_INVITATION_ACCESS_DENIED"
+  | "FLAG_ALREADY_DELETED"
+  | "FLAG_ALREADY_ENDED"
+  | "FLAG_ALREADY_STARTED"
+  | "FLAG_CAPACITY_BELOW_PARTICIPANTS"
+  | "FLAG_DEADLINE_PASSED"
+  | "FLAG_ENCORE_ALREADY_EXISTS"
   | "FLAG_INVITATION_DUPLICATE"
-  | "FLAG_INVITATION_INVALID"
-  | "FLAG_INVITATION_NOT_FOUND"
-  | "FLAG_MEMORIAL_ACCESS_DENIED"
-  | "FLAG_MEMORIAL_INVALID_CONTENT"
-  | "FLAG_MEMORIAL_NOT_FOUND"
+  | "FLAG_NOT_ENDED"
+  | "FLAG_NOT_RECRUITING"
+  | "FLAG_PARTICIPATION_DUPLICATE"
+  | "FLAG_RECRUITMENT_CLOSED"
   // social
-  | "FRIEND_ALREADY_CONNECTED"
-  | "FRIEND_REQUEST_TO_SELF"
-  | "FRIEND_REQUEST_DUPLICATE"
-  | "FRIEND_REQUEST_ACCESS_DENIED"
-  | "FRIEND_REQUEST_INVALID"
-  | "FRIEND_REQUEST_NOT_ACCEPTED"
-  | "FRIEND_REQUEST_NOT_FOUND"
-  | "FRIENDSHIP_ACCESS_DENIED"
-  | "FRIENDSHIP_INVALID"
   | "FRIENDSHIP_INVALID_ALIAS"
-  | "FRIENDSHIP_NOT_FOUND"
-  | "LABEL_ACCESS_DENIED"
+  | "FRIEND_REQUEST_CANCEL_NOT_ALLOWED"
+  | "FRIEND_REQUEST_INVALID_DIRECTION"
+  | "FRIEND_REQUEST_NOT_ACCEPTED"
+  | "FRIEND_REQUEST_STATUS_NOT_ALLOWED_FOR_SENT"
+  | "FRIEND_REQUEST_STATUS_REQUIRED"
+  | "FRIEND_REQUEST_STATUS_TRANSITION_INVALID"
+  | "FRIEND_REQUEST_TO_SELF"
   | "LABEL_INVALID_NAME"
-  | "LABEL_MEMBER_DUPLICATE"
   | "LABEL_MEMBER_NOT_FRIEND"
-  | "LABEL_NAME_DUPLICATE"
+  | "FRIENDSHIP_ACCESS_DENIED"
+  | "FRIEND_REQUEST_ACCESS_DENIED"
+  | "LABEL_ACCESS_DENIED"
+  | "FRIENDSHIP_NOT_FOUND"
+  | "FRIEND_REQUEST_NOT_FOUND"
   | "LABEL_NOT_FOUND"
   | "SOCIAL_USER_NOT_FOUND"
+  | "FRIENDSHIP_MEMBER_COUNT_INVALID"
+  | "FRIEND_ALREADY_CONNECTED"
+  | "FRIEND_REQUEST_DUPLICATE"
+  | "LABEL_MEMBER_DUPLICATE"
+  | "LABEL_NAME_DUPLICATE"
   // buzz · notification · trace
-  | "BUZZ_ACCESS_DENIED"
-  | "BUZZ_INVALID_STATE"
+  | "BUZZ_COMMENT_INVALID_TEXT"
+  | "BUZZ_EXPIRED"
+  | "BUZZ_INVALID_TEXT"
+  | "BUZZ_RECIPIENTS_EXCEEDED"
+  | "BUZZ_RECIPIENTS_REQUIRED"
+  | "BUZZ_COMMENT_AUTHOR_ONLY"
+  | "BUZZ_CREATOR_ONLY"
+  | "BUZZ_NOT_RECIPIENT"
+  | "BUZZ_COMMENT_NOT_FOUND"
   | "BUZZ_NOT_FOUND"
-  | "NOTIFICATION_ACCESS_DENIED"
+  | "NOTIFICATION_OWNER_ONLY"
   | "TRACE_SELF_VISIT";
 
 /** 백엔드 @RestControllerAdvice 가 내려주는 에러 본문 형태. */
@@ -112,31 +140,45 @@ export interface ApiErrorBody {
   validation?: Record<string, string>;
 }
 
-// 서버가 문구를 주지 못하거나 믿을 수 없을 때 프론트가 소유하는 문구.
+// 화면에 보이는 오류 문구는 프론트가 소유한다. 서버 message는 변경 가능하거나
+// 내부 식별자·영문 검증 문구를 포함할 수 있으므로 detail에만 남긴다.
 const SERVER_ERROR = "일시적인 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.";
 const NETWORK_ERROR = "네트워크 연결을 확인해 주세요.";
 const TIMEOUT_ERROR = "요청 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.";
 const CLIENT_ERROR = "요청을 처리할 수 없습니다.";
-// 404 본문도 신뢰하지 않는다. 실측 결과 백엔드의 404 문구는 사용자용이 아니라
-// 내부 식별자를 담고 있다 — "존재하지 않는 flagMemorial : 99999999",
-// "User(4)와 User(99999999) 사이의...", "요청하신 경로를 찾을 수 없습니다: api/v1/...".
-// 라우팅 미스와 도메인 예외가 같은 404 를 쓰므로 호출부 단위로는 가릴 수 없다.
 const NOT_FOUND_ERROR = "요청하신 대상을 찾을 수 없습니다.";
+const INVALID_INPUT_ERROR = "입력 내용을 확인해 주세요.";
+const ACCESS_DENIED_ERROR = "이 작업을 수행할 권한이 없습니다.";
+const CONFLICT_ERROR = "현재 상태에서는 이 작업을 수행할 수 없습니다.";
 
-/**
- * 상태 코드가 아니라 **에러 코드 단위로** 서버 문구를 쓰지 않는 예외 목록.
- *
- * 404·5xx 처럼 통째로 가릴 수 없고, 특정 코드만 문구가 사용자용이 아닐 때 쓴다.
- * 여기 없는 4xx 는 지금처럼 서버 문구를 그대로 통과시킨다.
- */
-const FE_OWNED_MESSAGE: Partial<Record<ApiErrorCode, string>> = {
-  // 실측 문구: "요청 파라미터의 형식이 올바르지 않습니다: flagId"
-  // 뒤에 붙는 것은 백엔드 파라미터명이라 사용자에게 뜻이 없다. 게다가 이 오류는
-  // 프론트가 잘못된 URL 을 만들었을 때만 난다(`/flags/undefined` 등) — 프론트 버그
-  // 신호이므로 사용자가 할 수 있는 일이 없다.
+/** 동작이나 사용자의 다음 선택이 달라지는 코드만 구체적인 화면 문구를 가진다. */
+const MESSAGE_BY_ERROR_CODE: Partial<Record<ApiErrorCode, string>> = {
   INVALID_PARAMETER_TYPE: CLIENT_ERROR,
-  // 415 "지원하지 않는 요청 형식입니다." 는 내부 이름이 없어 그대로 통과시킨다.
+  ACCOUNT_INVALID_CREDENTIALS: "이메일 또는 비밀번호가 올바르지 않습니다.",
+  ACCOUNT_ALREADY_REGISTERED_EMAIL: "이미 가입된 이메일입니다.",
+  ACCOUNT_VERIFICATION_TOKEN_INVALID: "유효하지 않거나 만료된 인증 링크입니다.",
+  FLAG_FULL_CAPACITY: "정원이 가득 찼습니다.",
+  FLAG_NOT_RECRUITING: "모집 중인 Flag가 아닙니다.",
+  FLAG_PARTICIPATION_DUPLICATE: "이미 참여한 Flag입니다.",
+  FLAG_RECRUITMENT_CLOSED: "모집이 마감되어 참여를 취소할 수 없습니다.",
+  FLAG_INVITATION_DUPLICATE: "이미 보낸 초대장이 있습니다.",
+  FRIEND_ALREADY_CONNECTED: "이미 친구입니다.",
+  FRIEND_REQUEST_DUPLICATE: "이미 보낸 친구 요청이 있습니다.",
+  LABEL_NAME_DUPLICATE: "같은 이름의 레이블이 있습니다.",
 };
+
+function frontendHttpMessage(status: number, code?: string): string {
+  if (code && Object.hasOwn(MESSAGE_BY_ERROR_CODE, code)) {
+    return MESSAGE_BY_ERROR_CODE[code as ApiErrorCode] ?? CLIENT_ERROR;
+  }
+
+  if (status === 404) return NOT_FOUND_ERROR;
+  if (status === 403) return ACCESS_DENIED_ERROR;
+  if (status === 409) return CONFLICT_ERROR;
+  if (status === 400) return INVALID_INPUT_ERROR;
+  if (status === 415) return "지원하지 않는 요청 형식입니다.";
+  return CLIENT_ERROR;
+}
 
 interface ApiErrorInit {
   kind: FailureKind;
@@ -149,8 +191,7 @@ interface ApiErrorInit {
 /**
  * 성공이 아닌 모든 경로가 이 타입 하나로 나온다.
  *
- * 불변식: `message` 는 언제나 사용자에게 그대로 보여도 되는 문장이다.
- * 서버가 계약대로 준 문장이거나, 아니면 위 고정 문구다.
+ * 불변식: `message` 는 언제나 프론트가 소유하며 사용자에게 그대로 보여도 되는 문장이다.
  * 원본 문자열(`fetch failed` 등)은 `detail` 에만 담기며 화면에 노출하지 않는다.
  *
  * `Error` 를 상속하고 `message` 를 같은 자리에 채우므로
@@ -257,22 +298,10 @@ async function fetchInternal<TResult, TBody = unknown>(
         // JSON 이 아닌 응답(게이트웨이 HTML 등). 본문은 detail 로만 남긴다.
       }
 
-      // 서버 문구를 그대로 쓸 수 있는 것은 사용자용으로 쓰인 4xx 뿐이다.
-      // 5xx 는 처리되지 않은 예외 문자열일 수 있고, 404 는 내부 식별자를 담으며,
-      // 아래 표에 적힌 코드는 문구에 내부 이름이 붙는다.
-      // hasOwn 으로 막는다. 서버가 보낸 문자열로 객체를 인덱싱하므로
-      // "constructor" 같은 값이 오면 프로토타입의 함수가 잡힌다.
-      const overridden =
-        errorBody.error && Object.hasOwn(FE_OWNED_MESSAGE, errorBody.error)
-          ? FE_OWNED_MESSAGE[errorBody.error as ApiErrorCode]
-          : undefined;
-
       const message =
         response.status >= 500
           ? SERVER_ERROR
-          : response.status === 404
-            ? NOT_FOUND_ERROR
-            : overridden ?? errorBody.message ?? CLIENT_ERROR;
+          : frontendHttpMessage(response.status, errorBody.error);
 
       throw new ApiError(message, {
         kind: "http",
@@ -325,19 +354,26 @@ async function fetchInternal<TResult, TBody = unknown>(
  * Server Action 이 화면으로 넘기는 실패 정보.
  *
  * `ApiError` 는 클래스라 RSC 경계를 넘지 못한다. 직렬화 가능한 평범한 객체로 옮긴다.
- * `message` 는 `ApiError` 의 불변식을 그대로 물려받아 **화면에 띄워도 되는 문장**이다.
+ * `message` 는 프론트 소유 문구, `code` 는 화면 동작 분기용 계약 값이다.
  */
 export interface Failure {
   kind: FailureKind;
   /** kind === "http" 일 때만 존재한다. 없다고 네트워크 실패인 것은 아니다 — kind 로 판단할 것. */
   status?: number;
+  /** 서버 error 값. 와이어에서 온 문자열이므로 비교할 때만 ApiErrorCode와 대조한다. */
+  code?: string;
   message: string;
 }
 
 /** 조회 실패를 화면이 읽을 수 있는 형태로 바꾼다. `isRedirectError` 는 호출 전에 걸러야 한다. */
 export function toFailure(error: unknown): Failure {
   if (error instanceof ApiError) {
-    return { kind: error.kind, status: error.status, message: error.message };
+    return {
+      kind: error.kind,
+      status: error.status,
+      code: error.code,
+      message: error.message,
+    };
   }
   // apiClient 를 거쳤다면 여기 오지 않는다. 액션 자체 코드가 던진 경우다.
   return { kind: "unknown", message: SERVER_ERROR };

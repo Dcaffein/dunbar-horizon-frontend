@@ -17,6 +17,11 @@ export type FlagInvitationDirection = "RECEIVED" | "SENT";
 
 const FLAG_PAGE_SIZE = 20;
 
+function toMutationFailure(error: unknown) {
+  const failure = toFailure(error);
+  return { success: false as const, message: failure.message, failure };
+}
+
 export async function getHostingFlagsAction(page = 0, size = FLAG_PAGE_SIZE) {
   try {
     const data = await apiClient.get<SliceFlagResult>("/api/v1/flags", {
@@ -105,8 +110,7 @@ export async function closeRecruitmentAction(id: number) {
     return { success: true as const };
   } catch (error) {
     if (isRedirectError(error)) throw error;
-    const message = error instanceof Error ? error.message : "모집 마감에 실패했습니다.";
-    return { success: false as const, message };
+    return toMutationFailure(error);
   }
 }
 
@@ -116,8 +120,7 @@ export async function participateAction(id: number) {
     return { success: true as const };
   } catch (error) {
     if (isRedirectError(error)) throw error;
-    const message = error instanceof Error ? error.message : "참여에 실패했습니다.";
-    return { success: false as const, message };
+    return toMutationFailure(error);
   }
 }
 
@@ -127,8 +130,7 @@ export async function leaveAction(id: number) {
     return { success: true as const };
   } catch (error) {
     if (isRedirectError(error)) throw error;
-    const message = error instanceof Error ? error.message : "참여 취소에 실패했습니다.";
-    return { success: false as const, message };
+    return toMutationFailure(error);
   }
 }
 
@@ -138,8 +140,7 @@ export async function inviteFriendAction(flagId: number, inviteeId: number) {
     return { success: true as const };
   } catch (error) {
     if (isRedirectError(error)) throw error;
-    const message = error instanceof Error ? error.message : "초대에 실패했습니다.";
-    return { success: false as const, message };
+    return toMutationFailure(error);
   }
 }
 
@@ -149,8 +150,7 @@ export async function acceptInvitationAction(invitationId: number) {
     return { success: true as const };
   } catch (error) {
     if (isRedirectError(error)) throw error;
-    const message = error instanceof Error ? error.message : "초대 수락에 실패했습니다.";
-    return { success: false as const, message };
+    return toMutationFailure(error);
   }
 }
 
@@ -160,8 +160,7 @@ export async function rejectInvitationAction(invitationId: number) {
     return { success: true as const };
   } catch (error) {
     if (isRedirectError(error)) throw error;
-    const message = error instanceof Error ? error.message : "초대 거절에 실패했습니다.";
-    return { success: false as const, message };
+    return toMutationFailure(error);
   }
 }
 
@@ -191,8 +190,7 @@ export async function cancelInvitationAction(invitationId: number) {
     return { success: true as const };
   } catch (error) {
     if (isRedirectError(error)) throw error;
-    const message = error instanceof Error ? error.message : "초대 취소에 실패했습니다.";
-    return { success: false as const, message };
+    return toMutationFailure(error);
   }
 }
 

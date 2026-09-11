@@ -1,12 +1,132 @@
-# PLAN: Task 50 — 계정 API 경로 전환과 에러 코드 계약 수용
-
-상세 배경과 계약은 `harness/tasks/50-account-url-and-error-code-contract.md`를 따른다.
+# PLAN: Task 51 — 백엔드 오류 코드 계약 소비와 화면 정합성
 
 ## 상태
 
-Phase 1·2·3 통과. 구현 완료.
+계획 작성 완료. **사용자 승인 대기 중 — 아직 구현 파일이나 브랜치는 변경하지 않는다.**
 
-## 1. 요구사항 분석
+## 1. 목표와 정책
+
+백엔드는 Java 예외 클래스명/포괄 상태 코드를 제거하고, 93개의 안정적인 오류 코드로
+세분화했다. 프론트는 최종 93개 계약을 타입 기록에 반영하고, 서버 `message`가 아닌
+프론트 소유 문구를 화면에 사용한다. 알 수 없는 코드는 안전한 일반 문구로 처리한다.
+
+서버 문구를 UI 정본으로 쓰지 않는 쪽을 선택한다. 문구는 릴리스마다 바뀌거나 내부
+식별자/영문 검증 문구를 포함할 수 있고, 화면의 어조와 노출 정책은 프론트가 책임져야
+한다. 필드별 `validation` 바인딩은 미착수 Task 45의 범위를 존중해 이번 작업에서
+확장하지 않는다.
+
+Task 44의 조회 실패/빈 상태 분리는 완료된 상태로 유지한다. 새 코드가 생겼으므로,
+화면이 실제 상태와 달라지는 것으로 검증된 409에 한해 재조회 동작을 추가한다.
+
+## 2. 확인한 현재 사실
+
+- `ApiErrorCode`는 이전 계약의 65개를 기록한다. 새 93개 표와 비교하면 43개가 빠져
+  있고, `FLAG_INVALID_STATUS`, `FLAG_SCHEDULE_INVALID` 등 14개 옛 코드가 남아 있다.
+- 런타임은 `ApiErrorBody.error: string`으로 받으므로 즉시 깨지지는 않는다. 새 코드를
+  타입 안전하게 분기하려면 유니온을 갱신해야 한다.
+- `toFailure()`는 `kind`/`status`/`message`만 직렬화하며, Flag 변경 액션은 실패 때
+  `message`만 반환한다. 따라서 클라이언트는 현재 409 원인을 판별할 수 없다.
+- 아티팩트 표에는 각 엔드포인트별 반환 코드까지는 없으므로, 초대 수락 경쟁 상황을
+  실제 백엔드로 재현해 확인한 코드만 화면 갱신에 연결한다.
+
+## 3. 구현 범위
+
+### 오류 계약·문구 — `src/api/apiClient.ts`
+
+- `ApiErrorCode`를 아티팩트의 93개 코드와 정확히 동기화하고, 더는 존재하지 않는
+  코드를 제거한다. 와이어 값인 `ApiErrorBody.error`와 `ApiError.code`는 계속
+  `string`으로 둔다.
+- 코드/전송 오류 종류를 입력으로 하는 프론트 소유 메시지 변환기를 둔다. 네트워크,
+  타임아웃, 파싱, 5xx 및 주요 4xx/409는 한국어 UX 문구로 바꾸고, 미등록 코드는
+  안전한 일반 문구를 쓴다. 서버 원문은 `detail`에만 남긴다.
+- `Failure`에 직렬화 가능한 `code?: string`을 추가한다. `validation` UI 바인딩은
+  Task 45에서 다룬다.
+
+### Flag 변경 실패와 화면 정합성
+
+- `src/app/actions/flag.ts`의 참여, 참여 취소, 초대 생성/수락/거절/취소, 모집 상태
+  변경 액션이 `Failure`를 반환하도록 바꾼다.
+- `FlagInvitationList.tsx`에서 초대 수락이 실측상 `FLAG_NOT_RECRUITING`일 때만 오류를
+  표시하고 `router.refresh()`해 무효 카드가 목록에서 사라지게 한다.
+- `FlagDetail.tsx`의 참여/참여 취소 409는 `FLAG_RECRUITMENT_CLOSED`,
+  `FLAG_FULL_CAPACITY`, `FLAG_PARTICIPATION_DUPLICATE`를 실측한다. 재조회 후 화면이
+  실제로 달라지는 코드에만 처리한다. Task 44에서 화면이 맞다고 판정한
+  `FLAG_RECRUITMENT_CLOSED`에는 기계적으로 재조회를 붙이지 않는다.
+
+## 4. 수정 예정 파일
+
+| 파일 | 변경 |
+|---|---|
+| `src/api/apiClient.ts` | 93개 코드, 프론트 소유 문구, `Failure.code` |
+| `src/api/apiClient.test.ts` | 원문 비노출/새 코드/직렬화 단위 테스트 |
+| `src/app/actions/flag.ts` | Flag 변경 실패의 `Failure` 반환 |
+| `src/components/Flag/FlagInvitationList.tsx` | 검증된 초대 수락 409 재조회 |
+| `src/components/Flag/FlagDetail.tsx` | 실측 결과에 따른 참여 상태 정합성 처리 |
+| `harness/tasks/51-error-code-contract-consumption.md` | 결정과 실측 결과 |
+| `PLAN.md` | 이 계획과 검증 결과 |
+
+Mock 파일은 만들지 않는다. 오류 코드와 경쟁 상태는 실제 백엔드 계약으로 검증한다.
+
+## 5. 단계별 검증
+
+### Phase 1 — 정적 분석·단위
+
+- 아티팩트의 93개 코드와 `ApiErrorCode`를 대조하고, 실행 코드의 옛 Java 예외명/포괄
+  코드를 검색한다.
+- 서버 `message`가 어떤 값이어도 프론트 소유 문구만 화면 반환값에 쓰이고, 404/5xx
+  원문이 새지 않으며, 새 409 코드가 `Failure.code`에 보존되는지 단위 테스트한다.
+- `npm run lint`, `npx tsc --noEmit`을 실행해 기존 기준선 대비 새 오류가 없는지 확인한다.
+
+통과 후: `test(phase1): 오류 코드 계약과 프론트 문구 정책을 검증한다`
+
+### Phase 2 — UI·상태
+
+- 실제 백엔드에서 초대 목록을 연 뒤 모집을 마감하고 수락을 시도한다.
+- 응답 코드와 화면을 기록한다. `FLAG_NOT_RECRUITING`이면 오류 후 재조회로 카드가
+  사라지는지, 정상 수락·거절·취소가 회귀하지 않는지 확인한다.
+- 스크린샷은 `harness/verify/verify-51-*.png`에만 저장하고 커밋하지 않는다.
+
+통과 후: `test(phase2): 초대 경쟁 상태의 화면 정합성을 검증한다`
+
+### Phase 3 — 예외·회귀
+
+- 참여/참여 취소의 `FLAG_RECRUITMENT_CLOSED`, `FLAG_FULL_CAPACITY`,
+  `FLAG_PARTICIPATION_DUPLICATE`를 가능한 범위에서 재현한다.
+- 각 코드가 재조회 후 실제 화면 변화를 만드는지 기록하고, 아니라면 재조회하지 않는다.
+- 네트워크·타임아웃·404·5xx·미지 코드가 서버 원문/내부 ID 없이 안전한 문구로 보이며,
+  Task 44의 실패 상태와 실제 빈 상태가 계속 구분되는지 확인한다.
+
+통과 후: `test(phase3): 오류 코드별 상태 정합성과 원문 비노출을 검증한다`
+
+## Phase 1 검증 결과 — 통과
+
+- 아티팩트 코드표와 `ApiErrorCode`를 기계적으로 대조해 **93개/93개 일치**를 확인했다.
+- `npm test -- --run src/api/apiClient.test.ts` — 7/7 통과. 서버 원문 비노출,
+  미지 4xx의 일반 문구, `FLAG_NOT_RECRUITING`의 코드 보존을 포함한다.
+- `npx tsc --noEmit` — 통과. `npm run lint`는 기존 3 errors/11 warnings와 동일하며,
+  이번 변경 파일에서는 새 진단이 없다.
+
+## Phase 2·3 실측 결과 — 계약 배포 대기
+
+- 두 테스트 계정으로 임시 Flag를 생성해 초대를 시도했으나, 현재 로컬 백엔드는
+  아티팩트에 없는 이전 코드 `409 FLAG_INVALID_STATUS`를 반환했다. 즉 세분화 계약은
+  아직 이 서버에 배포되지 않았다. 임시 Flag는 검증 직후 `204`로 삭제했다.
+- 따라서 초대 수락의 `FLAG_NOT_RECRUITING` 경합은 실측하지 못했고, 컴포넌트 단위
+  테스트로 카드 제거·안내·재조회를 검증했다.
+- 현재 참여 중인 종료 Flag에 다시 참여시켜 `409 FLAG_PARTICIPATION_DUPLICATE`를
+  실측했다. 화면은 이미 참여 상태가 맞으므로 재조회하지 않는 것이 맞다.
+- 이 응답의 서버 `message`에는 사용자·Flag 내부 ID가 남아 있었다. 프론트 원문 차단
+  정책이 실제 배포 상태에서도 필요함을 확인했다.
+- `FLAG_NOT_RECRUITING`, `FLAG_FULL_CAPACITY`, `FLAG_RECRUITMENT_CLOSED`의 실제
+  경쟁 상태는 초대 또는 두 번째 테스트 계정이 준비되면 수동 UI로 추가 확인한다.
+
+## 6. 승인 후 절차
+
+승인되면 현재 완료된 Task 50 브랜치에서
+`agent/task-51-error-code-contract-consumption` 브랜치를 만들고, 위 Phase 순서로
+구현·검증·커밋한다.
+
+## Archived: Task 50 complete plan
 
 백엔드 릴리스 하나에 두 변경이 함께 들어왔다. **성격이 다르므로 분리해서 다룬다.**
 

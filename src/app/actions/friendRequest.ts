@@ -41,7 +41,7 @@ export async function sendFriendRequestAction(receiverId: number) {
  *
  * 백엔드 계약(실측):
  * - direction=RECEIVED 는 status 필터를 지원한다.
- * - direction=SENT 는 status 를 붙이면 400(FriendRequestInvalidException)을 던진다.
+ * - direction=SENT 는 status 를 붙이면 400(FRIEND_REQUEST_STATUS_NOT_ALLOWED_FOR_SENT)을 던진다.
  *   ("sent 조회에는 status를 사용할 수 없습니다.") → SENT는 status를 생략한다.
  * 따라서 status는 선택 인자이며, 전달된 경우에만 query에 직렬화한다.
  */

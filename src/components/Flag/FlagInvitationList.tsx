@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { FlagInvitationResult } from "@/api/model/flagInvitationResult";
 import { acceptInvitationAction, rejectInvitationAction } from "@/app/actions/flag";
@@ -21,9 +21,10 @@ function relativeTime(createdAt?: string): string {
 interface InvitationCardProps {
   invitation: FlagInvitationResult;
   onRemove: (id: number) => void;
+  onStale: (id: number, message: string) => void;
 }
 
-function InvitationCard({ invitation, onRemove }: InvitationCardProps) {
+function InvitationCard({ invitation, onRemove, onStale }: InvitationCardProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,6 +37,11 @@ function InvitationCard({ invitation, onRemove }: InvitationCardProps) {
     if (result.success) {
       if (invitation.flagId) router.push(`/flags/${invitation.flagId}`);
     } else {
+      if (result.failure.code === "FLAG_NOT_RECRUITING") {
+        onStale(invitation.id, result.failure.message);
+        router.refresh();
+        return;
+      }
       setError(result.message ?? "수락에 실패했습니다.");
       setIsLoading(false);
     }
@@ -100,14 +106,25 @@ interface FlagInvitationListProps {
 
 export default function FlagInvitationList({ initialInvitations }: FlagInvitationListProps) {
   const [invitations, setInvitations] = useState(initialInvitations);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    setInvitations(initialInvitations);
+  }, [initialInvitations]);
 
   function handleRemove(id: number) {
     setInvitations((prev) => prev.filter((inv) => inv.id !== id));
   }
 
+  function handleStale(id: number, message: string) {
+    setNotice(message);
+    handleRemove(id);
+  }
+
   if (invitations.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+        {notice && <p className="mb-3 text-xs text-gray-500">{notice}</p>}
         <span className="text-4xl mb-3">🚩</span>
         <p className="text-sm font-medium">받은 초대가 없습니다.</p>
       </div>
@@ -115,12 +132,19 @@ export default function FlagInvitationList({ initialInvitations }: FlagInvitatio
   }
 
   return (
-    <ul className="py-2">
-      {invitations.map((inv) => (
-        <li key={inv.id}>
-          <InvitationCard invitation={inv} onRemove={handleRemove} />
-        </li>
-      ))}
-    </ul>
+    <>
+      {notice && <p className="mx-4 mt-3 text-xs text-gray-500">{notice}</p>}
+      <ul className="py-2">
+        {invitations.map((inv) => (
+          <li key={inv.id}>
+            <InvitationCard
+              invitation={inv}
+              onRemove={handleRemove}
+              onStale={handleStale}
+            />
+          </li>
+        ))}
+      </ul>
+    </>
   );
 }

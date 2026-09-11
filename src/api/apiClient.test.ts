@@ -11,7 +11,7 @@ vi.mock("next/navigation", () => ({
   },
 }));
 
-const { apiClient } = await import("./apiClient");
+const { apiClient, toFailure } = await import("./apiClient");
 type ApiError = import("./apiClient").ApiError;
 
 function respond(status: number, body: unknown) {
@@ -50,20 +50,35 @@ describe("apiClient 문구 판정", () => {
     expect(err.code).toBe("INVALID_PARAMETER_TYPE");
   });
 
-  it("415 는 서버 문구가 깨끗하므로 그대로 통과시킨다", async () => {
+  it("415 는 서버 message와 무관하게 프론트 문구를 쓴다", async () => {
     const err = await messageOf(415, {
       error: "UNSUPPORTED_MEDIA_TYPE",
-      message: "지원하지 않는 요청 형식입니다.",
+      message: "내부 타입 이름이 포함된 서버 문구",
     });
     expect(err.message).toBe("지원하지 않는 요청 형식입니다.");
   });
 
-  it("표에 없는 4xx 는 서버 문구를 그대로 쓴다", async () => {
+  it("알 수 없는 4xx도 서버 message를 화면으로 보내지 않는다", async () => {
     const err = await messageOf(409, {
-      error: "FLAG_SCHEDULE_INVALID",
-      message: "종료는 시작보다 늦어야 합니다.",
+      error: "FUTURE_ERROR_CODE",
+      message: "서버 내부 상태: 12345",
     });
-    expect(err.message).toBe("종료는 시작보다 늦어야 합니다.");
+    expect(err.message).toBe("현재 상태에서는 이 작업을 수행할 수 없습니다.");
+    expect(err.message).not.toContain("12345");
+  });
+
+  it("세분화된 409 코드는 프론트 문구와 직렬화 가능한 code를 제공한다", async () => {
+    const err = await messageOf(409, {
+      error: "FLAG_NOT_RECRUITING",
+      message: "서버 문구는 화면에 사용하지 않는다",
+    });
+    expect(err.message).toBe("모집 중인 Flag가 아닙니다.");
+    expect(toFailure(err)).toMatchObject({
+      kind: "http",
+      status: 409,
+      code: "FLAG_NOT_RECRUITING",
+      message: "모집 중인 Flag가 아닙니다.",
+    });
   });
 
   it("404 는 코드와 무관하게 덮는다 — 본문이 내부 ID 를 담는다", async () => {
@@ -85,11 +100,12 @@ describe("apiClient 문구 판정", () => {
     );
   });
 
-  it("프로토타입 키를 error 로 보내도 문구로 새지 않는다", async () => {
+  it("프로토타입 키를 error 로 보내도 서버 문구로 새지 않는다", async () => {
     const err = await messageOf(400, {
       error: "constructor",
       message: "정상 문구",
     });
-    expect(err.message).toBe("정상 문구");
+    expect(err.message).toBe("입력 내용을 확인해 주세요.");
+    expect(err.message).not.toBe("정상 문구");
   });
 });
