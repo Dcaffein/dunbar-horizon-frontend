@@ -123,6 +123,21 @@ const CLIENT_ERROR = "요청을 처리할 수 없습니다.";
 // 라우팅 미스와 도메인 예외가 같은 404 를 쓰므로 호출부 단위로는 가릴 수 없다.
 const NOT_FOUND_ERROR = "요청하신 대상을 찾을 수 없습니다.";
 
+/**
+ * 상태 코드가 아니라 **에러 코드 단위로** 서버 문구를 쓰지 않는 예외 목록.
+ *
+ * 404·5xx 처럼 통째로 가릴 수 없고, 특정 코드만 문구가 사용자용이 아닐 때 쓴다.
+ * 여기 없는 4xx 는 지금처럼 서버 문구를 그대로 통과시킨다.
+ */
+const FE_OWNED_MESSAGE: Partial<Record<ApiErrorCode, string>> = {
+  // 실측 문구: "요청 파라미터의 형식이 올바르지 않습니다: flagId"
+  // 뒤에 붙는 것은 백엔드 파라미터명이라 사용자에게 뜻이 없다. 게다가 이 오류는
+  // 프론트가 잘못된 URL 을 만들었을 때만 난다(`/flags/undefined` 등) — 프론트 버그
+  // 신호이므로 사용자가 할 수 있는 일이 없다.
+  INVALID_PARAMETER_TYPE: CLIENT_ERROR,
+  // 415 "지원하지 않는 요청 형식입니다." 는 내부 이름이 없어 그대로 통과시킨다.
+};
+
 interface ApiErrorInit {
   kind: FailureKind;
   status?: number;
@@ -243,13 +258,21 @@ async function fetchInternal<TResult, TBody = unknown>(
       }
 
       // 서버 문구를 그대로 쓸 수 있는 것은 사용자용으로 쓰인 4xx 뿐이다.
-      // 5xx 는 처리되지 않은 예외 문자열일 수 있고, 404 는 내부 식별자를 담는다.
+      // 5xx 는 처리되지 않은 예외 문자열일 수 있고, 404 는 내부 식별자를 담으며,
+      // 아래 표에 적힌 코드는 문구에 내부 이름이 붙는다.
+      // hasOwn 으로 막는다. 서버가 보낸 문자열로 객체를 인덱싱하므로
+      // "constructor" 같은 값이 오면 프로토타입의 함수가 잡힌다.
+      const overridden =
+        errorBody.error && Object.hasOwn(FE_OWNED_MESSAGE, errorBody.error)
+          ? FE_OWNED_MESSAGE[errorBody.error as ApiErrorCode]
+          : undefined;
+
       const message =
         response.status >= 500
           ? SERVER_ERROR
           : response.status === 404
             ? NOT_FOUND_ERROR
-            : errorBody.message ?? CLIENT_ERROR;
+            : overridden ?? errorBody.message ?? CLIENT_ERROR;
 
       throw new ApiError(message, {
         kind: "http",
