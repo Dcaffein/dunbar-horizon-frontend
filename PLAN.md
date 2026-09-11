@@ -4,7 +4,7 @@
 
 ## 상태
 
-작성 완료, 승인 대기. 코드 미착수.
+Phase 1·2 통과. Phase 3 진행 중 — 400·415 문구 판정만 남았다.
 
 ## 1. 요구사항 분석
 
@@ -262,7 +262,59 @@ harness 정리 작업이 무관한 기능 커밋에 묻어 들어간 것으로 �
 **부수로 발견한 불일치 — 해소됨.** 삭제된 `users.md` 는 기본 계정 이메일을 `lsh@test.com` 으로
 적었으나 **유효한 계정은 `leesuhwan@test.com` 이다**(사용자 확인). `TESTING_RULES.md` 쪽이 옳다.
 
-## 10. 브랜치
+## 10. 검증 결과
+
+### Phase 1 — 통과 (`8a2ee0a`)
+
+| 항목 | 전 | 후 |
+|---|---|---|
+| `tsc --noEmit` | 21건 | **20건** — `flag-query-controller` 해소 |
+| `lint` | 14 problems (3E/11W) | 14 problems — 동일 |
+| `grep "/api/auth" src` | 8건 | **0건** |
+| `grep "api/v1/auth/users/me"` | — | **0건** |
+
+잔여 tsc 20건은 모두 사전 존재다 — 시연 브랜치에서 남은 `*.test.ts` 19건(`.gitignore` 대상이라
+커밋된 적 없고, 이 브랜치에는 짝이 되는 원본 모듈이 없다)과 `.next` 캐시 1건.
+
+`social-query-controller` → `social-network-controller` 는 git 이 **100% rename 으로 인식**했다.
+내용이 완전히 동일하다는 사전 분석이 확인됐다.
+
+### Phase 2 — 통과
+
+백엔드가 새 스펙으로 떠 있음을 먼저 확인했다. 새 경로 `POST /api/v1/auth/tokens` 는 400(엔드포인트
+존재, 본문 검증 실패), 옛 경로 `/api/auth/tokens` 는 401(라우팅이 없어 시큐리티 필터가 가로챔).
+
+| 시나리오 | 결과 |
+|---|---|
+| 로그인 | 201, `access_token`·`refresh_token` 발급, `/` 진입 |
+| 메인 그래프 | 친구 목록 렌더(강민석·강민수·…), 알림 12건, canvas 3개, 실패·빈상태 문구 없음 |
+| 프로필 조회 | `GET /api/v1/users/me` — 이메일·닉네임 정상 |
+| 프로필 수정 | `PATCH /api/v1/users/me` — 저장 후 새로고침해도 유지(서버 반영 확인), 원복까지 완료 |
+| 프로필 이미지 | `POST /api/v1/users/me/profile-image/presign` — S3 키 발급·업로드·서명 URL 반환 |
+| **토큰 재발급** | 만료 JWT 로 교체 후 보호 경로 진입 → **로그인으로 안 튕기고 토큰 갱신**, 친구 목록 정상 |
+| 로그아웃 | `/login` 이동, 쿠키 2개 삭제 |
+| 회원가입 | 메일 링크(`/?verifyToken=`) → `proxy.ts` 가 `/verify-email` 로 이동 → 사전 확인이 이메일 채운 폼 → 가입 → **자동 로그인** |
+
+`Set-Cookie` 는 백엔드 답변대로 형식이 그대로였다(`Path=/; Max-Age; HttpOnly; SameSite=Lax`).
+로컬 프로필이라 `Secure` 는 빠져 있으나 `parseSetCookie` 는 양쪽 모두 처리한다.
+
+**재발급 검증 방법.** `proxy.ts` 는 서명을 검증하지 않고 `exp` 만 본다. 그래서 만료된 것처럼 보이는
+JWT 를 만들어 `access_token` 만 교체하고 `refresh_token` 은 남겼다. 실제 만료를 1시간 기다릴 필요가 없다.
+
+### Phase 3 — 진행 중
+
+`mapSignupError` 의 코드 분기를 먼저 확인했다. 사전 확인이 만료 토큰의 폼 렌더를 막기 때문에,
+유효한 토큰으로 폼을 띄운 뒤 **제출 직전에 Redis 에서 토큰을 삭제**해 410 을 유도했다.
+
+- 만료 안내 "인증 링크가 만료되었습니다" 노출
+- 자동 로그인 쿠키 생기지 않음
+- 서버 원문(`ACCOUNT_...`, 백엔드 `message`) 노출 없음
+
+이미 사용된 토큰·존재하지 않는 토큰으로 `/verify-email` 진입 시에도 폼 대신 만료 화면이 뜬다(회귀 확인).
+
+남은 것은 **400 `INVALID_PARAMETER_TYPE` 과 415 `UNSUPPORTED_MEDIA_TYPE` 의 문구 판정**이다.
+
+## 11. 브랜치
 
 `agent/task-50-account-url-and-error-code-contract`
 
