@@ -8,7 +8,15 @@
 
 export interface FlagCreateRequest {
   parentFlagId?: number;
+  /**
+     * @minLength 0
+     * @maxLength 20
+     */
   title: string;
+  /**
+     * @minLength 0
+     * @maxLength 500
+     */
   description: string;
   /** @minimum 1 */
   capacity?: number;

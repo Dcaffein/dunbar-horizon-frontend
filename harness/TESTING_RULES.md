@@ -18,15 +18,8 @@
 
 ## 테스트 데이터
 
-테스트 및 스크린샷 캡처 시 반드시 아래 fixtures를 사용한다.
-
-| 파일 | 내용 |
-|---|---|
-| `harness/fixtures/users.md` | 전체 유저 목록 (id, email, nickname) |
-| `harness/fixtures/friendships.md` | 친구 관계 전체 + 이수환(id=4) 친구 목록 + 2-hop 시나리오 |
-
-- **기본 테스트 계정**: 이수환 / leesuhwan@test.com / String123! (user_id=4, 친구 56명)
-- Mock 데이터를 새로 만들지 말고 fixtures의 실제 유저 정보를 사용한다.
+- **기본 테스트 계정**: 이수환 / leesuhwan@test.com / String123! (user_id=4)
+- 검증용 Mock 데이터를 새로 만들지 말고 실제 백엔드의 데이터를 사용한다.
 
 ---
 
@@ -34,7 +27,8 @@
 
 - 컴포넌트가 화면에 정상적으로 렌더링되는지 확인한다.
 - 버튼 클릭, 폼 제출 등의 이벤트가 발생했을 때 Mock 데이터 기반의 상태(State)가 즉각적으로 업데이트되는지 검증한다.
-- Playwright 스크린샷은 반드시 `harness/verify/` 폴더에 저장한다. 파일명 규칙: `verify-{taskNo}-{stepNo}-{description}.png` (예: `verify-09-01-header.png`)
+- Playwright 스크린샷은 `harness/verify/` 폴더에 저장한다. 파일명 규칙: `verify-{taskNo}-{stepNo}-{description}.png` (예: `verify-09-01-header.png`)
+- **스크린샷은 커밋하지 않는다.** `harness/verify/`는 `.gitignore` 대상이다. 검증 중 눈으로 확인하는 용도이며, 결과는 문서에 글로 남긴다.
 - **[성공 시] ➔ 2차 커밋 진행**
 
 ## Phase 3: 예외 상황 (Edge Cases)

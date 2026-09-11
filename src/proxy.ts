@@ -40,7 +40,7 @@ function isTokenExpired(token: string): boolean {
 
 async function refreshAccessToken(refreshToken: string) {
   try {
-    const response = await fetch(`${BASE_URL}/api/auth/tokens`, {
+    const response = await fetch(`${BASE_URL}/api/v1/auth/tokens`, {
       method: "PATCH",
       headers: {
         Cookie: `refresh_token=${refreshToken}`,

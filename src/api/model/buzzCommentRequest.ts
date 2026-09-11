@@ -7,6 +7,10 @@
  */
 
 export interface BuzzCommentRequest {
+  /**
+     * @minLength 0
+     * @maxLength 300
+     */
   text: string;
   isPublic?: boolean;
   imageKeys?: string[];

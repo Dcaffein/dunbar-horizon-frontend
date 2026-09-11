@@ -7,6 +7,14 @@
  */
 
 export interface FlagDetailsUpdateRequest {
+  /**
+     * @minLength 0
+     * @maxLength 20
+     */
   title: string;
+  /**
+     * @minLength 0
+     * @maxLength 500
+     */
   description: string;
 }

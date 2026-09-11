@@ -10,6 +10,10 @@ import type { LabelRecipientRequest } from './labelRecipientRequest';
 import type { ManualRecipientRequest } from './manualRecipientRequest';
 
 export interface BuzzCreateRequest {
+  /**
+     * @minLength 0
+     * @maxLength 1000
+     */
   text: string;
   recipient: AnchorRecipientRequest | LabelRecipientRequest | ManualRecipientRequest;
   imageKeys?: string[];

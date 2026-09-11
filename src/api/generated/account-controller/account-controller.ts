@@ -8,10 +8,7 @@
 import type {
   LoginRequestDto,
   LogoutRequest,
-  PresignProfileImageParams,
-  PresignedUploadResult,
   SignupRequestDto,
-  UserProfileUpdateRequest,
   VerificationEmailRequestDto,
   VerificationTokenResponse
 } from '../../model';
@@ -35,7 +32,7 @@ export const getRequestVerificationUrl = () => {
 
 
 
-  return `/api/auth/verifications`
+  return `/api/v1/auth/verifications`
 }
 
 export const requestVerification = async (verificationEmailRequestDto: VerificationEmailRequestDto, options?: RequestInit): Promise<requestVerificationResponse> => {
@@ -67,7 +64,7 @@ export const getSignupUrl = () => {
 
 
 
-  return `/api/auth/users`
+  return `/api/v1/auth/users`
 }
 
 export const signup = async (signupRequestDto: SignupRequestDto, options?: RequestInit): Promise<signupResponse> => {
@@ -78,45 +75,6 @@ export const signup = async (signupRequestDto: SignupRequestDto, options?: Reque
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(signupRequestDto)
-  }
-);}
-
-
-export type presignProfileImageResponse200 = {
-  data: PresignedUploadResult
-  status: 200
-}
-
-export type presignProfileImageResponseSuccess = (presignProfileImageResponse200) & {
-  headers: Headers;
-};
-;
-
-export type presignProfileImageResponse = (presignProfileImageResponseSuccess)
-
-export const getPresignProfileImageUrl = (params: PresignProfileImageParams,) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : String(value))
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
-
-  return stringifiedParams.length > 0 ? `/api/auth/users/me/profile-image/presign?${stringifiedParams}` : `/api/auth/users/me/profile-image/presign`
-}
-
-export const presignProfileImage = async (params: PresignProfileImageParams, options?: RequestInit): Promise<presignProfileImageResponse> => {
-
-  return customFetch<presignProfileImageResponse>(getPresignProfileImageUrl(params),
-  {
-    ...options,
-    method: 'POST'
-
-
   }
 );}
 
@@ -138,7 +96,7 @@ export const getLoginUrl = () => {
 
 
 
-  return `/api/auth/tokens`
+  return `/api/v1/auth/tokens`
 }
 
 export const login = async (loginRequestDto: LoginRequestDto, options?: RequestInit): Promise<loginResponse> => {
@@ -170,7 +128,7 @@ export const getLogoutUrl = () => {
 
 
 
-  return `/api/auth/tokens`
+  return `/api/v1/auth/tokens`
 }
 
 export const logout = async (logoutRequest?: LogoutRequest, options?: RequestInit): Promise<logoutResponse> => {
@@ -202,7 +160,7 @@ export const getReissueUrl = () => {
 
 
 
-  return `/api/auth/tokens`
+  return `/api/v1/auth/tokens`
 }
 
 export const reissue = async ( options?: RequestInit): Promise<reissueResponse> => {
@@ -213,38 +171,6 @@ export const reissue = async ( options?: RequestInit): Promise<reissueResponse> 
     method: 'PATCH'
 
 
-  }
-);}
-
-
-export type updateProfileResponse200 = {
-  data: void
-  status: 200
-}
-
-export type updateProfileResponseSuccess = (updateProfileResponse200) & {
-  headers: Headers;
-};
-;
-
-export type updateProfileResponse = (updateProfileResponseSuccess)
-
-export const getUpdateProfileUrl = () => {
-
-
-
-
-  return `/api/auth/users/me`
-}
-
-export const updateProfile = async (userProfileUpdateRequest: UserProfileUpdateRequest, options?: RequestInit): Promise<updateProfileResponse> => {
-
-  return customFetch<updateProfileResponse>(getUpdateProfileUrl(),
-  {
-    ...options,
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(userProfileUpdateRequest)
   }
 );}
 
@@ -266,7 +192,7 @@ export const getResolveVerificationUrl = (token: string,) => {
 
 
 
-  return `/api/auth/verifications/${token}`
+  return `/api/v1/auth/verifications/${token}`
 }
 
 export const resolveVerification = async (token: string, options?: RequestInit): Promise<resolveVerificationResponse> => {

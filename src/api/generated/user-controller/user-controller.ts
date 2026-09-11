@@ -7,11 +7,117 @@
  */
 import type {
   MyProfileResult,
+  PresignProfileImageParams,
+  PresignedUploadResult,
   SearchByEmailParams,
-  UserProfileInfo
+  UserProfileInfo,
+  UserProfileUpdateRequest
 } from '../../model';
 
 import { customFetch } from '../../apiClient';
+
+export type presignProfileImageResponse200 = {
+  data: PresignedUploadResult
+  status: 200
+}
+
+export type presignProfileImageResponseSuccess = (presignProfileImageResponse200) & {
+  headers: Headers;
+};
+;
+
+export type presignProfileImageResponse = (presignProfileImageResponseSuccess)
+
+export const getPresignProfileImageUrl = (params: PresignProfileImageParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/users/me/profile-image/presign?${stringifiedParams}` : `/api/v1/users/me/profile-image/presign`
+}
+
+export const presignProfileImage = async (params: PresignProfileImageParams, options?: RequestInit): Promise<presignProfileImageResponse> => {
+
+  return customFetch<presignProfileImageResponse>(getPresignProfileImageUrl(params),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+export type getMyProfileResponse200 = {
+  data: MyProfileResult
+  status: 200
+}
+
+export type getMyProfileResponseSuccess = (getMyProfileResponse200) & {
+  headers: Headers;
+};
+;
+
+export type getMyProfileResponse = (getMyProfileResponseSuccess)
+
+export const getGetMyProfileUrl = () => {
+
+
+
+
+  return `/api/v1/users/me`
+}
+
+export const getMyProfile = async ( options?: RequestInit): Promise<getMyProfileResponse> => {
+
+  return customFetch<getMyProfileResponse>(getGetMyProfileUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+export type updateProfileResponse200 = {
+  data: void
+  status: 200
+}
+
+export type updateProfileResponseSuccess = (updateProfileResponse200) & {
+  headers: Headers;
+};
+;
+
+export type updateProfileResponse = (updateProfileResponseSuccess)
+
+export const getUpdateProfileUrl = () => {
+
+
+
+
+  return `/api/v1/users/me`
+}
+
+export const updateProfile = async (userProfileUpdateRequest: UserProfileUpdateRequest, options?: RequestInit): Promise<updateProfileResponse> => {
+
+  return customFetch<updateProfileResponse>(getUpdateProfileUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(userProfileUpdateRequest)
+  }
+);}
+
 
 export type searchByEmailResponse200 = {
   data: UserProfileInfo
@@ -43,38 +149,6 @@ export const getSearchByEmailUrl = (params: SearchByEmailParams,) => {
 export const searchByEmail = async (params: SearchByEmailParams, options?: RequestInit): Promise<searchByEmailResponse> => {
 
   return customFetch<searchByEmailResponse>(getSearchByEmailUrl(params),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-export type getMyProfileResponse200 = {
-  data: MyProfileResult
-  status: 200
-}
-
-export type getMyProfileResponseSuccess = (getMyProfileResponse200) & {
-  headers: Headers;
-};
-;
-
-export type getMyProfileResponse = (getMyProfileResponseSuccess)
-
-export const getGetMyProfileUrl = () => {
-
-
-
-
-  return `/api/v1/users/me`
-}
-
-export const getMyProfile = async ( options?: RequestInit): Promise<getMyProfileResponse> => {
-
-  return customFetch<getMyProfileResponse>(getGetMyProfileUrl(),
   {
     ...options,
     method: 'GET'

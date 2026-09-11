@@ -16,9 +16,95 @@ interface RequestOptions extends RequestInit {
  */
 export type FailureKind = "http" | "network" | "timeout" | "parse" | "unknown";
 
+/**
+ * 백엔드가 정의한 에러 코드. 응답 본문의 `error` 자리에 온다.
+ *
+ * 예전에는 예외 클래스명(`FlagNotFoundException`)이 그대로 실려 나와,
+ * 백엔드가 클래스를 리네임하면 계약이 조용히 깨졌다. 백엔드 task-100 에서
+ * 소스에 명시한 상수로 교체했다.
+ *
+ * **분기하는 자리에서만 이 타입과 비교한다.** 아래 `ApiErrorBody.error` 를
+ * 이 타입으로 선언하지 않는 이유는 그 값이 와이어에서 오기 때문이다 —
+ * 백엔드가 코드를 추가하면 유니온이 사실과 어긋난다.
+ */
+export type ApiErrorCode =
+  // 공통 — 스프링이 요청 처리 전에 던지는 것들
+  | "INVALID_INPUT"
+  | "INVALID_JSON_FORMAT"
+  | "INVALID_REQUEST"
+  | "INVALID_PARAMETER_TYPE"
+  | "UNAUTHORIZED"
+  | "ACCESS_DENIED"
+  | "RESOURCE_NOT_FOUND"
+  | "METHOD_NOT_ALLOWED"
+  | "CONCURRENT_MODIFICATION"
+  | "UNSUPPORTED_MEDIA_TYPE"
+  | "INTERNAL_SERVER_ERROR"
+  // account
+  | "ACCOUNT_ALREADY_ACTIVATED"
+  | "ACCOUNT_ALREADY_REGISTERED_EMAIL"
+  | "ACCOUNT_AUTH_NOT_FOUND"
+  | "ACCOUNT_INVALID_CREDENTIALS"
+  | "ACCOUNT_VERIFICATION_TOKEN_INVALID"
+  | "ACCOUNT_REFRESH_TOKEN_NOT_FOUND"
+  | "ACCOUNT_TOKEN_THEFT_DETECTED"
+  | "ACCOUNT_USER_NOT_FOUND"
+  | "AUTH_TOKEN_EXPIRED"
+  | "AUTH_TOKEN_INVALID"
+  // flag
+  | "FLAG_ACCESS_DENIED"
+  | "FLAG_DEADLINE_PASSED"
+  | "FLAG_FULL_CAPACITY"
+  | "FLAG_INVALID_BASIC_INFO"
+  | "FLAG_INVALID_CAPACITY"
+  | "FLAG_INVALID_STATUS"
+  | "FLAG_NOT_FOUND"
+  | "FLAG_PARTICIPANT_NOT_FOUND"
+  | "FLAG_PARTICIPATION_DUPLICATE"
+  | "FLAG_SCHEDULE_INVALID"
+  | "FLAG_COMMENT_ACCESS_DENIED"
+  | "FLAG_COMMENT_INVALID_CONTENT"
+  | "FLAG_COMMENT_NOT_FOUND"
+  | "FLAG_COMMENT_REPLY_DEPTH_EXCEEDED"
+  | "FLAG_INVITATION_ACCESS_DENIED"
+  | "FLAG_INVITATION_DUPLICATE"
+  | "FLAG_INVITATION_INVALID"
+  | "FLAG_INVITATION_NOT_FOUND"
+  | "FLAG_MEMORIAL_ACCESS_DENIED"
+  | "FLAG_MEMORIAL_INVALID_CONTENT"
+  | "FLAG_MEMORIAL_NOT_FOUND"
+  // social
+  | "FRIEND_ALREADY_CONNECTED"
+  | "FRIEND_REQUEST_TO_SELF"
+  | "FRIEND_REQUEST_DUPLICATE"
+  | "FRIEND_REQUEST_ACCESS_DENIED"
+  | "FRIEND_REQUEST_INVALID"
+  | "FRIEND_REQUEST_NOT_ACCEPTED"
+  | "FRIEND_REQUEST_NOT_FOUND"
+  | "FRIENDSHIP_ACCESS_DENIED"
+  | "FRIENDSHIP_INVALID"
+  | "FRIENDSHIP_INVALID_ALIAS"
+  | "FRIENDSHIP_NOT_FOUND"
+  | "LABEL_ACCESS_DENIED"
+  | "LABEL_INVALID_NAME"
+  | "LABEL_MEMBER_DUPLICATE"
+  | "LABEL_MEMBER_NOT_FRIEND"
+  | "LABEL_NAME_DUPLICATE"
+  | "LABEL_NOT_FOUND"
+  | "SOCIAL_USER_NOT_FOUND"
+  // buzz · notification · trace
+  | "BUZZ_ACCESS_DENIED"
+  | "BUZZ_INVALID_STATE"
+  | "BUZZ_NOT_FOUND"
+  | "NOTIFICATION_ACCESS_DENIED"
+  | "TRACE_SELF_VISIT";
+
 /** 백엔드 @RestControllerAdvice 가 내려주는 에러 본문 형태. */
 export interface ApiErrorBody {
-  /** 내부 예외 클래스명. 로그·진단 전용 — 렌더링도 분기도 하지 않는다. */
+  /**
+   * 에러 코드. 값은 `ApiErrorCode` 중 하나지만 와이어에서 오므로 `string` 으로 둔다.
+   * 좁히는 것은 비교하는 자리에서 한다.
+   */
   error?: string;
   /** 표시용 한국어 문장. */
   message?: string;
@@ -58,6 +144,14 @@ interface ApiErrorInit {
 export class ApiError extends Error {
   readonly kind: FailureKind;
   readonly status?: number;
+  /**
+   * 서버 본문의 `error` — 백엔드가 정의한 코드(`ApiErrorCode`)다.
+   * 응답에 `code` 라는 필드가 따로 있는 것이 아니다. 이름이 `code` 인 것은
+   * `kind`·`status`·`detail` 과 나란히 놓이는 자리라서다.
+   *
+   * 주 용도는 로그다. 분기는 `mapSignupError` 한 곳뿐이며, 늘릴 때는
+   * 문자열이 아니라 `ApiErrorCode` 와 비교할 것.
+   */
   readonly code?: string;
   readonly validation?: Record<string, string>;
   readonly detail?: unknown;

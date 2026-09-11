@@ -4,7 +4,7 @@ import { z } from "zod";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { BASE_URL } from "@/lib/constants";
-import type { ApiErrorBody } from "@/api/apiClient";
+import type { ApiErrorBody, ApiErrorCode } from "@/api/apiClient";
 
 const loginSchema = z.object({
   email: z
@@ -62,6 +62,8 @@ export type VerificationResult =
   | { status: "error" };
 
 const EXPIRED_MESSAGE = "인증 링크가 만료되었습니다. 처음부터 다시 진행해 주세요.";
+/** 만료·미존재·이미 사용됨이 모두 이 코드로 온다(410). */
+const EXPIRED_CODE: ApiErrorCode = "ACCOUNT_VERIFICATION_TOKEN_INVALID";
 const ALREADY_REGISTERED_MESSAGE =
   "이미 가입이 완료된 이메일입니다. 로그인해 주세요.";
 const TEMPORARY_ERROR_MESSAGE =
@@ -124,10 +126,20 @@ async function applySetCookieHeaders(headers: string[]) {
  * 다만 validation 값은 필드 단위 입력 안내이므로 해당 입력 아래에 그대로 보여준다.
  */
 function mapSignupError(status: number, body: ApiErrorBody): SignupFormState {
+  // 상태 코드(410)가 아니라 코드로 판정한다. 410 을 쓰는 다른 응답이 나중에 생겨도
+  // 이 분기가 흔들리지 않는다. 셋을 구분하지 않는 것은 백엔드의 의도다 —
+  // 사용자가 할 일은 "이메일부터 다시"로 같고, 구분해 주면 토큰 대입 시도의 피드백이 된다.
+  if (body.error === EXPIRED_CODE) {
+    return { message: EXPIRED_MESSAGE, outcome: "expired" };
+  }
+
   if (status === 400) {
     const validation = body.validation ?? {};
 
-    // token 은 사용자가 폼에서 고칠 수 있는 값이 아니므로 만료와 동일하게 다룬다.
+    // 빈 token 을 보냈다는 뜻이다(만료가 아니다 — 만료는 위에서 걸렀다).
+    // verify-email 페이지의 `if (!token)` 가드가 이미 막고 있어 사실상 도달하지 않지만,
+    // 사용자가 폼에서 고칠 수 있는 값이 아니라 필드 아래에 띄울 자리가 없으므로
+    // 링크를 다시 받으라는 안내로 돌려보낸다.
     if (validation.token) {
       return { message: EXPIRED_MESSAGE, outcome: "expired" };
     }
@@ -146,10 +158,6 @@ function mapSignupError(status: number, body: ApiErrorBody): SignupFormState {
     };
   }
 
-  if (status === 410) {
-    return { message: EXPIRED_MESSAGE, outcome: "expired" };
-  }
-
   return { message: TEMPORARY_ERROR_MESSAGE, outcome: "serverError" };
 }
 
@@ -160,7 +168,7 @@ export async function requestVerification(email: string) {
   }
 
   try {
-    const response = await fetch(`${BASE_URL}/api/auth/verifications`, {
+    const response = await fetch(`${BASE_URL}/api/v1/auth/verifications`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email }),
@@ -209,7 +217,7 @@ export async function resolveVerification(
 
   try {
     const response = await fetch(
-      `${BASE_URL}/api/auth/verifications/${encodeURIComponent(token)}`,
+      `${BASE_URL}/api/v1/auth/verifications/${encodeURIComponent(token)}`,
       { cache: "no-store" },
     );
 
@@ -251,7 +259,7 @@ export async function loginAction(
   const { email, password } = validated.data;
 
   try {
-    const res = await fetch(`${BASE_URL}/api/auth/tokens`, {
+    const res = await fetch(`${BASE_URL}/api/v1/auth/tokens`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
@@ -298,7 +306,7 @@ export async function signupAction(
   try {
     // apiClient 를 쓰면 201 과 함께 오는 Set-Cookie 2개가 버려져
     // 가입은 되었으나 로그인되지 않은 상태가 된다.
-    const res = await fetch(`${BASE_URL}/api/auth/users`, {
+    const res = await fetch(`${BASE_URL}/api/v1/auth/users`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token, nickname, password }),
@@ -328,7 +336,7 @@ export async function logoutAction(fcmToken?: string) {
 
   try {
     if (accessToken && refreshToken) {
-      await fetch(`${BASE_URL}/api/auth/tokens`, {
+      await fetch(`${BASE_URL}/api/v1/auth/tokens`, {
         method: "DELETE",
         headers: {
           Cookie: `access_token=${accessToken}; refresh_token=${refreshToken}`,

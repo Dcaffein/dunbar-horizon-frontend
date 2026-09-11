@@ -1,176 +1,269 @@
-# PLAN: Task 49 — Flag 목록·초대 API 계약 전환
+# PLAN: Task 50 — 계정 API 경로 전환과 에러 코드 계약 수용
 
-상세 배경과 범위는 `harness/tasks/49-flag-api-contract-refactor.md`를 따른다.
+상세 배경과 계약은 `harness/tasks/50-account-url-and-error-code-contract.md`를 따른다.
 
 ## 상태
 
-구현 완료. Phase 1 정적·단위 검증과 Phase 2 읽기 경로 실측을 마쳤고, 실제 초대 mutation은 테스트 Flag 생성 입력 제약으로 보류했다.
+작성 완료, 승인 대기. 코드 미착수.
 
 ## 1. 요구사항 분석
 
-최신 OpenAPI의 `flag-controller`와 `flag-invitation-controller`는 Flag 목록과 초대 조회 방식을 다음처럼 바꿨다.
+백엔드 릴리스 하나에 두 변경이 함께 들어왔다. **성격이 다르므로 분리해서 다룬다.**
 
-- 내 Flag 목록은 `/flags/me` 배열 응답에서 `GET /flags?role=&page=&size=`의 `SliceFlagResult` 응답으로 바뀌었다.
-- 친구 Flag는 `/flags/friends` 배열 응답에서 `GET /flags/feed?page=&size=`의 `SliceFlagResult` 응답으로 바뀌었다.
-- 공개 프로필 Flag는 `/flags/recent?userId=`에서 `GET /flags/profile?userId=`로 바뀌었다.
-- 받은/보낸 초대의 별도 URL·DTO가 `GET /flag-invitations?direction=`와 `FlagInvitationResult` 하나로 통합됐다.
-- 초대 수락은 `POST .../accept`가 아니라 invitation ID 대상 `PATCH`와 `{ status: "ACCEPTED" }` 본문을 사용한다.
+| 변경 | 성격 | 지금 상태 | 이번에 할 일 |
+|---|---|---|---|
+| 계정 경로 `/api/auth` → `/api/v1/auth` | **깨짐** | 로그인·가입·재발급·프로필이 404 | 8곳 전환 |
+| `error` 값 65개 → 코드 상수 | 안 깨짐 | 분기 소비처 0건, 로그만 | 타입으로 받아 적기 + 분기 1곳 신설 |
+| 500 → 400·415 (2건) | **동작 바뀜** | 5xx라 고정 문구로 덮이던 것이 이제 통과 | 실측 후 판정 |
 
-현재 `src/app/actions/flag.ts`와 목록·초대·공개 프로필 UI는 이전 URL, 배열 응답, 방향별 초대 DTO를 사용한다. 이 작업은 최신 계약에 맞춰 Server Action과 화면 상태를 함께 바꾼다.
+착수를 막는 미확정 항목은 없다. 백엔드 문의 3건은 모두 답을 받아 태스크 문서에 기록했다.
+유일한 미확정은 **400·415 두 건의 실제 문구**이고, Phase 3에서 실측으로 판정한다.
 
-완료 조건:
+### 작업 범위
 
-- 목록·feed가 Slice의 `content`, `number`, `last`를 안전하게 처리하고 페이지를 잃지 않는다.
-- 공개 프로필의 Flag가 profile URL로 조회된다.
-- 초대 탭이 `FlagInvitationResult.counterpartNickname`을 방향에 맞는 문구로 표시한다.
-- 수락·거절·취소가 최신 계약에서 실제 허용된 mutation만 호출한다.
-- 초기 조회·다음 페이지·mutation 실패가 기존 카드나 반대 탭을 빈 목록으로 바꾸지 않는다.
+- 계정 관련 8개 호출부의 URL 전환 (3개 파일)
+- `ApiErrorCode` 타입 정의, `ApiError.code` 출처 주석
+- `mapSignupError`의 만료 판정을 `error` 코드 비교로 교체
+- `tsc`를 깨뜨리고 있는 stale 생성 controller 2개 삭제
+- Task 40 문서의 계약 오기 정정 (완료)
+- `TESTING_RULES.md`에서 존재하지 않는 fixtures 참조 제거 (완료)
 
-## 2. 계약 확정과 구현 전 확인
+### 범위에서 뺀 것
 
-생성 코드의 최신 controller를 계약 기준으로 사용한다.
+| 항목 | 이유 |
+|---|---|
+| 409 → 재조회 동작 분기 | Task 44. 문구가 아니라 동작 변경이라 화면 설계가 필요하다 |
+| `validation` 필드 바인딩 | Task 45 |
+| API 경로 상수화 | 전환과 구조 변경을 한 커밋에 섞지 않는다 |
+| 에러 문구를 프론트가 소유 | 별건. 29곳의 통과 경로를 매핑 테이블로 갈아야 한다 |
 
-| 기능 | 최신 URL | 응답/요청 |
+## 2. 착수 전 확인한 사실
+
+코드를 읽어 확인한 것들이다. 설계의 근거가 되므로 여기 남긴다.
+
+- **앱 코드는 `@/api/generated`를 한 번도 import 하지 않는다.** 타입만 `@/api/model`에서 가져오고
+  URL은 손으로 적어 `apiClient`로 호출한다. 생성된 controller는 계약 참조 문서지 런타임 코드가 아니다.
+  → stale controller 삭제가 동작에 영향을 주지 않는 근거.
+- **`social-network-controller`는 `social-query-controller`의 이름만 바뀐 것.** URL 5개가 모두 동일하다.
+  → 네트워크 관련 프론트 변경 없음.
+- **`error` 값을 읽는 곳은 `apiClient.ts:163` 하나**이고, 그 값은 `apiClient.ts:197` 로그 한 줄에만 쓰인다.
+  → 65개 코드 교체가 프론트를 깨뜨리지 않는 근거.
+- **presign은 이미 POST로 호출하고 있다**(`profile.ts:22`). 생성 코드의 method와 일치한다.
+- **사전 확인 엔드포인트를 이미 쓰고 있다.** `resolveVerification`(`auth.ts:205`)이 폼을 그리기 전에
+  호출한다. 추가 작업 없음.
+- `deviceTokenRequest.token`이 필수로 강화됐지만 호출부가 항상 값을 넘겨 `tsc` 영향이 없다.
+
+## 3. 계정 경로 전환
+
+세 파일의 성격이 달라서 한 덩어리로 보지 않는다.
+
+### `src/app/actions/auth.ts` — 5곳
+
+쿠키 헤더를 직접 파싱해야 해서 `apiClient`가 아니라 raw `fetch`를 쓴다. **이 구조는 유지한다.**
+
+| 줄 | 기존 | 신규 |
 |---|---|---|
-| 내 Flag | `GET /api/v1/flags?role=&page=&size=` | `SliceFlagResult` |
-| feed | `GET /api/v1/flags/feed?page=&size=` | `SliceFlagResult` |
-| 공개 프로필 Flag | `GET /api/v1/flags/profile?userId=` | `FlagResult[]` |
-| 초대 목록 | `GET /api/v1/flag-invitations?direction=` | `FlagInvitationResult[]` |
-| 초대 수락 | `PATCH /api/v1/flag-invitations/{invitationId}` | `{ status: "ACCEPTED" }` |
-| 초대 삭제 | `DELETE /api/v1/flag-invitations/{invitationId}` | `void` |
+| 163 | `POST /api/auth/verifications` | `/api/v1/auth/verifications` |
+| 212 | `GET /api/auth/verifications/{token}` | `/api/v1/auth/verifications/{token}` |
+| 254 | `POST /api/auth/tokens` | `/api/v1/auth/tokens` |
+| 301 | `POST /api/auth/users` | `/api/v1/auth/users` |
+| 331 | `DELETE /api/auth/tokens` | `/api/v1/auth/tokens` |
 
-구현 전에 실제 백엔드 또는 생성 타입으로 다음을 확정한다.
+`Set-Cookie` 형식이 그대로임을 백엔드가 확인했으므로 `parseSetCookie`는 손대지 않는다.
 
-1. 초대 direction의 정확한 값.
-2. 수신자가 DELETE로 거절할 수 있는지. 최신 status enum에는 `ACCEPTED`만 있으므로 REJECTED를 추측해 보내지 않는다.
-3. `/flags/profile`의 정렬·최대 개수. 최근순이 보장되지 않으면 UI 문구를 "최근 Flag"에서 사실에 맞게 바꾼다.
-4. Slice 기본·최대 size. UI 페이지 크기를 백엔드 제약에 맞춘다.
+### `src/proxy.ts` — 1곳
 
-확인 결과:
+| 줄 | 기존 | 신규 |
+|---|---|---|
+| 43 | `PATCH /api/auth/tokens` | `/api/v1/auth/tokens` |
 
-- direction은 실제 백엔드에서 `RECEIVED`·`SENT` 두 값이 각각 정상 조회됨을 확인했다.
-- Slice 기본 page는 `0`, 기본 size는 `20`이다.
-- 상태 enum은 `ACCEPTED`만 노출한다. 거절은 별도 PATCH 상태가 없으므로 동일 invitation DELETE로 전환했다. 실제 수신자 DELETE 권한은 pending fixture가 있을 때 추가 확인한다.
+**가장 위험한 한 줄이다.** 틀리면 재발급이 조용히 실패해 액세스 토큰이 만료된 전원이 로그아웃된다.
+Phase 2에서 토큰 만료 상황을 반드시 재현한다.
 
-## 3. Slice 목록 정규화
+### `src/app/actions/profile.ts` — 2곳
 
-신규 `src/components/Flag/flagPage.ts`에 API Slice를 화면에서 안전하게 쓰기 위한 순수 함수를 둔다.
+접두사만 붙는 게 아니라 **`auth`에서 `users`로 소속이 바뀌었다.** 생성 코드에서도
+`account-controller`에서 빠져 `user-controller`로 이동했다.
+
+| 줄 | 기존 | 신규 |
+|---|---|---|
+| 24 | `POST /api/auth/users/me/profile-image/presign?contentType=` | `POST /api/v1/users/me/profile-image/presign?contentType=` |
+| 37 | `PATCH /api/auth/users/me` | `PATCH /api/v1/users/me` |
+
+`/api/v1/auth/users/me`로 잘못 바꾸면 404다. 전환 후 `grep`으로 확인한다.
+
+## 4. 에러 코드 계약 수용 — `src/api/apiClient.ts`
+
+### 타입
 
 ```ts
-type FlagPage = {
-  flags: FlagResult[];
-  page: number;
-  isLast: boolean;
-};
-
-toFlagPage(slice: SliceFlagResult, requestedPage: number): FlagPage
-mergeFlagPages(current: FlagResult[], next: FlagResult[]): FlagResult[]
+/** 백엔드가 정의한 에러 코드. 분기에 쓸 때만 이 타입과 비교한다. */
+export type ApiErrorCode =
+  | "ACCOUNT_VERIFICATION_TOKEN_INVALID"
+  | "FLAG_INVALID_STATUS"
+  | ...;
 ```
 
-- `content`가 없으면 빈 배열, `number`가 없으면 요청 page, `last`가 없으면 마지막 페이지로 처리한다.
-- 다음 페이지는 ID 중복 없이 현재 카드 뒤에 병합한다.
-- 탭별 상태는 목록, 현재 page, 마지막 여부, 초기 로딩, 다음 페이지 로딩, failure를 독립적으로 둔다.
-- 다음 페이지 실패는 이미 성공한 카드와 마지막 성공 page를 유지한다.
+**`ApiErrorBody.error`는 `string`으로 둔다.** 와이어 값을 유니온으로 선언하면 백엔드가 코드를
+추가했을 때 타입이 사실과 어긋난다. 좁히는 것은 비교하는 자리에서 한다.
 
-## 4. Server Action 전환 — `src/app/actions/flag.ts`
+65개를 모두 적을지 실제로 비교에 쓰는 것만 적을지는 **전부 적는 쪽**으로 한다.
+타입일 뿐이라 비용이 없고 계약 기록 역할을 겸한다. 정본은 백엔드가 전달한 코드표다.
 
-- `getHostingFlagsAction(page?, size?)`, `getParticipatingFlagsAction(page?, size?)`를 `/flags?role=HOST|PARTICIPANT&page=&size=`로 바꾸고 `FlagPage` 또는 raw Slice를 반환한다.
-- `getFeedFlagsAction(page?, size?)`를 `/flags/feed`으로 도입한다. `getFriendFlagsAction`은 삭제하거나 호환 wrapper로만 남긴다.
-- `getUserProfileFlagsAction(userId)`를 `/flags/profile?userId=`로 만든다. 최근성을 보장하지 않는 새 계약에 맞춰 `getUserRecentFlagsAction` 이름은 제거한다.
-- `getFlagInvitationsAction(direction)`를 도입한다. 받은/보낸 wrapper가 있더라도 공통 action을 통해 query를 구성한다.
-- `acceptInvitationAction(invitationId)`는 PATCH와 `{ status: "ACCEPTED" }`를 사용한다.
-- 거절 action은 DELETE가 수신자에게 허용된다는 계약 확인 뒤에만 DELETE로 전환한다. 허용되지 않으면 UI에서 거절 action을 숨기거나 백엔드 결정을 요청한다.
-- 기존처럼 모든 catch에서 redirect error를 재throw하고, 목록 조회 실패는 `toFailure`로 정규화한다.
+### 주석
 
-## 5. UI 전환
+```ts
+/** 서버 본문의 `error` — 백엔드가 정의한 코드. 로그용이며 분기는 회원가입 한 곳뿐이다. */
+readonly code?: string;
+```
 
-### Flag 목록
+이름은 `code` 그대로 둔다. `ApiError.error`는 클래스 안에서 자기 자신이나 원본 예외(`detail`)를
+가리키는 것처럼 읽힌다. 혼동의 원인은 이름이 아니라 출처가 안 적혀 있던 것이었다.
 
-`src/app/flags/page.tsx`, `src/components/Flag/FlagList.tsx`
+## 5. 회원가입 만료 판정 교체 — `src/app/actions/auth.ts`
 
-- 호스팅·참여 첫 페이지를 `Promise.all`로 병렬 조회한다.
-- 각 탭에서 다음 페이지가 있을 때만 "더 보기"를 보인다.
-- feed는 탭 최초 진입 때 첫 페이지를 불러오고, 더 보기와 재시도를 독립적으로 처리한다.
-- 빈 Slice, 초기 로딩, 다음 페이지 로딩, failure를 구별한다.
+`mapSignupError`가 400의 `validation.token` 키 유무로 만료를 판정하고 있다.
+**그 주석의 전제가 틀렸다** — 400 + `validation.token`은 만료가 아니라 *token 필드가 비어서 온 것*이고,
+만료는 처음부터 410으로 따로 왔다. 410 분기가 이미 있어 **화면 결과는 옳았지만 근거가 틀린 상태**였다.
 
-### 공개 프로필
+- 410 분기의 조건을 `error === "ACCOUNT_VERIFICATION_TOKEN_INVALID"`로 바꾼다.
+  상태 코드보다 코드가 안정적이다 — 410을 쓰는 다른 응답이 생겨도 흔들리지 않는다. 백엔드도 이 방식을 권했다.
+- `validation.token` 분기는 남기되 주석을 사실에 맞게 고친다. 빈 토큰은
+  `verify-email/page.tsx`의 `if (!token)` 가드가 이미 걸러 사실상 도달하지 않지만 방어로 둔다.
 
-`src/components/UserProfile/PublicProfile.tsx`
+**프론트에서 `error` 값을 읽어 분기하는 최초의 지점이다.**
 
-- profile Flag action으로 바꾸고, 백엔드 정렬 보장에 따라 섹션 문구를 정정한다.
+## 6. stale 생성 코드 삭제
 
-### Flag 초대
-
-`src/app/flags/invitations/page.tsx`, `src/components/Flag/FlagInvitationTabs.tsx`, `src/components/Flag/FlagInvitationList.tsx`
-
-- `ReceivedFlagInvitationResult`, `SentFlagInvitationResult`를 `FlagInvitationResult`로 통일한다.
-- 받은 탭은 `counterpartNickname`을 "{이름}님이 초대했어요", 보낸 탭은 "{이름}님에게 보낸 초대"로 렌더링한다.
-- 수락·거절·취소 성공 시 해당 invitation ID 카드만 제거한다.
-- 실패 시 카드·탭 상태를 유지하고 오류를 해당 카드에 표시한다.
-
-## 6. 생성·수정 파일
-
-| 파일 | 변경 |
+| 디렉터리 | 상태 |
 |---|---|
-| `src/app/actions/flag.ts` | 최신 목록·profile·초대 query, PATCH 수락 계약 |
-| `src/app/flags/page.tsx` | 호스팅/참여 Slice 초기 조회 |
-| `src/components/Flag/FlagList.tsx` | 탭별 Slice 상태와 더 보기 |
-| `src/components/Flag/flagPage.ts` | 신규 Slice 정규화·병합 순수 함수 |
-| `src/components/Flag/flagPage.test.ts` | 신규 Slice 정규화 단위 테스트 |
-| `src/components/UserProfile/PublicProfile.tsx` | profile Flag action 및 문구 |
-| `src/app/flags/invitations/page.tsx` | direction별 통합 조회 |
-| `src/components/Flag/FlagInvitationTabs.tsx` | 공통 DTO와 방향별 UI |
-| `src/components/Flag/FlagInvitationList.tsx` | PATCH 수락·거절 계약 |
-| 초대 컴포넌트 테스트 | 방향별 문구, action 성공·실패 상태 |
+| `src/api/generated/flag-query-controller/` | 제거된 `GetUserFlagsByRoleParams`를 import — **현재 `tsc` 에러** |
+| `src/api/generated/social-query-controller/` | `social-network-controller`와 완전 중복 |
 
-Mock 파일은 만들지 않는다. 실제 API 계약은 Server Action으로 연결하고, Slice·초대 UI의 순수 상태만 최소 단위 테스트한다.
+orval은 스펙에서 사라진 controller 파일을 지우지 않는다. 앱이 `@/api/generated`를 import 하지 않으므로
+삭제해도 런타임 영향이 없고, 삭제해야 `tsc`가 깨끗해진다.
 
-## 7. 단계별 작업·검증
+## 7. 생성·수정 파일
 
-### Phase 1 — 계약·정적·단위
+| 파일 | 작업 |
+|---|---|
+| `src/app/actions/auth.ts` | 경로 5곳 + `mapSignupError` 분기 |
+| `src/app/actions/profile.ts` | 경로 2곳 (소속 변경 포함) |
+| `src/proxy.ts` | 경로 1곳 |
+| `src/api/apiClient.ts` | `ApiErrorCode` 추가, `code` 주석, (Phase 3 결과에 따라) 400·415 규칙 |
+| `src/api/generated/flag-query-controller/` | 삭제 |
+| `src/api/generated/social-query-controller/` | 삭제 |
+| `src/api/**` (재생성분) | 이미 작업 트리에 있음. 첫 커밋에 포함 |
+| `harness/tasks/50-*.md` | 태스크 문서. 첫 커밋에 포함 |
+| `harness/tasks/40-*.md` | 계약 오기 정정 (완료) |
+| `harness/TESTING_RULES.md` | fixtures 참조 제거, 스크린샷 비커밋 명시 (완료) |
+| `.gitignore`, `.claude/settings.local.json` | 시연 브랜치에서 따라온 환경 변경. **별도 커밋으로 분리** |
 
-1. 최신 Flag controller의 URL·DTO·direction/거절 계약을 확정한다.
-2. `flagPage.ts`와 단위 테스트를 작성한다.
-3. Server Action을 Slice·profile·통합 초대·PATCH 수락으로 전환한다.
-4. 이전 목록·초대 URL(`flags/me`, `flags/friends`, `flags/recent`, `flag-invitations/received|sent|accept|reject`)의 잔존 여부를 확인한다.
-5. `npm run lint`, `npx tsc --noEmit`, 관련 Vitest를 실행한다.
-6. 통과 시 Phase 1 세이브포인트 커밋을 만든다.
+Mock 파일은 만들지 않는다. 실제 백엔드를 상대로 검증하는 태스크다.
+
+## 8. 단계별 작업·검증
+
+`harness/TESTING_RULES.md`의 3단계 프로토콜을 따른다. **각 Phase 통과 시 즉시 커밋한다.**
+
+### Phase 1 — 정적 분석·단위
+
+작업 전 기준선을 먼저 기록한다. 현재 `tsc` 출력에 이 태스크와 무관한 노이즈가 섞여 있다
+(`.next/dev/types`의 stale 참조, 시연 브랜치에서 남은 `*.test.ts`). **작업 전 총계를 적어두지 않으면
+개선 여부를 판정할 수 없다.**
+
+- `npx tsc --noEmit` — 작업 전 총계 기록 → 작업 후 `flag-query-controller` 에러가 사라졌는지
+- `npm run lint` — 작업 전후 총계 동일
+- `grep -rn "/api/auth" src` **결과 0건** — 이 태스크의 완료 조건
+- `grep -rn "api/v1/auth/users/me" src` **결과 0건** — 소속 변경을 접두사 추가로 잘못 처리하지 않았는지
+
+→ 통과 시 `test(phase1): 계정 경로 전환과 에러 코드 계약을 정적 검증한다`
 
 ### Phase 2 — UI·상태
 
-1. 이수환 계정에서 호스팅·참여·feed 각 첫 페이지를 확인한다.
-2. 다음 페이지가 있는 탭에서 더 보기가 중복 없이 카드를 추가하는지 확인한다.
-3. 공개 프로필 Flag가 profile URL로 표시되는지 확인한다.
-4. 받은/보낸 초대가 counterpart 이름을 올바른 문구로 표시하는지 확인한다.
-5. pending 초대의 수락·거절·취소를 확정된 계약으로 실행해 해당 카드만 제거되는지 확인한다.
-6. `harness/verify/verify-49-*.png`에 화면을 저장한다.
-7. 통과 시 Phase 2 세이브포인트 커밋을 만든다.
+**전제: 백엔드가 새 스펙으로 `localhost:8080`에 떠 있어야 한다.** 계정 API는 Mock으로 대체할 수 없다.
+
+테스트 계정은 `harness/TESTING_RULES.md`의 이수환 / `leesuhwan@test.com` / `String123!` (user_id=4).
+
+| 시나리오 | 확인 |
+|---|---|
+| 로그인 | 쿠키 2개 발급, 메인 진입, 그래프 렌더 |
+| 회원가입 | 인증 메일 발송 → 링크 진입 → 폼 → 가입 → 자동 로그인 |
+| 프로필 수정 | 닉네임 변경 반영 |
+| 프로필 이미지 | presign 획득 → 업로드 → 반영 |
+| **토큰 재발급** | 액세스 토큰 만료 후 임의 화면 진입 → `proxy.ts` 재발급 동작, 로그인으로 안 튕김 |
+| 로그아웃 | 쿠키 삭제 → `/login` |
+
+스크린샷은 `harness/verify/verify-50-{NN}-{설명}.png`에 저장하되 **커밋하지 않는다.**
+검증 중 눈으로 확인하는 용도이고, 결과는 이 문서에 글로 남긴다.
+
+→ 통과 시 `test(phase2): 계정 플로우를 실제 백엔드로 검증한다`
 
 ### Phase 3 — 예외·회귀
 
-1. 빈 Slice와 마지막 페이지의 Empty State·더 보기 비노출을 확인한다.
-2. 초기/다음 페이지 실패가 기존 카드나 반대 탭을 지우지 않는지 확인한다.
-3. 초대 mutation 실패 시 카드를 유지하고 오류를 표시하는지 확인한다.
-4. Flag 생성·상세·참여·탈퇴·댓글·메모리얼이 회귀하지 않았는지 확인한다.
-5. 통과 시 최종 커밋과 결과 기록을 만든다.
+| 시나리오 | 확인 |
+|---|---|
+| **`/api/v1/flags/abc` 호출** | 400 `INVALID_PARAMETER_TYPE`의 실제 `message` 수집 → 사용자에게 보여도 되는지 **판정** |
+| **Content-Type 불일치** | 415 `UNSUPPORTED_MEDIA_TYPE`도 같은 판정 |
+| 잘못된 비밀번호 로그인 | 401 `ACCOUNT_INVALID_CREDENTIALS` 문구가 기존과 같은지 |
+| 만료 토큰으로 가입 제출 | 410 → 코드 비교로 바꾼 뒤에도 같은 만료 화면 |
+| 이미 사용된 토큰 | 같은 410·같은 코드. 같은 안내가 떠야 한다 |
+| 만료 링크로 `/verify-email` 진입 | `resolveVerification`이 폼 대신 만료 화면 (회귀) |
+| 리프레시 토큰 삭제 후 액션 호출 | 401 → `redirect("/login")` 유지 |
+| 로그 확인 | `[apiClient] ... → http 409 FLAG_INVALID_STATUS` 형태로 새 코드가 찍히는지 |
 
-## 8. 현재 검증 결과
+**판정 분기.** 400·415 문구가
 
-- 전체 Vitest 26개가 통과했고, 신규 Slice 정규화 단위 테스트 4개를 추가했다.
-- Task 49 대상 ESLint 오류는 없다.
-- 이전 목록·초대 경로 문자열은 `src/app/actions/flag.ts`에서 제거했다.
-- 실제 백엔드에서 초대 `RECEIVED`·`SENT` 조회가 각각 정상 렌더링되고, `/flags`와 `/flags/feed` Slice 조회의 Empty State가 정상 표시됨을 확인했다.
-- `verify-49-01-sent-invitations-empty.png`, `verify-49-02-feed-empty.png`을 저장했다.
-- `npx tsc --noEmit`은 기존 stale generated `flag-query-controller`의 `GetUserFlagsByRoleParams` export 누락 1건으로 실패한다. Task 49 변경 파일 오류는 없다.
-- 초대 mutation을 위한 테스트 Flag 생성은 브라우저 자동화가 `datetime-local` 값을 React 입력 상태에 반영하지 못해 실행하지 못했다. Flag 또는 초대를 새로 만들지 않았고, 기존 데이터는 변경하지 않았다.
+- 사용자에게 보여도 되면 → `apiClient` 변경 없음. 현재 규칙이 그대로 통과시킨다.
+- 내부 정보를 담고 있으면 → 404와 같은 방식으로 고정 문구를 추가한다.
 
-## 9. 제외 범위
+`INVALID_PARAMETER_TYPE`은 프론트가 잘못된 URL을 만들었을 때만 발생하므로 사실상 프론트 버그 신호다.
+사용자에게는 어떤 문구도 도움이 되지 않으니, 판정이 애매하면 고정 문구 쪽으로 기운다.
 
-- Flag 생성·상세·참여·탈퇴·수정·모집 마감의 API 설계 변경
-- 댓글·메모리얼 API의 재작업
-- Flag 카드 디자인 전면 개편, 무한 스크롤·새 검색/정렬 UI
-- stale generated OpenAPI 파일 또는 생성기 설정 수정
+→ 통과 시 `test(phase3): 상태 코드 변경 2건의 문구를 실측 판정한다`
+
+## 9. 결정 완료
+
+착수 전 세 가지를 물었고 모두 답을 받아 반영했다.
+
+### 1. Task 40 문서의 오기 — 정정함
+
+`40-auth-token-based-signup.md`의 「확정된 백엔드 계약」 표를 고쳤다.
+
+- 400 은 `{ error, validation }` 가 아니라 `{ error, message, validation }` 이다.
+- 만료는 400 이 아니라 **410** 이고, 코드는 `ACCOUNT_VERIFICATION_TOKEN_INVALID` 다.
+- 410·409 행의 예외 클래스명을 새 코드로 교체했다.
+
+**그 문서는 자기 자신과 모순돼 있었다.** 위쪽 표는 "`message` 키 없음"이라고 적었는데,
+같은 문서 아래 「백엔드 실측으로 확인된 계약」에는 "400 본문에 `message` 와 `validation` 동시 존재"가
+적혀 있다. 실측 결과가 위쪽 표에 반영되지 않은 채 남아 있었고, 그 표를 근거로 삼은 것이
+`mapSignupError` 의 `validation.token` 추론이다. 정정 경위를 인용 블록으로 문서에 남겼다.
+
+### 2. 스크린샷 — 커밋하지 않음
+
+`harness/verify/`는 `.gitignore` 대상으로 유지한다. `TESTING_RULES.md`의 Phase 2 절에
+비커밋 방침을 명시했다. 검증 결과는 이미지가 아니라 글로 남긴다.
+
+이미 tracked 된 과거 스크린샷(36·37·38·46·47번)은 그대로 둔다. `.gitignore`는 추적을 해제하지
+않으므로 새로 찍는 `verify-50-*` 만 무시된다. 과거 것까지 저장소에서 들어내려면 별도 정리가 필요하다.
+
+### 3. fixtures — 참조 제거
+
+`TESTING_RULES.md`에서 `harness/fixtures/` 표와 "fixtures를 사용한다" 지시를 뺐다.
+테스트 계정 정보는 유용하므로 남겼다.
+
+**경위.** fixtures 는 실재했다. Task 27(`27729fe`, 2026-06-13)이 `users.md` 114줄,
+`friendships.md` 92줄을 추가하면서 TESTING_RULES 에 참조를 함께 넣었다.
+6일 뒤 **`994fa50`(Buzz 보낸 탭 추가)이 두 파일을 삭제했다.** 그 커밋은 capture 스크립트 6개와
+스크린샷 다수도 함께 지웠는데, **커밋 메시지에는 그 사실이 한 줄도 없다.** Buzz 기능 설명뿐이다.
+harness 정리 작업이 무관한 기능 커밋에 묻어 들어간 것으로 보인다.
+
+이후 3개월간 TESTING_RULES 는 없는 파일을 가리키고 있었다. 이번에 제거했다.
+
+**부수로 발견한 불일치 — 해소됨.** 삭제된 `users.md` 는 기본 계정 이메일을 `lsh@test.com` 으로
+적었으나 **유효한 계정은 `leesuhwan@test.com` 이다**(사용자 확인). `TESTING_RULES.md` 쪽이 옳다.
 
 ## 10. 브랜치
 
-승인 후 `main`의 `531f727`을 기준으로 `agent/task-49-flag-api-contract-refactor` 브랜치를 만들고 구현한다. main 머지와 push는 별도 사용자 요청 전에는 수행하지 않는다.
+`agent/task-50-account-url-and-error-code-contract`
+
+승인 후 `main`에서 분기한다. 현재 작업 트리의 API 재생성분과 설정 변경분을 함께 가져간다.

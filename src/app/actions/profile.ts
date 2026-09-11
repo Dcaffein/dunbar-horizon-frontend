@@ -21,7 +21,7 @@ export async function getMyProfileAction() {
 export async function presignProfileImageAction(contentType: string) {
   try {
     const data = await apiClient.post<PresignedUploadResult>(
-      `/api/auth/users/me/profile-image/presign?contentType=${encodeURIComponent(contentType)}`,
+      `/api/v1/users/me/profile-image/presign?contentType=${encodeURIComponent(contentType)}`,
     );
     return { success: true as const, data };
   } catch (error) {
@@ -34,7 +34,7 @@ export async function presignProfileImageAction(contentType: string) {
 
 export async function updateProfileAction(body: UserProfileUpdateRequest) {
   try {
-    await apiClient.patch("/api/auth/users/me", body);
+    await apiClient.patch("/api/v1/users/me", body);
     return { success: true as const };
   } catch (error) {
     if (isRedirectError(error)) throw error;

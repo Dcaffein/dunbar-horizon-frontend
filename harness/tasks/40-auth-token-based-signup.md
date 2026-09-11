@@ -33,9 +33,23 @@ API 명세서(`/v3/api-docs`) 재생성 결과 `account-controller`에 아래 �
 | 상황 | status | 비고 |
 |---|---|---|
 | 성공 | **201** | 본문 없음, **쿠키 2개 발급 = 자동 로그인** |
-| `token` 누락 / 비밀번호 규칙 위반 | 400 | `{ error, validation }` — `message` 키 없음 |
-| 토큰 만료 · 미존재 | 410 | `InvalidVerificationTokenException` |
-| 이미 가입된 이메일 | 409 | `AlreadyRegisteredEmailException` |
+| `token` 누락 / 비밀번호 규칙 위반 | 400 | `{ error, message, validation }` — `error` 는 `INVALID_INPUT` |
+| 토큰 만료 · 미존재 · 이미 사용됨 | 410 | `ACCOUNT_VERIFICATION_TOKEN_INVALID` |
+| 이미 가입된 이메일 | 409 | `ACCOUNT_ALREADY_REGISTERED_EMAIL` |
+
+> **정정(Task 50).** 이 표는 처음에 400 을 "`message` 키 없음"으로 적었으나 사실과 다르다.
+> 배포본에서도 `"입력값이 올바르지 않습니다."` 가 실려 나갔다. 같은 문서 아래
+> 「백엔드 실측으로 확인된 계약」의 "400 본문에 `message` 와 `validation` 동시 존재"가 옳고,
+> 위 표가 그 실측에 맞춰 갱신되지 않은 채 남아 있었다.
+>
+> 함께 정정한다 — **만료는 400 이 아니라 410 이다.** 400 + `validation.token` 은 만료가 아니라
+> *token 필드가 비어서 온 것*이다. 두 응답은 상태 코드부터 다르므로 `validation` 키의 유무로
+> 추론할 필요가 없다. 만료·미존재·이미 사용됨 셋을 구분하지 않는 것은 의도된 설계다.
+> 사용자가 할 일은 "이메일부터 다시"로 같고, 구분해 주면 토큰 대입 시도의 피드백이 된다.
+>
+> `error` 값은 Task 100(백엔드)에서 예외 클래스명에서 코드 상수로 바뀌었다.
+> 분기는 `error === "ACCOUNT_VERIFICATION_TOKEN_INVALID"` 로 한다 — 410 을 쓰는 다른 응답이
+> 나중에 생겨도 흔들리지 않는다.
 
 ### 토큰 정책
 

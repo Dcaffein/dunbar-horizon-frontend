@@ -7,5 +7,5 @@
  */
 
 export interface DeviceTokenRequest {
-  token?: string;
+  token: string;
 }
