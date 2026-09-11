@@ -37,7 +37,13 @@ npm run build    # Production build
 npm run lint     # Run ESLint
 ```
 
-There are no test commands — no test suite is configured.
+```bash
+npm test         # Run vitest once
+npm run test:watch
+```
+
+Tests are colocated with the code they cover (see File Colocation below) and are
+tracked in git. `harness/TESTING_RULES.md` Phase 1 requires them for business logic changes.
 
 ## Environment
 

@@ -50,8 +50,7 @@ PLAN.md
 harness/verify/
 harness/fixtures/
 
-# test files
-**/*.test.ts
-**/*.test.tsx
-**/*.spec.ts
-**/*.spec.tsx
+# 시연 브랜치(agent/demo-network-density) 전용 검증 파일.
+# 짝이 되는 모듈이 main 에 없어 tsc 와 vitest 를 깨뜨린다.
+# 일반 테스트는 추적한다 — CLAUDE.md 의 colocation 규칙과 TESTING_RULES Phase 1 참고.
+src/components/demoGraph/*.test.ts
