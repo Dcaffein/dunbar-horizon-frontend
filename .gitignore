@@ -45,3 +45,13 @@ verify-*.png
 verify-*.mjs
 debug-*.mjs
 PLAN.md
+
+# harness test artifacts (screenshots, scripts, fixtures)
+harness/verify/
+harness/fixtures/
+
+# test files
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
