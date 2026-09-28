@@ -32,6 +32,7 @@ import LabelManager from "../Label/LabelManager";
 import FriendActionPanel from "../FriendActionPanel/FriendActionPanel";
 import SuggestionPanel from "../SuggestionPanel/SuggestionPanel";
 import type { FriendshipDetail, NetworkFriendEdge, LayoutType } from "./types";
+import { dedupeFriends } from "./dedupeFriends";
 import type { Label, LabelMember } from "@/components/Label/types";
 import { deriveTargetNetworkEdges } from "./networkEdges";
 
@@ -65,7 +66,10 @@ export default function SocialGraph({
   unreadBuzzSenderIds = [],
 }: SocialGraphProps) {
   const router = useRouter();
-  const [friendsList, setFriendsList] = useState<FriendshipDetail[]>(friends);
+  // 백엔드가 같은 friendId 를 두 번 내려주는 경우가 있어 진입 시점에 한 번 걸러낸다.
+  const [friendsList, setFriendsList] = useState<FriendshipDetail[]>(() =>
+    dedupeFriends(friends),
+  );
   const [edges, setEdges] = useState<NetworkFriendEdge[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isGraphActive, setIsGraphActive] = useState(false);
