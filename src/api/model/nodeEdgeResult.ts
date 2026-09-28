@@ -9,5 +9,4 @@
 export interface NodeEdgeResult {
   friendId?: number;
   intimacy?: number;
-  friendInterest?: number;
 }
