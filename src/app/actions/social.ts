@@ -34,7 +34,7 @@ function parseNetworkGraph(nodes: NodeGraphResult[]): { nodeIds: number[]; edges
           friendBId: friendId,
           intimacy: edge.intimacy ?? 0,
           friendAInterest: interestMap.get(nodeId),
-          friendBInterest: edge.friendInterest,
+          friendBInterest: interestMap.get(friendId),
         });
       }
     });
